@@ -85,6 +85,35 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
+  margin-bottom: 16px;
+}
+
+.duck-rewards-section {
+  border-top: 1px solid #ddd;
+  padding-top: 12px;
+}
+
+.duck-rewards-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.duck-reward-selection-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.duck-reward-selection-row button.is-selected {
+  background: #111;
+  color: #fff;
+}
+
+.duck-reward-text {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: #333;
 }
 
 button {

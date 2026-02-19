@@ -60,11 +60,11 @@
 
 # V2 – Duck Rewards
 
-- [ ] Track completed sessions
-- [ ] Define Duck interface
-- [ ] Add duck inventory
+- [x] Track completed sessions
+- [x] Define Duck interface
+- [x] Add duck inventory
 - [ ] Add simple hatch animation
-- [ ] Persist duck data locally
+- [x] Persist duck data locally
 
 ---
 
