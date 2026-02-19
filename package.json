@@ -4,7 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "build:watch": "tsc -p tsconfig.json --watch"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "dev": "vite",
+    "build": "npm run typecheck && vite build",
+    "build:watch": "vite build --watch"
+  },
+  "devDependencies": {
+    "@crxjs/vite-plugin": "^2.3.0",
+    "@types/chrome": "^0.1.36",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1"
   }
 }

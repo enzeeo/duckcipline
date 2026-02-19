@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Duckcipline</title>
+    <link rel="stylesheet" href="./popup.css" />
+  </head>
+  <body>
+    <main class="container">
+      <section class="timer-block">
+        <h1 class="title">Duckcipline</h1>
+        <p id="timerDisplay" class="timer-display">00:25:00</p>
+        <p id="timerStatus" class="timer-status">Stopped</p>
+      </section>
+
+      <section class="controls">
+        <p class="duration-label">Duration</p>
+
+        <div class="duration-preset-row">
+          <button id="presetTwentyFiveMinutesButton" class="duration-preset-button" type="button">25m</button>
+          <button id="presetFiftyMinutesButton" class="duration-preset-button" type="button">50m</button>
+          <button id="presetCustomDurationButton" class="duration-preset-button" type="button">Custom</button>
+        </div>
+
+        <label class="duration-label" for="durationMinutesInput">Custom duration (minutes)</label>
+        <input
+          id="durationMinutesInput"
+          class="duration-input"
+          type="number"
+          min="1"
+          step="1"
+          value="25"
+          disabled
+        />
+
+        <div class="button-row">
+          <button id="startButton" type="button">Start</button>
+          <button id="pauseButton" type="button">Pause</button>
+          <button id="resetButton" type="button">Reset</button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

@@ -8,6 +8,7 @@ export interface TimerState {
 
 export interface TimerStatusResponse {
   isRunning: boolean;
+  hasStartedAtLeastOnce: boolean;
   remainingSeconds: number;
 }
 

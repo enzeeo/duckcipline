@@ -51,8 +51,27 @@ body {
 
 .duration-label {
   display: block;
-  margin-bottom: 4px;
+  margin: 0 0 6px;
   font-size: 13px;
+}
+
+.duration-preset-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.duration-preset-button {
+  padding: 8px;
+  border: 1px solid #777;
+  background: #fff;
+  cursor: pointer;
+}
+
+.duration-preset-button.is-selected {
+  background: #111;
+  color: #fff;
 }
 
 .duration-input {
@@ -64,7 +83,7 @@ body {
 
 .button-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
 }
 
@@ -73,4 +92,9 @@ button {
   border: 1px solid #777;
   background: #fff;
   cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

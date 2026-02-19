@@ -1,5 +1,7 @@
 import {
   GET_TIMER_STATE_MESSAGE_TYPE,
+  PAUSE_TIMER_MESSAGE_TYPE,
+  RESET_TIMER_MESSAGE_TYPE,
   START_TIMER_MESSAGE_TYPE,
   STOP_TIMER_MESSAGE_TYPE,
   isTimerRequestMessage,
@@ -13,6 +15,18 @@ const MILLISECONDS_PER_SECOND = 1000;
 
 function createErrorResponse(message: string): TimerMessageResponse {
   return { error: message };
+}
+
+function createTimerStatusResponse(
+  isRunning: boolean,
+  hasStartedAtLeastOnce: boolean,
+  remainingSeconds: number
+): TimerMessageResponse {
+  return {
+    isRunning,
+    hasStartedAtLeastOnce,
+    remainingSeconds
+  };
 }
 
 function createDefaultTimerState(): TimerState {
@@ -58,7 +72,7 @@ async function configureSidePanelBehavior(): Promise<void> {
   });
 }
 
-async function openSidePanelForTab(tab: ChromeTab | undefined): Promise<void> {
+async function openSidePanelForTab(tab: chrome.tabs.Tab | undefined): Promise<void> {
   if (!chrome.sidePanel || !chrome.sidePanel.open) {
     return;
   }
@@ -158,10 +172,8 @@ async function startTimer(durationSecondsFromMessage: number): Promise<TimerMess
   const timerState = await readTimerStateFromSessionStorage();
 
   if (timerState.isRunning) {
-    return {
-      isRunning: true,
-      remainingSeconds: calculateRemainingSecondsForRunningTimer(timerState, Date.now())
-    };
+    const remainingSeconds = calculateRemainingSecondsForRunningTimer(timerState, Date.now());
+    return createTimerStatusResponse(true, timerState.hasStartedAtLeastOnce, remainingSeconds);
   }
 
   const shouldResumePausedTimer =
@@ -181,20 +193,18 @@ async function startTimer(durationSecondsFromMessage: number): Promise<TimerMess
 
   await writeTimerStateToSessionStorage(startedTimerState);
 
-  return {
-    isRunning: true,
-    remainingSeconds: durationSeconds
-  };
+  return createTimerStatusResponse(true, startedTimerState.hasStartedAtLeastOnce, durationSeconds);
 }
 
-async function stopTimer(): Promise<TimerMessageResponse> {
+async function pauseTimer(): Promise<TimerMessageResponse> {
   const timerState = await readTimerStateFromSessionStorage();
 
   if (!timerState.isRunning) {
-    return {
-      isRunning: false,
-      remainingSeconds: timerState.remainingSecondsWhenNotRunning
-    };
+    return createTimerStatusResponse(
+      false,
+      timerState.hasStartedAtLeastOnce,
+      timerState.remainingSecondsWhenNotRunning
+    );
   }
 
   const remainingSecondsWhenStopped = calculateRemainingSecondsForRunningTimer(timerState, Date.now());
@@ -207,10 +217,26 @@ async function stopTimer(): Promise<TimerMessageResponse> {
 
   await writeTimerStateToSessionStorage(stoppedTimerState);
 
-  return {
+  return createTimerStatusResponse(
+    false,
+    stoppedTimerState.hasStartedAtLeastOnce,
+    stoppedTimerState.remainingSecondsWhenNotRunning
+  );
+}
+
+async function resetTimer(durationSecondsFromMessage: number): Promise<TimerMessageResponse> {
+  const durationSeconds = parseDurationSeconds(durationSecondsFromMessage);
+  const resetTimerState: TimerState = {
     isRunning: false,
-    remainingSeconds: stoppedTimerState.remainingSecondsWhenNotRunning
+    hasStartedAtLeastOnce: false,
+    configuredDurationSeconds: durationSeconds,
+    startedAtTimestampMilliseconds: null,
+    remainingSecondsWhenNotRunning: durationSeconds
   };
+
+  await writeTimerStateToSessionStorage(resetTimerState);
+
+  return createTimerStatusResponse(false, resetTimerState.hasStartedAtLeastOnce, durationSeconds);
 }
 
 async function getTimerStateMessageResponse(): Promise<TimerMessageResponse> {
@@ -218,10 +244,11 @@ async function getTimerStateMessageResponse(): Promise<TimerMessageResponse> {
   const timerState = await getCanonicalTimerState();
 
   if (!timerState.isRunning) {
-    return {
-      isRunning: false,
-      remainingSeconds: timerState.remainingSecondsWhenNotRunning
-    };
+    return createTimerStatusResponse(
+      false,
+      timerState.hasStartedAtLeastOnce,
+      timerState.remainingSecondsWhenNotRunning
+    );
   }
 
   const remainingSeconds = calculateRemainingSecondsForRunningTimer(timerState, nowTimestampMilliseconds);
@@ -236,16 +263,10 @@ async function getTimerStateMessageResponse(): Promise<TimerMessageResponse> {
 
     await writeTimerStateToSessionStorage(completedTimerState);
 
-    return {
-      isRunning: false,
-      remainingSeconds: 0
-    };
+    return createTimerStatusResponse(false, completedTimerState.hasStartedAtLeastOnce, 0);
   }
 
-  return {
-    isRunning: true,
-    remainingSeconds
-  };
+  return createTimerStatusResponse(true, timerState.hasStartedAtLeastOnce, remainingSeconds);
 }
 
 async function handleTimerRequestMessage(message: TimerRequestMessage): Promise<TimerMessageResponse> {
@@ -253,8 +274,12 @@ async function handleTimerRequestMessage(message: TimerRequestMessage): Promise<
     return startTimer(message.durationSeconds);
   }
 
-  if (message.type === STOP_TIMER_MESSAGE_TYPE) {
-    return stopTimer();
+  if (message.type === PAUSE_TIMER_MESSAGE_TYPE || message.type === STOP_TIMER_MESSAGE_TYPE) {
+    return pauseTimer();
+  }
+
+  if (message.type === RESET_TIMER_MESSAGE_TYPE) {
+    return resetTimer(message.durationSeconds);
   }
 
   if (message.type === GET_TIMER_STATE_MESSAGE_TYPE) {
