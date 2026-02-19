@@ -6,43 +6,43 @@
 
 - [ ] Initialize Vite + TypeScript project
 - [ ] Install CRXJS plugin
-- [ ] Configure Manifest V3
-- [ ] Add storage permission
-- [ ] Configure background service worker
+- [x] Configure Manifest V3
+- [x] Add storage permission
+- [x] Configure background service worker
 
 ---
 
 ## Core Timer Logic
 
-- [ ] Define TimerState interface
-- [ ] Implement startTimer(durationMs)
+- [x] Define TimerState interface
+- [x] Implement startTimer(durationMs)
 - [ ] Implement pauseTimer()
 - [ ] Implement resetTimer()
-- [ ] Implement getRemainingTime()
-- [ ] Ensure timestamp-based accuracy
+- [x] Implement getRemainingTime()
+- [x] Ensure timestamp-based accuracy
 
 ---
 
 ## Background Service Worker
 
-- [ ] Implement message listener
-- [ ] Handle START message
+- [x] Implement message listener
+- [x] Handle START message
 - [ ] Handle PAUSE message
 - [ ] Handle RESET message
-- [ ] Handle GET_STATE message
-- [ ] Store state in chrome.storage.session
+- [x] Handle GET_STATE message
+- [x] Store state in chrome.storage.session
 
 ---
 
 ## Popup UI
 
-- [ ] Create popup layout
+- [x] Create popup layout
 - [ ] Add preset duration buttons (25 / 50)
-- [ ] Add custom duration input
-- [ ] Add Start button
+- [x] Add custom duration input
+- [x] Add Start button
 - [ ] Add Pause button
 - [ ] Add Reset button
-- [ ] Display countdown
+- [x] Display countdown
 - [ ] Poll background every 500ms
 
 ---

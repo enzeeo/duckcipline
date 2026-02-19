@@ -1,231 +1,230 @@
+import { GET_TIMER_STATE_MESSAGE_TYPE, START_TIMER_MESSAGE_TYPE, STOP_TIMER_MESSAGE_TYPE, isTimerRequestMessage } from "../shared/messages.js";
 const TIMER_STATE_STORAGE_KEY = "timerState";
 const DEFAULT_DURATION_SECONDS = 25 * 60;
 const MILLISECONDS_PER_SECOND = 1000;
-
-async function configureSidePanelBehavior() {
-  if (!chrome.sidePanel || !chrome.sidePanel.setPanelBehavior) {
-    return;
-  }
-
-  await chrome.sidePanel.setPanelBehavior({
-    openPanelOnActionClick: true
-  });
+function createErrorResponse(message) {
+    return { error: message };
 }
-
-configureSidePanelBehavior().catch((error) => {
-  console.error("Failed to configure side panel behavior on service worker load.", error);
-});
-
-async function openSidePanelForTab(tab) {
-  if (!chrome.sidePanel || !chrome.sidePanel.open) {
-    return;
-  }
-
-  if (!tab || !Number.isInteger(tab.windowId)) {
-    return;
-  }
-
-  await chrome.sidePanel.open({
-    windowId: tab.windowId
-  });
-}
-
 function createDefaultTimerState() {
-  return {
-    isRunning: false,
-    configuredDurationSeconds: DEFAULT_DURATION_SECONDS,
-    startedAtTimestampMilliseconds: null,
-    remainingSecondsWhenNotRunning: DEFAULT_DURATION_SECONDS
-  };
-}
-
-async function readTimerStateFromSessionStorage() {
-  const storageValues = await chrome.storage.session.get(TIMER_STATE_STORAGE_KEY);
-  const storedTimerState = storageValues[TIMER_STATE_STORAGE_KEY];
-
-  if (!storedTimerState) {
-    return createDefaultTimerState();
-  }
-
-  return {
-    ...createDefaultTimerState(),
-    ...storedTimerState
-  };
-}
-
-async function writeTimerStateToSessionStorage(timerState) {
-  await chrome.storage.session.set({
-    [TIMER_STATE_STORAGE_KEY]: timerState
-  });
-}
-
-function calculateRemainingSecondsForRunningTimer(timerState, nowTimestampMilliseconds) {
-  if (!timerState.startedAtTimestampMilliseconds) {
-    return timerState.configuredDurationSeconds;
-  }
-
-  const elapsedMilliseconds = nowTimestampMilliseconds - timerState.startedAtTimestampMilliseconds;
-  const elapsedSeconds = Math.floor(elapsedMilliseconds / MILLISECONDS_PER_SECOND);
-  const remainingSeconds = timerState.configuredDurationSeconds - elapsedSeconds;
-
-  if (remainingSeconds < 0) {
-    return 0;
-  }
-
-  return remainingSeconds;
-}
-
-async function getCanonicalTimerState() {
-  const nowTimestampMilliseconds = Date.now();
-  const timerState = await readTimerStateFromSessionStorage();
-
-  if (!timerState.isRunning) {
-    return timerState;
-  }
-
-  const remainingSeconds = calculateRemainingSecondsForRunningTimer(timerState, nowTimestampMilliseconds);
-
-  if (remainingSeconds > 0) {
-    return timerState;
-  }
-
-  const completedTimerState = {
-    ...timerState,
-    isRunning: false,
-    startedAtTimestampMilliseconds: null,
-    remainingSecondsWhenNotRunning: 0
-  };
-
-  await writeTimerStateToSessionStorage(completedTimerState);
-  return completedTimerState;
-}
-
-function parseDurationSeconds(durationSecondsFromMessage) {
-  if (!Number.isFinite(durationSecondsFromMessage)) {
-    return DEFAULT_DURATION_SECONDS;
-  }
-
-  if (durationSecondsFromMessage < 1) {
-    return DEFAULT_DURATION_SECONDS;
-  }
-
-  return Math.floor(durationSecondsFromMessage);
-}
-
-async function startTimer(durationSecondsFromMessage) {
-  const durationSeconds = parseDurationSeconds(durationSecondsFromMessage);
-  const startedTimerState = {
-    isRunning: true,
-    configuredDurationSeconds: durationSeconds,
-    startedAtTimestampMilliseconds: Date.now(),
-    remainingSecondsWhenNotRunning: durationSeconds
-  };
-
-  await writeTimerStateToSessionStorage(startedTimerState);
-
-  return {
-    isRunning: true,
-    remainingSeconds: durationSeconds
-  };
-}
-
-async function stopTimer() {
-  const timerState = await readTimerStateFromSessionStorage();
-  const stoppedTimerState = {
-    ...timerState,
-    isRunning: false,
-    startedAtTimestampMilliseconds: null,
-    remainingSecondsWhenNotRunning: timerState.configuredDurationSeconds
-  };
-
-  await writeTimerStateToSessionStorage(stoppedTimerState);
-
-  return {
-    isRunning: false,
-    remainingSeconds: stoppedTimerState.remainingSecondsWhenNotRunning
-  };
-}
-
-async function getTimerStateMessageResponse() {
-  const nowTimestampMilliseconds = Date.now();
-  const timerState = await getCanonicalTimerState();
-
-  if (!timerState.isRunning) {
     return {
-      isRunning: false,
-      remainingSeconds: timerState.remainingSecondsWhenNotRunning
+        isRunning: false,
+        hasStartedAtLeastOnce: false,
+        configuredDurationSeconds: DEFAULT_DURATION_SECONDS,
+        startedAtTimestampMilliseconds: null,
+        remainingSecondsWhenNotRunning: DEFAULT_DURATION_SECONDS
     };
-  }
-
-  const remainingSeconds = calculateRemainingSecondsForRunningTimer(timerState, nowTimestampMilliseconds);
-
-  if (remainingSeconds < 1) {
-    const completedTimerState = {
-      ...timerState,
-      isRunning: false,
-      startedAtTimestampMilliseconds: null,
-      remainingSecondsWhenNotRunning: 0
-    };
-
-    await writeTimerStateToSessionStorage(completedTimerState);
-
-    return {
-      isRunning: false,
-      remainingSeconds: 0
-    };
-  }
-
-  return {
-    isRunning: true,
-    remainingSeconds
-  };
 }
-
-chrome.runtime.onInstalled.addListener(async () => {
-  await configureSidePanelBehavior();
-  const timerState = await readTimerStateFromSessionStorage();
-  await writeTimerStateToSessionStorage(timerState);
-});
-
-chrome.runtime.onStartup.addListener(async () => {
-  await configureSidePanelBehavior();
-});
-
-chrome.action.onClicked.addListener((tab) => {
-  openSidePanelForTab(tab).catch((error) => {
-    console.error("Failed to open side panel from toolbar click.", error);
-  });
-});
-
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!message || typeof message.type !== "string") {
-    sendResponse({ error: "Invalid message." });
-    return;
-  }
-
-  const handleMessageAsync = async () => {
-    if (message.type === "startTimer") {
-      return startTimer(message.durationSeconds);
+function isTimerState(value) {
+    if (typeof value !== "object" || value === null) {
+        return false;
     }
-
-    if (message.type === "stopTimer") {
-      return stopTimer();
+    const possibleTimerState = value;
+    const hasValidStartTimestamp = typeof possibleTimerState.startedAtTimestampMilliseconds === "number" ||
+        possibleTimerState.startedAtTimestampMilliseconds === null;
+    const hasValidStartHistory = typeof possibleTimerState.hasStartedAtLeastOnce === "boolean" ||
+        typeof possibleTimerState.hasStartedAtLeastOnce === "undefined";
+    return (typeof possibleTimerState.isRunning === "boolean" &&
+        hasValidStartHistory &&
+        typeof possibleTimerState.configuredDurationSeconds === "number" &&
+        hasValidStartTimestamp &&
+        typeof possibleTimerState.remainingSecondsWhenNotRunning === "number");
+}
+async function configureSidePanelBehavior() {
+    if (!chrome.sidePanel || !chrome.sidePanel.setPanelBehavior) {
+        return;
     }
-
-    if (message.type === "getTimerState") {
-      return getTimerStateMessageResponse();
-    }
-
-    return { error: "Unknown message type." };
-  };
-
-  handleMessageAsync()
-    .then((messageResponse) => {
-      sendResponse(messageResponse);
-    })
-    .catch((error) => {
-      sendResponse({ error: error.message || "Unexpected error." });
+    await chrome.sidePanel.setPanelBehavior({
+        openPanelOnActionClick: true
     });
-
-  return true;
+}
+async function openSidePanelForTab(tab) {
+    if (!chrome.sidePanel || !chrome.sidePanel.open) {
+        return;
+    }
+    const windowIdentifier = tab?.windowId;
+    if (typeof windowIdentifier !== "number") {
+        return;
+    }
+    if (!Number.isInteger(windowIdentifier)) {
+        return;
+    }
+    await chrome.sidePanel.open({
+        windowId: windowIdentifier
+    });
+}
+async function readTimerStateFromSessionStorage() {
+    const storageValues = await chrome.storage.session.get(TIMER_STATE_STORAGE_KEY);
+    const storedTimerState = storageValues[TIMER_STATE_STORAGE_KEY];
+    if (!isTimerState(storedTimerState)) {
+        return createDefaultTimerState();
+    }
+    return {
+        ...createDefaultTimerState(),
+        ...storedTimerState
+    };
+}
+async function writeTimerStateToSessionStorage(timerState) {
+    await chrome.storage.session.set({
+        [TIMER_STATE_STORAGE_KEY]: timerState
+    });
+}
+function calculateRemainingSecondsForRunningTimer(timerState, nowTimestampMilliseconds) {
+    if (!timerState.startedAtTimestampMilliseconds) {
+        return timerState.configuredDurationSeconds;
+    }
+    const elapsedMilliseconds = nowTimestampMilliseconds - timerState.startedAtTimestampMilliseconds;
+    const elapsedSeconds = Math.floor(elapsedMilliseconds / MILLISECONDS_PER_SECOND);
+    const remainingSeconds = timerState.configuredDurationSeconds - elapsedSeconds;
+    if (remainingSeconds < 0) {
+        return 0;
+    }
+    return remainingSeconds;
+}
+async function getCanonicalTimerState() {
+    const nowTimestampMilliseconds = Date.now();
+    const timerState = await readTimerStateFromSessionStorage();
+    if (!timerState.isRunning) {
+        return timerState;
+    }
+    const remainingSeconds = calculateRemainingSecondsForRunningTimer(timerState, nowTimestampMilliseconds);
+    if (remainingSeconds > 0) {
+        return timerState;
+    }
+    const completedTimerState = {
+        ...timerState,
+        isRunning: false,
+        startedAtTimestampMilliseconds: null,
+        remainingSecondsWhenNotRunning: 0
+    };
+    await writeTimerStateToSessionStorage(completedTimerState);
+    return completedTimerState;
+}
+function parseDurationSeconds(durationSecondsFromMessage) {
+    if (!Number.isFinite(durationSecondsFromMessage)) {
+        return DEFAULT_DURATION_SECONDS;
+    }
+    if (durationSecondsFromMessage < 1) {
+        return DEFAULT_DURATION_SECONDS;
+    }
+    return Math.floor(durationSecondsFromMessage);
+}
+async function startTimer(durationSecondsFromMessage) {
+    const timerState = await readTimerStateFromSessionStorage();
+    if (timerState.isRunning) {
+        return {
+            isRunning: true,
+            remainingSeconds: calculateRemainingSecondsForRunningTimer(timerState, Date.now())
+        };
+    }
+    const shouldResumePausedTimer = timerState.hasStartedAtLeastOnce && timerState.remainingSecondsWhenNotRunning > 0;
+    const durationSeconds = shouldResumePausedTimer
+        ? timerState.remainingSecondsWhenNotRunning
+        : parseDurationSeconds(durationSecondsFromMessage);
+    const startedTimerState = {
+        isRunning: true,
+        hasStartedAtLeastOnce: true,
+        configuredDurationSeconds: durationSeconds,
+        startedAtTimestampMilliseconds: Date.now(),
+        remainingSecondsWhenNotRunning: durationSeconds
+    };
+    await writeTimerStateToSessionStorage(startedTimerState);
+    return {
+        isRunning: true,
+        remainingSeconds: durationSeconds
+    };
+}
+async function stopTimer() {
+    const timerState = await readTimerStateFromSessionStorage();
+    if (!timerState.isRunning) {
+        return {
+            isRunning: false,
+            remainingSeconds: timerState.remainingSecondsWhenNotRunning
+        };
+    }
+    const remainingSecondsWhenStopped = calculateRemainingSecondsForRunningTimer(timerState, Date.now());
+    const stoppedTimerState = {
+        ...timerState,
+        isRunning: false,
+        startedAtTimestampMilliseconds: null,
+        remainingSecondsWhenNotRunning: remainingSecondsWhenStopped
+    };
+    await writeTimerStateToSessionStorage(stoppedTimerState);
+    return {
+        isRunning: false,
+        remainingSeconds: stoppedTimerState.remainingSecondsWhenNotRunning
+    };
+}
+async function getTimerStateMessageResponse() {
+    const nowTimestampMilliseconds = Date.now();
+    const timerState = await getCanonicalTimerState();
+    if (!timerState.isRunning) {
+        return {
+            isRunning: false,
+            remainingSeconds: timerState.remainingSecondsWhenNotRunning
+        };
+    }
+    const remainingSeconds = calculateRemainingSecondsForRunningTimer(timerState, nowTimestampMilliseconds);
+    if (remainingSeconds < 1) {
+        const completedTimerState = {
+            ...timerState,
+            isRunning: false,
+            startedAtTimestampMilliseconds: null,
+            remainingSecondsWhenNotRunning: 0
+        };
+        await writeTimerStateToSessionStorage(completedTimerState);
+        return {
+            isRunning: false,
+            remainingSeconds: 0
+        };
+    }
+    return {
+        isRunning: true,
+        remainingSeconds
+    };
+}
+async function handleTimerRequestMessage(message) {
+    if (message.type === START_TIMER_MESSAGE_TYPE) {
+        return startTimer(message.durationSeconds);
+    }
+    if (message.type === STOP_TIMER_MESSAGE_TYPE) {
+        return stopTimer();
+    }
+    if (message.type === GET_TIMER_STATE_MESSAGE_TYPE) {
+        return getTimerStateMessageResponse();
+    }
+    return createErrorResponse("Unknown message type.");
+}
+configureSidePanelBehavior().catch((error) => {
+    console.error("Failed to configure side panel behavior on service worker load.", error);
+});
+chrome.runtime.onInstalled.addListener(async () => {
+    await configureSidePanelBehavior();
+    const timerState = await readTimerStateFromSessionStorage();
+    await writeTimerStateToSessionStorage(timerState);
+});
+chrome.runtime.onStartup.addListener(async () => {
+    await configureSidePanelBehavior();
+});
+chrome.action.onClicked.addListener((tab) => {
+    openSidePanelForTab(tab).catch((error) => {
+        console.error("Failed to open side panel from toolbar click.", error);
+    });
+});
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (!isTimerRequestMessage(message)) {
+        sendResponse(createErrorResponse("Invalid message."));
+        return;
+    }
+    handleTimerRequestMessage(message)
+        .then((messageResponse) => {
+        sendResponse(messageResponse);
+    })
+        .catch((error) => {
+        if (error instanceof Error) {
+            sendResponse(createErrorResponse(error.message));
+            return;
+        }
+        sendResponse(createErrorResponse("Unexpected error."));
+    });
+    return true;
 });
