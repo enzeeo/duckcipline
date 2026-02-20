@@ -54,6 +54,16 @@ function getRequiredInputElement(elementId: string): HTMLInputElement {
   return element;
 }
 
+function getRequiredLabelElement(elementId: string): HTMLLabelElement {
+  const element = document.getElementById(elementId);
+
+  if (!(element instanceof HTMLLabelElement)) {
+    throw new Error(`Required label element not found: ${elementId}`);
+  }
+
+  return element;
+}
+
 function getRequiredButtonElement(elementId: string): HTMLButtonElement {
   const element = document.getElementById(elementId);
 
@@ -69,6 +79,7 @@ const timerDisplayElement = getRequiredParagraphElement("timerDisplay");
 const selectedDuckRewardRemainingTextElement = getRequiredParagraphElement("selectedDuckRewardRemainingText");
 const claimDuckRewardButtonElement = getRequiredButtonElement("claimDuckRewardButton");
 
+const customDurationInputLabelElement = getRequiredLabelElement("customDurationInputLabel");
 const durationMinutesInputElement = getRequiredInputElement("durationMinutesInput");
 const presetTwentyFiveMinutesButtonElement = getRequiredButtonElement("presetTwentyFiveMinutesButton");
 const presetFiftyMinutesButtonElement = getRequiredButtonElement("presetFiftyMinutesButton");
@@ -84,11 +95,15 @@ const totalCompletedSessionsTextElement = getRequiredParagraphElement("totalComp
 const totalCompletedFocusSecondsTextElement = getRequiredParagraphElement("totalCompletedFocusSecondsText");
 const duckEggOneStatusTextElement = getRequiredParagraphElement("duckEggOneStatusText");
 const duckEggTwoStatusTextElement = getRequiredParagraphElement("duckEggTwoStatusText");
+const timerDebugStateTextElement = getRequiredParagraphElement("timerDebugStateText");
+const duckRewardsDebugStateTextElement = getRequiredParagraphElement("duckRewardsDebugStateText");
 
 let selectedDurationSelectionMode: DurationSelectionMode = "twentyFive";
 let isTimerRunningInCurrentViewState = false;
 let selectedDuckRewardItemIdInCurrentViewState: DuckRewardItemId | null = null;
 let isCustomDurationInputRepresentingSeconds = false;
+let latestTimerMessageResponseForDebug: TimerMessageResponse | null = null;
+let latestDuckRewardsMessageResponseForDebug: DuckRewardsMessageResponse | null = null;
 
 function createErrorResponse(message: string): ErrorResponse {
   return { error: message };
@@ -143,6 +158,15 @@ function getSelectedDurationSeconds(): number {
   return Math.max(1, Math.round(customDurationMinutes * SECONDS_PER_MINUTE));
 }
 
+function updateCustomDurationInputLabelText(): void {
+  const isCustomMode = selectedDurationSelectionMode === "custom";
+  const shouldUseSecondsLabel = isCustomMode && isCustomDurationInputRepresentingSeconds;
+
+  customDurationInputLabelElement.textContent = shouldUseSecondsLabel
+    ? "Custom duration (seconds)"
+    : "Custom duration (minutes)";
+}
+
 function setDurationSelectionMode(durationSelectionMode: DurationSelectionMode): void {
   selectedDurationSelectionMode = durationSelectionMode;
 
@@ -153,6 +177,7 @@ function setDurationSelectionMode(durationSelectionMode: DurationSelectionMode):
   presetTwentyFiveMinutesButtonElement.classList.toggle("is-selected", isTwentyFiveMode);
   presetFiftyMinutesButtonElement.classList.toggle("is-selected", isFiftyMode);
   presetCustomDurationButtonElement.classList.toggle("is-selected", isCustomMode);
+  updateCustomDurationInputLabelText();
 
   if (isTwentyFiveMode) {
     durationMinutesInputElement.value = String(PRESET_TWENTY_FIVE_MINUTES);
@@ -206,15 +231,19 @@ function updateActionButtons(timerState: TimerMessageResponse): void {
 }
 
 function updateTimerDisplay(timerState: TimerMessageResponse): void {
+  latestTimerMessageResponseForDebug = timerState;
+
   if ("error" in timerState) {
     isTimerRunningInCurrentViewState = false;
     updateActionButtons(timerState);
+    updateDebugStateText();
     return;
   }
 
   isTimerRunningInCurrentViewState = timerState.isRunning;
   timerDisplayElement.textContent = formatAsHoursMinutesSeconds(timerState.remainingSeconds);
   updateActionButtons(timerState);
+  updateDebugStateText();
 }
 
 function calculateDuckRewardItemHatchCounts(ducks: Duck[]): Record<DuckRewardItemId, number> {
@@ -302,10 +331,52 @@ function createSelectedDuckRewardRemainingLabel(duckRewardsState: DuckRewardsMes
   return `Reward time left: ${formatAsHoursMinutesSeconds(remainingSeconds)}`;
 }
 
+function createTimerDebugStateLabel(timerState: TimerMessageResponse | null): string {
+  if (timerState === null) {
+    return "Timer debug: loading";
+  }
+
+  if ("error" in timerState) {
+    return `Timer debug: error=${timerState.error}`;
+  }
+
+  return (
+    `Timer debug: isRunning=${timerState.isRunning}, ` +
+    `hasStartedAtLeastOnce=${timerState.hasStartedAtLeastOnce}, ` +
+    `remainingSeconds=${timerState.remainingSeconds}, ` +
+    `configuredDurationSeconds=${timerState.configuredDurationSeconds}`
+  );
+}
+
+function createDuckRewardsDebugStateLabel(duckRewardsState: DuckRewardsMessageResponse | null): string {
+  if (duckRewardsState === null) {
+    return "Duck rewards debug: loading";
+  }
+
+  if ("error" in duckRewardsState) {
+    return `Duck rewards debug: error=${duckRewardsState.error}`;
+  }
+
+  return (
+    `Duck rewards debug: selectedDuckRewardItemId=${duckRewardsState.selectedDuckRewardItemId ?? "none"}, ` +
+    `progressSeconds=${duckRewardsState.selectedDuckRewardItemProgressSeconds}, ` +
+    `isClaimAvailable=${duckRewardsState.isSelectedDuckRewardClaimAvailable}, ` +
+    `duckCount=${duckRewardsState.ducks.length}`
+  );
+}
+
+function updateDebugStateText(): void {
+  timerDebugStateTextElement.textContent = createTimerDebugStateLabel(latestTimerMessageResponseForDebug);
+  duckRewardsDebugStateTextElement.textContent =
+    createDuckRewardsDebugStateLabel(latestDuckRewardsMessageResponseForDebug);
+}
+
 function updateDuckRewardsDisplay(duckRewardsState: DuckRewardsMessageResponse): void {
+  latestDuckRewardsMessageResponseForDebug = duckRewardsState;
   selectedDuckRewardItemTextElement.textContent = createSelectedDuckRewardLabel(duckRewardsState);
   selectedDuckRewardRemainingTextElement.textContent = createSelectedDuckRewardRemainingLabel(duckRewardsState);
   updateClaimDuckRewardButtonVisibility(duckRewardsState);
+  updateDebugStateText();
 
   if ("error" in duckRewardsState) {
     updateDuckRewardSelectionButtons(

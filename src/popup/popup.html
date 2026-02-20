@@ -29,7 +29,9 @@
           <button id="presetCustomDurationButton" class="duration-preset-button" type="button">Custom</button>
         </div>
 
-        <label class="duration-label" for="durationMinutesInput">Custom duration (minutes)</label>
+        <label id="customDurationInputLabel" class="duration-label" for="durationMinutesInput">
+          Custom duration (minutes)
+        </label>
         <input
           id="durationMinutesInput"
           class="duration-input"
@@ -59,6 +61,12 @@
           <p id="totalCompletedFocusSecondsText" class="duck-reward-text">Completed focus seconds: 0</p>
           <p id="duckEggOneStatusText" class="duck-reward-text">Duck Egg 1: Locked (0)</p>
           <p id="duckEggTwoStatusText" class="duck-reward-text">Duck Egg 2: Locked (0)</p>
+        </section>
+
+        <section class="debug-state-section">
+          <h2 class="debug-state-title">Debug State (Temporary)</h2>
+          <p id="timerDebugStateText" class="debug-state-text">Timer: loading</p>
+          <p id="duckRewardsDebugStateText" class="debug-state-text">Duck rewards: loading</p>
         </section>
       </section>
     </main>

@@ -145,6 +145,26 @@ body {
   color: #333;
 }
 
+.debug-state-section {
+  margin-top: 12px;
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 10px;
+}
+
+.debug-state-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.debug-state-text {
+  margin: 0 0 4px;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
 button {
   padding: 8px;
   border: 1px solid #777;
