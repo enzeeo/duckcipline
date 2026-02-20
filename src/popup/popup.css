@@ -52,11 +52,6 @@ body {
   color: #444;
 }
 
-.timer-status {
-  margin: 8px 0 0;
-  color: #555;
-}
-
 .claim-duck-reward-button {
   margin-top: 8px;
 }
@@ -124,6 +119,16 @@ body {
 .duck-reward-selection-row button.is-selected {
   background: #111;
   color: #fff;
+}
+
+.duck-reward-selection-row button.is-locked {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+  color: #6b7280;
+}
+
+.duck-reward-selection-row button:disabled {
+  opacity: 1;
 }
 
 .duck-reward-text {

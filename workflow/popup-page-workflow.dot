@@ -75,8 +75,8 @@ digraph PopupPageWorkflow {
   user_opens_panel -> initialize_ui;
   initialize_ui -> initial_refresh;
   initial_refresh -> timer_and_reward_display;
-  timer_and_reward_display:s -> polling_refresh:n [minlen=2, weight=60];
-  polling_refresh:n -> timer_and_reward_display:s [constraint=false];
+  timer_and_reward_display:sw -> polling_refresh:n [minlen=2, weight=60];
+  polling_refresh:n -> timer_and_reward_display:sw [constraint=false];
 
   { rank=same; pause_timer; reset_timer; }
   { rank=same; choose_duration; select_reward; }

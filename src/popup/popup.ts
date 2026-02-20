@@ -67,7 +67,6 @@ function getRequiredButtonElement(elementId: string): HTMLButtonElement {
 const selectedDuckRewardItemTextElement = getRequiredParagraphElement("selectedDuckRewardItemText");
 const timerDisplayElement = getRequiredParagraphElement("timerDisplay");
 const selectedDuckRewardRemainingTextElement = getRequiredParagraphElement("selectedDuckRewardRemainingText");
-const timerStatusElement = getRequiredParagraphElement("timerStatus");
 const claimDuckRewardButtonElement = getRequiredButtonElement("claimDuckRewardButton");
 
 const durationMinutesInputElement = getRequiredInputElement("durationMinutesInput");
@@ -87,6 +86,7 @@ const duckEggOneStatusTextElement = getRequiredParagraphElement("duckEggOneStatu
 const duckEggTwoStatusTextElement = getRequiredParagraphElement("duckEggTwoStatusText");
 
 let selectedDurationSelectionMode: DurationSelectionMode = "twentyFive";
+let isTimerRunningInCurrentViewState = false;
 
 function createErrorResponse(message: string): ErrorResponse {
   return { error: message };
@@ -153,26 +153,6 @@ function setDurationSelectionMode(durationSelectionMode: DurationSelectionMode):
   durationMinutesInputElement.focus();
 }
 
-function createTimerStatusLabel(timerState: TimerMessageResponse): string {
-  if ("error" in timerState) {
-    return "Error";
-  }
-
-  if (timerState.isRunning) {
-    return "Running";
-  }
-
-  if (timerState.hasStartedAtLeastOnce && timerState.remainingSeconds === 0) {
-    return "Completed";
-  }
-
-  if (timerState.hasStartedAtLeastOnce) {
-    return "Paused";
-  }
-
-  return "Ready";
-}
-
 function updateActionButtons(timerState: TimerMessageResponse): void {
   if ("error" in timerState) {
     startButtonElement.textContent = "Start / Resume";
@@ -183,7 +163,7 @@ function updateActionButtons(timerState: TimerMessageResponse): void {
   }
 
   if (timerState.isRunning) {
-    startButtonElement.textContent = "Running";
+    startButtonElement.textContent = "Started";
     startButtonElement.disabled = true;
     pauseButtonElement.disabled = false;
     resetButtonElement.disabled = false;
@@ -203,13 +183,13 @@ function updateActionButtons(timerState: TimerMessageResponse): void {
 
 function updateTimerDisplay(timerState: TimerMessageResponse): void {
   if ("error" in timerState) {
-    timerStatusElement.textContent = "Error";
+    isTimerRunningInCurrentViewState = false;
     updateActionButtons(timerState);
     return;
   }
 
+  isTimerRunningInCurrentViewState = timerState.isRunning;
   timerDisplayElement.textContent = formatAsHoursMinutesSeconds(timerState.remainingSeconds);
-  timerStatusElement.textContent = createTimerStatusLabel(timerState);
   updateActionButtons(timerState);
 }
 
@@ -223,12 +203,21 @@ function calculateDuckRewardItemHatchCounts(ducks: Duck[]): Record<DuckRewardIte
   );
 }
 
-function updateDuckRewardSelectionButtons(selectedDuckRewardItemId: DuckRewardItemId | null): void {
+function updateDuckRewardSelectionButtons(
+  selectedDuckRewardItemId: DuckRewardItemId | null,
+  isTimerRunning: boolean
+): void {
   const hasSelectedDuckEggOne = selectedDuckRewardItemId === "duckEgg1";
   const hasSelectedDuckEggTwo = selectedDuckRewardItemId === "duckEgg2";
+  const isDuckEggOneLocked = isTimerRunning && !hasSelectedDuckEggOne;
+  const isDuckEggTwoLocked = isTimerRunning && !hasSelectedDuckEggTwo;
 
   selectDuckEggOneButtonElement.classList.toggle("is-selected", hasSelectedDuckEggOne);
   selectDuckEggTwoButtonElement.classList.toggle("is-selected", hasSelectedDuckEggTwo);
+  selectDuckEggOneButtonElement.classList.toggle("is-locked", isDuckEggOneLocked);
+  selectDuckEggTwoButtonElement.classList.toggle("is-locked", isDuckEggTwoLocked);
+  selectDuckEggOneButtonElement.disabled = isTimerRunning;
+  selectDuckEggTwoButtonElement.disabled = isTimerRunning;
 }
 
 function updateClaimDuckRewardButtonVisibility(duckRewardsState: DuckRewardsMessageResponse): void {
@@ -291,6 +280,7 @@ function updateDuckRewardsDisplay(duckRewardsState: DuckRewardsMessageResponse):
   updateClaimDuckRewardButtonVisibility(duckRewardsState);
 
   if ("error" in duckRewardsState) {
+    updateDuckRewardSelectionButtons(null, isTimerRunningInCurrentViewState);
     selectedDuckRewardProgressTextElement.textContent = "Progress: unavailable";
     totalCompletedSessionsTextElement.textContent = "Completed sessions: unavailable";
     totalCompletedFocusSecondsTextElement.textContent = "Completed focus seconds: unavailable";
@@ -316,7 +306,7 @@ function updateDuckRewardsDisplay(duckRewardsState: DuckRewardsMessageResponse):
 
   if (!duckRewardsState.selectedDuckRewardItemId) {
     selectedDuckRewardProgressTextElement.textContent = "Progress: choose a reward item";
-    updateDuckRewardSelectionButtons(null);
+    updateDuckRewardSelectionButtons(null, isTimerRunningInCurrentViewState);
     return;
   }
 
@@ -327,7 +317,10 @@ function updateDuckRewardsDisplay(duckRewardsState: DuckRewardsMessageResponse):
     `Progress: ${duckRewardsState.selectedDuckRewardItemProgressSeconds} / ` +
     `${selectedDuckRewardDefinition.requiredProgressSeconds} seconds`;
 
-  updateDuckRewardSelectionButtons(duckRewardsState.selectedDuckRewardItemId);
+  updateDuckRewardSelectionButtons(
+    duckRewardsState.selectedDuckRewardItemId,
+    isTimerRunningInCurrentViewState
+  );
 }
 
 async function sendTimerRuntimeMessage(message: TimerRequestMessage): Promise<TimerMessageResponse> {
@@ -402,6 +395,10 @@ async function handleResetButtonClick(): Promise<void> {
 }
 
 async function handleSelectDuckRewardItemButtonClick(duckRewardItemId: DuckRewardItemId): Promise<void> {
+  if (isTimerRunningInCurrentViewState) {
+    return;
+  }
+
   const selectDuckRewardItemMessage: SelectDuckRewardItemMessage = {
     type: SELECT_DUCK_REWARD_ITEM_MESSAGE_TYPE,
     duckRewardItemId
@@ -410,7 +407,7 @@ async function handleSelectDuckRewardItemButtonClick(duckRewardItemId: DuckRewar
   const duckRewardsState = await sendDuckRewardsRuntimeMessage(selectDuckRewardItemMessage);
 
   if ("error" in duckRewardsState) {
-    selectedDuckRewardItemTextElement.textContent = duckRewardsState.error;
+    await refreshAllDisplays();
     return;
   }
 
@@ -448,7 +445,7 @@ startButtonElement.addEventListener("click", () => {
   handleStartButtonClick()
     .then(() => refreshDuckRewardsDisplay())
     .catch(() => {
-      timerStatusElement.textContent = "Error";
+      selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
     });
 });
 
@@ -456,7 +453,7 @@ pauseButtonElement.addEventListener("click", () => {
   handlePauseButtonClick()
     .then(() => refreshDuckRewardsDisplay())
     .catch(() => {
-      timerStatusElement.textContent = "Error";
+      selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
     });
 });
 
@@ -464,19 +461,19 @@ resetButtonElement.addEventListener("click", () => {
   handleResetButtonClick()
     .then(() => refreshDuckRewardsDisplay())
     .catch(() => {
-      timerStatusElement.textContent = "Error";
+      selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
     });
 });
 
 selectDuckEggOneButtonElement.addEventListener("click", () => {
   handleSelectDuckRewardItemButtonClick("duckEgg1").catch(() => {
-    selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
+    refreshAllDisplays().catch(() => {});
   });
 });
 
 selectDuckEggTwoButtonElement.addEventListener("click", () => {
   handleSelectDuckRewardItemButtonClick("duckEgg2").catch(() => {
-    selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
+    refreshAllDisplays().catch(() => {});
   });
 });
 
@@ -489,13 +486,11 @@ claimDuckRewardButtonElement.addEventListener("click", () => {
 setDurationSelectionMode("twentyFive");
 
 refreshAllDisplays().catch(() => {
-  timerStatusElement.textContent = "Error";
   selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
 });
 
 setInterval(() => {
   refreshAllDisplays().catch(() => {
-    timerStatusElement.textContent = "Error";
     selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
   });
 }, UPDATE_INTERVAL_MILLISECONDS);
