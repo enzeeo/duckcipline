@@ -88,6 +88,7 @@ const duckEggTwoStatusTextElement = getRequiredParagraphElement("duckEggTwoStatu
 let selectedDurationSelectionMode: DurationSelectionMode = "twentyFive";
 let isTimerRunningInCurrentViewState = false;
 let selectedDuckRewardItemIdInCurrentViewState: DuckRewardItemId | null = null;
+let isCustomDurationInputRepresentingSeconds = false;
 
 function createErrorResponse(message: string): ErrorResponse {
   return { error: message };
@@ -106,25 +107,40 @@ function formatAsHoursMinutesSeconds(totalSeconds: number): string {
 }
 
 function readCustomDurationMinutesFromInput(): number {
-  const parsedDurationMinutes = Number.parseInt(durationMinutesInputElement.value, 10);
+  const parsedDurationMinutes = Number.parseFloat(durationMinutesInputElement.value);
 
-  if (!Number.isFinite(parsedDurationMinutes) || parsedDurationMinutes < 1) {
+  if (!Number.isFinite(parsedDurationMinutes) || parsedDurationMinutes <= 0) {
     return DEFAULT_CUSTOM_DURATION_MINUTES;
   }
 
   return parsedDurationMinutes;
 }
 
-function getSelectedDurationMinutes(): number {
+function readCustomDurationSecondsFromInput(): number {
+  const parsedDurationSeconds = Number.parseFloat(durationMinutesInputElement.value);
+
+  if (!Number.isFinite(parsedDurationSeconds) || parsedDurationSeconds <= 0) {
+    return DEFAULT_CUSTOM_DURATION_MINUTES * SECONDS_PER_MINUTE;
+  }
+
+  return Math.floor(parsedDurationSeconds);
+}
+
+function getSelectedDurationSeconds(): number {
   if (selectedDurationSelectionMode === "twentyFive") {
-    return PRESET_TWENTY_FIVE_MINUTES;
+    return PRESET_TWENTY_FIVE_MINUTES * SECONDS_PER_MINUTE;
   }
 
   if (selectedDurationSelectionMode === "fifty") {
-    return PRESET_FIFTY_MINUTES;
+    return PRESET_FIFTY_MINUTES * SECONDS_PER_MINUTE;
   }
 
-  return readCustomDurationMinutesFromInput();
+  if (isCustomDurationInputRepresentingSeconds) {
+    return readCustomDurationSecondsFromInput();
+  }
+
+  const customDurationMinutes = readCustomDurationMinutesFromInput();
+  return Math.max(1, Math.round(customDurationMinutes * SECONDS_PER_MINUTE));
 }
 
 function setDurationSelectionMode(durationSelectionMode: DurationSelectionMode): void {
@@ -152,6 +168,13 @@ function setDurationSelectionMode(durationSelectionMode: DurationSelectionMode):
 
   durationMinutesInputElement.disabled = false;
   durationMinutesInputElement.focus();
+}
+
+function setCustomDurationFromDuckRewardSeconds(duckRewardRequiredProgressSeconds: number): void {
+  const normalizedDuckRewardRequiredProgressSeconds = Math.max(1, Math.floor(duckRewardRequiredProgressSeconds));
+  isCustomDurationInputRepresentingSeconds = true;
+  setDurationSelectionMode("custom");
+  durationMinutesInputElement.value = String(normalizedDuckRewardRequiredProgressSeconds);
 }
 
 function updateActionButtons(timerState: TimerMessageResponse): void {
@@ -375,8 +398,7 @@ async function refreshAllDisplays(): Promise<void> {
 }
 
 async function handleStartButtonClick(): Promise<void> {
-  const durationMinutes = getSelectedDurationMinutes();
-  const durationSeconds = durationMinutes * SECONDS_PER_MINUTE;
+  const durationSeconds = getSelectedDurationSeconds();
   const startTimerMessage: StartTimerMessage = {
     type: START_TIMER_MESSAGE_TYPE,
     durationSeconds
@@ -393,8 +415,7 @@ async function handlePauseButtonClick(): Promise<void> {
 }
 
 async function handleResetButtonClick(): Promise<void> {
-  const durationMinutes = getSelectedDurationMinutes();
-  const durationSeconds = durationMinutes * SECONDS_PER_MINUTE;
+  const durationSeconds = getSelectedDurationSeconds();
   const resetTimerMessage: ResetTimerMessage = {
     type: RESET_TIMER_MESSAGE_TYPE,
     durationSeconds
@@ -426,6 +447,14 @@ async function handleSelectDuckRewardItemButtonClick(duckRewardItemId: DuckRewar
   }
 
   updateDuckRewardsDisplay(duckRewardsState);
+  const selectedDuckRewardItemId = duckRewardsState.selectedDuckRewardItemId;
+
+  if (selectedDuckRewardItemId !== null) {
+    const selectedDuckRewardDefinition = duckRewardsState.duckRewardDefinitionsById[selectedDuckRewardItemId];
+    setCustomDurationFromDuckRewardSeconds(selectedDuckRewardDefinition.requiredProgressSeconds);
+  }
+
+  await refreshTimerDisplay();
 }
 
 async function handleClaimDuckRewardButtonClick(): Promise<void> {
@@ -452,6 +481,7 @@ presetFiftyMinutesButtonElement.addEventListener("click", () => {
 });
 
 presetCustomDurationButtonElement.addEventListener("click", () => {
+  isCustomDurationInputRepresentingSeconds = false;
   setDurationSelectionMode("custom");
 });
 

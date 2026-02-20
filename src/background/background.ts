@@ -582,17 +582,11 @@ async function startTimer(durationSecondsFromMessage: number): Promise<TimerMess
   );
 }
 
-async function pauseTimer(): Promise<TimerMessageResponse> {
-  const nowTimestampMilliseconds = Date.now();
+async function stopRunningTimerIfActive(nowTimestampMilliseconds: number): Promise<TimerState> {
   const canonicalStateResult = await getCanonicalTimerAndDuckRewardsState(nowTimestampMilliseconds);
 
   if (!canonicalStateResult.timerState.isRunning) {
-    return createTimerStatusResponse(
-      false,
-      canonicalStateResult.timerState.hasStartedAtLeastOnce,
-      canonicalStateResult.timerState.remainingSecondsWhenNotRunning,
-      canonicalStateResult.timerState.configuredDurationSeconds
-    );
+    return canonicalStateResult.timerState;
   }
 
   const remainingSecondsWhenStopped = calculateRemainingSecondsForRunningTimer(
@@ -619,12 +613,31 @@ async function pauseTimer(): Promise<TimerMessageResponse> {
     await writeDuckRewardsStateToLocalStorage(synchronizedDuckRewardsState);
   }
 
+  return stoppedTimerState;
+}
+
+async function pauseTimer(): Promise<TimerMessageResponse> {
+  const nowTimestampMilliseconds = Date.now();
+  const stoppedTimerState = await stopRunningTimerIfActive(nowTimestampMilliseconds);
+
   return createTimerStatusResponse(
     false,
     stoppedTimerState.hasStartedAtLeastOnce,
     stoppedTimerState.remainingSecondsWhenNotRunning,
     stoppedTimerState.configuredDurationSeconds
   );
+}
+
+async function stopRunningTimerIfNoNormalWindowsRemain(): Promise<void> {
+  const normalBrowserWindows = await chrome.windows.getAll({
+    windowTypes: ["normal"]
+  });
+
+  if (normalBrowserWindows.length > 0) {
+    return;
+  }
+
+  await stopRunningTimerIfActive(Date.now());
 }
 
 async function resetTimer(durationSecondsFromMessage: number): Promise<TimerMessageResponse> {
@@ -725,6 +738,9 @@ async function selectDuckRewardItem(duckRewardItemId: DuckRewardItemId): Promise
     );
   }
 
+  const selectedDuckRewardRequiredProgressSeconds =
+    DUCK_REWARD_DEFINITION_BY_ID[duckRewardItemId].requiredProgressSeconds;
+
   const updatedDuckRewardsState: DuckRewardsState = {
     ...canonicalStateResult.duckRewardsState,
     selectedDuckRewardItemId: duckRewardItemId,
@@ -732,12 +748,21 @@ async function selectDuckRewardItem(duckRewardItemId: DuckRewardItemId): Promise
     selectedDuckRewardItemProgressStartedAtTimestampMilliseconds: null,
     isSelectedDuckRewardClaimAvailable: false
   };
+  const updatedTimerState: TimerState = {
+    ...canonicalStateResult.timerState,
+    isRunning: false,
+    hasStartedAtLeastOnce: false,
+    configuredDurationSeconds: selectedDuckRewardRequiredProgressSeconds,
+    startedAtTimestampMilliseconds: null,
+    remainingSecondsWhenNotRunning: selectedDuckRewardRequiredProgressSeconds
+  };
 
   await writeDuckRewardsStateToLocalStorage(updatedDuckRewardsState);
+  await writeTimerStateToSessionStorage(updatedTimerState);
 
   return createDuckRewardsStatusResponse(
     updatedDuckRewardsState,
-    canonicalStateResult.timerState,
+    updatedTimerState,
     nowTimestampMilliseconds
   );
 }
@@ -824,6 +849,12 @@ chrome.runtime.onInstalled.addListener(async () => {
 
 chrome.runtime.onStartup.addListener(async () => {
   await configureSidePanelBehavior();
+});
+
+chrome.windows.onRemoved.addListener(() => {
+  stopRunningTimerIfNoNormalWindowsRemain().catch((error: unknown) => {
+    console.error("Failed to stop timer after closing Chrome windows.", error);
+  });
 });
 
 chrome.action.onClicked.addListener((tab) => {
