@@ -43,7 +43,7 @@
 - [x] Add Pause button
 - [x] Add Reset button
 - [x] Display countdown
-- [ ] Poll background every 500ms
+- [x] Poll background every 1000ms
 
 ---
 
@@ -65,6 +65,18 @@
 - [x] Add duck inventory
 - [ ] Add simple hatch animation
 - [x] Persist duck data locally
+
+## Reward Workflow 
+
+- [x] Reward progress increases continuously while timer runs
+- [x] Reward progress is timestamp-based (accurate after panel close/reopen)
+- [x] Prevent reward selection changes while timer is running
+- [x] Reset timer does not reset reward progress
+- [x] Show selected reward text above timer
+- [x] Show separate reward time-left text below timer
+- [x] Show claim button when reward threshold is reached
+- [x] Claim creates a new duck object in local storage
+- [x] After claim, selected reward is cleared and must be selected again
 
 ---
 

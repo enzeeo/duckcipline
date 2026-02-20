@@ -1,4 +1,5 @@
 import {
+  CLAIM_SELECTED_DUCK_REWARD_MESSAGE_TYPE,
   GET_DUCK_REWARDS_STATE_MESSAGE_TYPE,
   GET_TIMER_STATE_MESSAGE_TYPE,
   PAUSE_TIMER_MESSAGE_TYPE,
@@ -7,6 +8,7 @@ import {
   START_TIMER_MESSAGE_TYPE,
   isDuckRewardsMessageResponse,
   isTimerMessageResponse,
+  type ClaimSelectedDuckRewardMessage,
   type GetDuckRewardsStateMessage,
   type GetTimerStateMessage,
   type PauseTimerMessage,
@@ -19,7 +21,6 @@ import type {
   Duck,
   DuckRewardItemId,
   DuckRewardsMessageResponse,
-  DuckRewardsStatusResponse,
   ErrorResponse,
   TimerMessageResponse
 } from "../shared/types.js";
@@ -30,11 +31,6 @@ const MINUTES_PER_HOUR = 60;
 const PRESET_TWENTY_FIVE_MINUTES = 25;
 const PRESET_FIFTY_MINUTES = 50;
 const DEFAULT_CUSTOM_DURATION_MINUTES = PRESET_TWENTY_FIVE_MINUTES;
-
-const DUCK_REWARD_ITEM_DISPLAY_NAME_BY_ID: Record<DuckRewardItemId, string> = {
-  duckEgg1: "Duck Egg 1",
-  duckEgg2: "Duck Egg 2"
-};
 
 type DurationSelectionMode = "twentyFive" | "fifty" | "custom";
 
@@ -68,8 +64,12 @@ function getRequiredButtonElement(elementId: string): HTMLButtonElement {
   return element;
 }
 
+const selectedDuckRewardItemTextElement = getRequiredParagraphElement("selectedDuckRewardItemText");
 const timerDisplayElement = getRequiredParagraphElement("timerDisplay");
+const selectedDuckRewardRemainingTextElement = getRequiredParagraphElement("selectedDuckRewardRemainingText");
 const timerStatusElement = getRequiredParagraphElement("timerStatus");
+const claimDuckRewardButtonElement = getRequiredButtonElement("claimDuckRewardButton");
+
 const durationMinutesInputElement = getRequiredInputElement("durationMinutesInput");
 const presetTwentyFiveMinutesButtonElement = getRequiredButtonElement("presetTwentyFiveMinutesButton");
 const presetFiftyMinutesButtonElement = getRequiredButtonElement("presetFiftyMinutesButton");
@@ -80,9 +80,7 @@ const resetButtonElement = getRequiredButtonElement("resetButton");
 
 const selectDuckEggOneButtonElement = getRequiredButtonElement("selectDuckEggOneButton");
 const selectDuckEggTwoButtonElement = getRequiredButtonElement("selectDuckEggTwoButton");
-const selectedDuckRewardItemTextElement = getRequiredParagraphElement("selectedDuckRewardItemText");
 const selectedDuckRewardProgressTextElement = getRequiredParagraphElement("selectedDuckRewardProgressText");
-const selectedDuckRewardRemainingTextElement = getRequiredParagraphElement("selectedDuckRewardRemainingText");
 const totalCompletedSessionsTextElement = getRequiredParagraphElement("totalCompletedSessionsText");
 const totalCompletedFocusSecondsTextElement = getRequiredParagraphElement("totalCompletedFocusSecondsText");
 const duckEggOneStatusTextElement = getRequiredParagraphElement("duckEggOneStatusText");
@@ -233,19 +231,67 @@ function updateDuckRewardSelectionButtons(selectedDuckRewardItemId: DuckRewardIt
   selectDuckEggTwoButtonElement.classList.toggle("is-selected", hasSelectedDuckEggTwo);
 }
 
-function createSelectedDuckRewardLabel(selectedDuckRewardItemId: DuckRewardItemId | null): string {
-  if (!selectedDuckRewardItemId) {
+function updateClaimDuckRewardButtonVisibility(duckRewardsState: DuckRewardsMessageResponse): void {
+  if ("error" in duckRewardsState) {
+    claimDuckRewardButtonElement.hidden = true;
+    claimDuckRewardButtonElement.disabled = true;
+    return;
+  }
+
+  if (!duckRewardsState.selectedDuckRewardItemId || !duckRewardsState.isSelectedDuckRewardClaimAvailable) {
+    claimDuckRewardButtonElement.hidden = true;
+    claimDuckRewardButtonElement.disabled = true;
+    return;
+  }
+
+  claimDuckRewardButtonElement.hidden = false;
+  claimDuckRewardButtonElement.disabled = false;
+}
+
+function createSelectedDuckRewardLabel(duckRewardsState: DuckRewardsMessageResponse): string {
+  if ("error" in duckRewardsState) {
+    return "Selected reward: error";
+  }
+
+  if (!duckRewardsState.selectedDuckRewardItemId) {
     return "Selected reward: none";
   }
 
-  return `Selected reward: ${DUCK_REWARD_ITEM_DISPLAY_NAME_BY_ID[selectedDuckRewardItemId]}`;
+  const selectedDuckRewardDefinition =
+    duckRewardsState.duckRewardDefinitionsById[duckRewardsState.selectedDuckRewardItemId];
+  return `Selected reward: ${selectedDuckRewardDefinition.displayName}`;
+}
+
+function createSelectedDuckRewardRemainingLabel(duckRewardsState: DuckRewardsMessageResponse): string {
+  if ("error" in duckRewardsState) {
+    return "Reward time left: unavailable";
+  }
+
+  if (!duckRewardsState.selectedDuckRewardItemId) {
+    return "Reward time left: choose a reward item";
+  }
+
+  if (duckRewardsState.isSelectedDuckRewardClaimAvailable) {
+    return "Reward time left: 00:00:00 (Ready to claim)";
+  }
+
+  const selectedDuckRewardDefinition =
+    duckRewardsState.duckRewardDefinitionsById[duckRewardsState.selectedDuckRewardItemId];
+  const remainingSeconds = Math.max(
+    selectedDuckRewardDefinition.requiredProgressSeconds - duckRewardsState.selectedDuckRewardItemProgressSeconds,
+    0
+  );
+
+  return `Reward time left: ${formatAsHoursMinutesSeconds(remainingSeconds)}`;
 }
 
 function updateDuckRewardsDisplay(duckRewardsState: DuckRewardsMessageResponse): void {
+  selectedDuckRewardItemTextElement.textContent = createSelectedDuckRewardLabel(duckRewardsState);
+  selectedDuckRewardRemainingTextElement.textContent = createSelectedDuckRewardRemainingLabel(duckRewardsState);
+  updateClaimDuckRewardButtonVisibility(duckRewardsState);
+
   if ("error" in duckRewardsState) {
-    selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
     selectedDuckRewardProgressTextElement.textContent = "Progress: unavailable";
-    selectedDuckRewardRemainingTextElement.textContent = "Remaining: unavailable";
     totalCompletedSessionsTextElement.textContent = "Completed sessions: unavailable";
     totalCompletedFocusSecondsTextElement.textContent = "Completed focus seconds: unavailable";
     duckEggOneStatusTextElement.textContent = "Duck Egg 1: error";
@@ -255,9 +301,6 @@ function updateDuckRewardsDisplay(duckRewardsState: DuckRewardsMessageResponse):
 
   const duckRewardItemHatchCounts = calculateDuckRewardItemHatchCounts(duckRewardsState.ducks);
 
-  selectedDuckRewardItemTextElement.textContent = createSelectedDuckRewardLabel(
-    duckRewardsState.selectedDuckRewardItemId
-  );
   totalCompletedSessionsTextElement.textContent = `Completed sessions: ${duckRewardsState.totalCompletedSessions}`;
   totalCompletedFocusSecondsTextElement.textContent =
     `Completed focus seconds: ${duckRewardsState.totalCompletedFocusSeconds}`;
@@ -273,20 +316,18 @@ function updateDuckRewardsDisplay(duckRewardsState: DuckRewardsMessageResponse):
 
   if (!duckRewardsState.selectedDuckRewardItemId) {
     selectedDuckRewardProgressTextElement.textContent = "Progress: choose a reward item";
-    selectedDuckRewardRemainingTextElement.textContent = "Remaining: choose a reward item";
     updateDuckRewardSelectionButtons(null);
     return;
   }
 
-  const selectedDuckRewardItemId = duckRewardsState.selectedDuckRewardItemId;
-  const requiredSecondsForHatch = duckRewardsState.requiredSecondsByDuckRewardItemId[selectedDuckRewardItemId];
-  const progressSeconds = duckRewardsState.selectedDuckRewardItemProgressSeconds;
-  const remainingSeconds = Math.max(requiredSecondsForHatch - progressSeconds, 0);
+  const selectedDuckRewardDefinition =
+    duckRewardsState.duckRewardDefinitionsById[duckRewardsState.selectedDuckRewardItemId];
 
   selectedDuckRewardProgressTextElement.textContent =
-    `Progress: ${progressSeconds} / ${requiredSecondsForHatch} seconds`;
-  selectedDuckRewardRemainingTextElement.textContent = `Remaining: ${remainingSeconds} seconds`;
-  updateDuckRewardSelectionButtons(selectedDuckRewardItemId);
+    `Progress: ${duckRewardsState.selectedDuckRewardItemProgressSeconds} / ` +
+    `${selectedDuckRewardDefinition.requiredProgressSeconds} seconds`;
+
+  updateDuckRewardSelectionButtons(duckRewardsState.selectedDuckRewardItemId);
 }
 
 async function sendTimerRuntimeMessage(message: TimerRequestMessage): Promise<TimerMessageResponse> {
@@ -300,7 +341,7 @@ async function sendTimerRuntimeMessage(message: TimerRequestMessage): Promise<Ti
 }
 
 async function sendDuckRewardsRuntimeMessage(
-  message: GetDuckRewardsStateMessage | SelectDuckRewardItemMessage
+  message: GetDuckRewardsStateMessage | SelectDuckRewardItemMessage | ClaimSelectedDuckRewardMessage
 ): Promise<DuckRewardsMessageResponse> {
   const response = await chrome.runtime.sendMessage(message);
 
@@ -367,6 +408,27 @@ async function handleSelectDuckRewardItemButtonClick(duckRewardItemId: DuckRewar
   };
 
   const duckRewardsState = await sendDuckRewardsRuntimeMessage(selectDuckRewardItemMessage);
+
+  if ("error" in duckRewardsState) {
+    selectedDuckRewardItemTextElement.textContent = duckRewardsState.error;
+    return;
+  }
+
+  updateDuckRewardsDisplay(duckRewardsState);
+}
+
+async function handleClaimDuckRewardButtonClick(): Promise<void> {
+  const claimSelectedDuckRewardMessage: ClaimSelectedDuckRewardMessage = {
+    type: CLAIM_SELECTED_DUCK_REWARD_MESSAGE_TYPE
+  };
+
+  const duckRewardsState = await sendDuckRewardsRuntimeMessage(claimSelectedDuckRewardMessage);
+
+  if ("error" in duckRewardsState) {
+    selectedDuckRewardItemTextElement.textContent = duckRewardsState.error;
+    return;
+  }
+
   updateDuckRewardsDisplay(duckRewardsState);
 }
 
@@ -391,15 +453,19 @@ startButtonElement.addEventListener("click", () => {
 });
 
 pauseButtonElement.addEventListener("click", () => {
-  handlePauseButtonClick().catch(() => {
-    timerStatusElement.textContent = "Error";
-  });
+  handlePauseButtonClick()
+    .then(() => refreshDuckRewardsDisplay())
+    .catch(() => {
+      timerStatusElement.textContent = "Error";
+    });
 });
 
 resetButtonElement.addEventListener("click", () => {
-  handleResetButtonClick().catch(() => {
-    timerStatusElement.textContent = "Error";
-  });
+  handleResetButtonClick()
+    .then(() => refreshDuckRewardsDisplay())
+    .catch(() => {
+      timerStatusElement.textContent = "Error";
+    });
 });
 
 selectDuckEggOneButtonElement.addEventListener("click", () => {
@@ -410,6 +476,12 @@ selectDuckEggOneButtonElement.addEventListener("click", () => {
 
 selectDuckEggTwoButtonElement.addEventListener("click", () => {
   handleSelectDuckRewardItemButtonClick("duckEgg2").catch(() => {
+    selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
+  });
+});
+
+claimDuckRewardButtonElement.addEventListener("click", () => {
+  handleClaimDuckRewardButtonClick().catch(() => {
     selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
   });
 });

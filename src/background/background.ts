@@ -1,4 +1,5 @@
 import {
+  CLAIM_SELECTED_DUCK_REWARD_MESSAGE_TYPE,
   GET_DUCK_REWARDS_STATE_MESSAGE_TYPE,
   GET_TIMER_STATE_MESSAGE_TYPE,
   PAUSE_TIMER_MESSAGE_TYPE,
@@ -9,8 +10,12 @@ import {
   isExtensionRequestMessage,
   type ExtensionRequestMessage
 } from "../shared/messages.js";
+import {
+  DUCK_REWARD_DEFINITION_BY_ID
+} from "../shared/duckRewardDefinitions.js";
 import type {
   Duck,
+  DuckRewardDefinitionResponse,
   DuckRewardItemId,
   DuckRewardsMessageResponse,
   DuckRewardsState,
@@ -25,15 +30,25 @@ const DUCK_REWARDS_STATE_STORAGE_KEY = "duckRewardsState";
 const DEFAULT_DURATION_SECONDS = 25 * 60;
 const MILLISECONDS_PER_SECOND = 1000;
 
-const DUCK_EGG_ONE_REQUIRED_SECONDS_FOR_HATCH = 2;
-const DUCK_EGG_TWO_REQUIRED_SECONDS_FOR_HATCH = 3;
-
-const REQUIRED_SECONDS_BY_DUCK_REWARD_ITEM_ID: Record<DuckRewardItemId, number> = {
-  duckEgg1: DUCK_EGG_ONE_REQUIRED_SECONDS_FOR_HATCH,
-  duckEgg2: DUCK_EGG_TWO_REQUIRED_SECONDS_FOR_HATCH
+const DUCK_REWARD_DEFINITIONS_BY_ID_RESPONSE: Record<DuckRewardItemId, DuckRewardDefinitionResponse> = {
+  duckEgg1: {
+    displayName: DUCK_REWARD_DEFINITION_BY_ID.duckEgg1.displayName,
+    rewardType: DUCK_REWARD_DEFINITION_BY_ID.duckEgg1.rewardType,
+    requiredProgressSeconds: DUCK_REWARD_DEFINITION_BY_ID.duckEgg1.requiredProgressSeconds
+  },
+  duckEgg2: {
+    displayName: DUCK_REWARD_DEFINITION_BY_ID.duckEgg2.displayName,
+    rewardType: DUCK_REWARD_DEFINITION_BY_ID.duckEgg2.rewardType,
+    requiredProgressSeconds: DUCK_REWARD_DEFINITION_BY_ID.duckEgg2.requiredProgressSeconds
+  }
 };
 
 type ExtensionMessageResponse = TimerMessageResponse | DuckRewardsMessageResponse;
+
+interface CanonicalStateResult {
+  timerState: TimerState;
+  duckRewardsState: DuckRewardsState;
+}
 
 function createErrorResponse(message: string): ErrorResponse {
   return { error: message };
@@ -42,23 +57,34 @@ function createErrorResponse(message: string): ErrorResponse {
 function createTimerStatusResponse(
   isRunning: boolean,
   hasStartedAtLeastOnce: boolean,
-  remainingSeconds: number
+  remainingSeconds: number,
+  configuredDurationSeconds: number
 ): TimerMessageResponse {
   return {
     isRunning,
     hasStartedAtLeastOnce,
-    remainingSeconds
+    remainingSeconds,
+    configuredDurationSeconds
   };
 }
 
-function createDuckRewardsStatusResponse(duckRewardsState: DuckRewardsState): DuckRewardsStatusResponse {
+function createDuckRewardsStatusResponse(
+  duckRewardsState: DuckRewardsState,
+  timerState: TimerState,
+  nowTimestampMilliseconds: number
+): DuckRewardsStatusResponse {
   return {
     selectedDuckRewardItemId: duckRewardsState.selectedDuckRewardItemId,
-    selectedDuckRewardItemProgressSeconds: duckRewardsState.selectedDuckRewardItemProgressSeconds,
+    selectedDuckRewardItemProgressSeconds: calculateCurrentSelectedDuckRewardProgressSeconds(
+      duckRewardsState,
+      timerState,
+      nowTimestampMilliseconds
+    ),
+    isSelectedDuckRewardClaimAvailable: duckRewardsState.isSelectedDuckRewardClaimAvailable,
     ducks: duckRewardsState.ducks,
     totalCompletedSessions: duckRewardsState.totalCompletedSessions,
     totalCompletedFocusSeconds: duckRewardsState.totalCompletedFocusSeconds,
-    requiredSecondsByDuckRewardItemId: REQUIRED_SECONDS_BY_DUCK_REWARD_ITEM_ID
+    duckRewardDefinitionsById: DUCK_REWARD_DEFINITIONS_BY_ID_RESPONSE
   };
 }
 
@@ -76,6 +102,8 @@ function createDefaultDuckRewardsState(): DuckRewardsState {
   return {
     selectedDuckRewardItemId: null,
     selectedDuckRewardItemProgressSeconds: 0,
+    selectedDuckRewardItemProgressStartedAtTimestampMilliseconds: null,
+    isSelectedDuckRewardClaimAvailable: false,
     ducks: [],
     totalCompletedSessions: 0,
     totalCompletedFocusSeconds: 0
@@ -133,10 +161,19 @@ function isDuckRewardsState(value: unknown): value is DuckRewardsState {
   const hasValidSelectedRewardItemId =
     possibleDuckRewardsState.selectedDuckRewardItemId === null ||
     isDuckRewardItemId(possibleDuckRewardsState.selectedDuckRewardItemId);
+  const hasValidProgressStartTimestamp =
+    typeof possibleDuckRewardsState.selectedDuckRewardItemProgressStartedAtTimestampMilliseconds === "number" ||
+    possibleDuckRewardsState.selectedDuckRewardItemProgressStartedAtTimestampMilliseconds === null ||
+    typeof possibleDuckRewardsState.selectedDuckRewardItemProgressStartedAtTimestampMilliseconds === "undefined";
+  const hasValidClaimAvailability =
+    typeof possibleDuckRewardsState.isSelectedDuckRewardClaimAvailable === "boolean" ||
+    typeof possibleDuckRewardsState.isSelectedDuckRewardClaimAvailable === "undefined";
 
   return (
     hasValidSelectedRewardItemId &&
     typeof possibleDuckRewardsState.selectedDuckRewardItemProgressSeconds === "number" &&
+    hasValidProgressStartTimestamp &&
+    hasValidClaimAvailability &&
     Array.isArray(possibleDuckRewardsState.ducks) &&
     possibleDuckRewardsState.ducks.every((duck) => isDuck(duck)) &&
     typeof possibleDuckRewardsState.totalCompletedSessions === "number" &&
@@ -204,6 +241,159 @@ function calculateStartedAtTimestampMillisecondsForResumedTimer(
   const elapsedMillisecondsBeforePause = Math.max(0, elapsedSecondsBeforePause) * MILLISECONDS_PER_SECOND;
 
   return nowTimestampMilliseconds - elapsedMillisecondsBeforePause;
+}
+
+function calculateElapsedSecondsSinceTimestamp(
+  fromTimestampMilliseconds: number,
+  toTimestampMilliseconds: number
+): number {
+  if (toTimestampMilliseconds <= fromTimestampMilliseconds) {
+    return 0;
+  }
+
+  const elapsedMilliseconds = toTimestampMilliseconds - fromTimestampMilliseconds;
+  return Math.floor(elapsedMilliseconds / MILLISECONDS_PER_SECOND);
+}
+
+function getRequiredProgressSecondsForSelectedDuckReward(
+  duckRewardsState: DuckRewardsState
+): number | null {
+  if (!duckRewardsState.selectedDuckRewardItemId) {
+    return null;
+  }
+
+  return DUCK_REWARD_DEFINITION_BY_ID[duckRewardsState.selectedDuckRewardItemId].requiredProgressSeconds;
+}
+
+function calculateCurrentSelectedDuckRewardProgressSeconds(
+  duckRewardsState: DuckRewardsState,
+  timerState: TimerState,
+  nowTimestampMilliseconds: number
+): number {
+  const requiredProgressSeconds = getRequiredProgressSecondsForSelectedDuckReward(duckRewardsState);
+
+  if (requiredProgressSeconds === null) {
+    return 0;
+  }
+
+  if (duckRewardsState.isSelectedDuckRewardClaimAvailable) {
+    return requiredProgressSeconds;
+  }
+
+  if (!timerState.isRunning || !duckRewardsState.selectedDuckRewardItemProgressStartedAtTimestampMilliseconds) {
+    return Math.min(duckRewardsState.selectedDuckRewardItemProgressSeconds, requiredProgressSeconds);
+  }
+
+  const elapsedSecondsSinceProgressStarted = calculateElapsedSecondsSinceTimestamp(
+    duckRewardsState.selectedDuckRewardItemProgressStartedAtTimestampMilliseconds,
+    nowTimestampMilliseconds
+  );
+
+  const currentProgressSeconds =
+    duckRewardsState.selectedDuckRewardItemProgressSeconds + elapsedSecondsSinceProgressStarted;
+
+  return Math.min(currentProgressSeconds, requiredProgressSeconds);
+}
+
+function applyCompletedFocusSessionToTotals(
+  duckRewardsState: DuckRewardsState,
+  completedFocusSessionSeconds: number
+): DuckRewardsState {
+  const sanitizedCompletedFocusSessionSeconds = parseCompletedFocusSessionSeconds(completedFocusSessionSeconds);
+
+  if (sanitizedCompletedFocusSessionSeconds < 1) {
+    return duckRewardsState;
+  }
+
+  return {
+    ...duckRewardsState,
+    totalCompletedSessions: duckRewardsState.totalCompletedSessions + 1,
+    totalCompletedFocusSeconds: duckRewardsState.totalCompletedFocusSeconds + sanitizedCompletedFocusSessionSeconds
+  };
+}
+
+function synchronizeDuckRewardProgressStateWithTimer(
+  duckRewardsState: DuckRewardsState,
+  timerState: TimerState,
+  nowTimestampMilliseconds: number
+): DuckRewardsState {
+  if (!duckRewardsState.selectedDuckRewardItemId) {
+    return {
+      ...duckRewardsState,
+      selectedDuckRewardItemProgressSeconds: 0,
+      selectedDuckRewardItemProgressStartedAtTimestampMilliseconds: null,
+      isSelectedDuckRewardClaimAvailable: false
+    };
+  }
+
+  const requiredProgressSeconds =
+    DUCK_REWARD_DEFINITION_BY_ID[duckRewardsState.selectedDuckRewardItemId].requiredProgressSeconds;
+
+  if (duckRewardsState.isSelectedDuckRewardClaimAvailable) {
+    return {
+      ...duckRewardsState,
+      selectedDuckRewardItemProgressSeconds: requiredProgressSeconds,
+      selectedDuckRewardItemProgressStartedAtTimestampMilliseconds: null,
+      isSelectedDuckRewardClaimAvailable: true
+    };
+  }
+
+  if (!timerState.isRunning) {
+    if (!duckRewardsState.selectedDuckRewardItemProgressStartedAtTimestampMilliseconds) {
+      return duckRewardsState;
+    }
+
+    const elapsedSecondsSinceProgressStarted = calculateElapsedSecondsSinceTimestamp(
+      duckRewardsState.selectedDuckRewardItemProgressStartedAtTimestampMilliseconds,
+      nowTimestampMilliseconds
+    );
+
+    const updatedProgressSeconds = Math.min(
+      duckRewardsState.selectedDuckRewardItemProgressSeconds + elapsedSecondsSinceProgressStarted,
+      requiredProgressSeconds
+    );
+
+    return {
+      ...duckRewardsState,
+      selectedDuckRewardItemProgressSeconds: updatedProgressSeconds,
+      selectedDuckRewardItemProgressStartedAtTimestampMilliseconds: null,
+      isSelectedDuckRewardClaimAvailable: updatedProgressSeconds >= requiredProgressSeconds
+    };
+  }
+
+  if (!duckRewardsState.selectedDuckRewardItemProgressStartedAtTimestampMilliseconds) {
+    return {
+      ...duckRewardsState,
+      selectedDuckRewardItemProgressStartedAtTimestampMilliseconds: nowTimestampMilliseconds
+    };
+  }
+
+  const elapsedSecondsSinceProgressStarted = calculateElapsedSecondsSinceTimestamp(
+    duckRewardsState.selectedDuckRewardItemProgressStartedAtTimestampMilliseconds,
+    nowTimestampMilliseconds
+  );
+
+  if (elapsedSecondsSinceProgressStarted < 1) {
+    return duckRewardsState;
+  }
+
+  const possibleCurrentProgressSeconds =
+    duckRewardsState.selectedDuckRewardItemProgressSeconds + elapsedSecondsSinceProgressStarted;
+
+  if (possibleCurrentProgressSeconds < requiredProgressSeconds) {
+    return duckRewardsState;
+  }
+
+  return {
+    ...duckRewardsState,
+    selectedDuckRewardItemProgressSeconds: requiredProgressSeconds,
+    selectedDuckRewardItemProgressStartedAtTimestampMilliseconds: null,
+    isSelectedDuckRewardClaimAvailable: true
+  };
+}
+
+function areDuckRewardsStatesEqual(leftState: DuckRewardsState, rightState: DuckRewardsState): boolean {
+  return JSON.stringify(leftState) === JSON.stringify(rightState);
 }
 
 async function configureSidePanelBehavior(): Promise<void> {
@@ -276,131 +466,142 @@ async function writeDuckRewardsStateToLocalStorage(duckRewardsState: DuckRewards
   });
 }
 
-async function applyCompletedFocusSessionToDuckRewards(completedFocusSessionSeconds: number): Promise<void> {
-  const sanitizedCompletedFocusSessionSeconds = parseCompletedFocusSessionSeconds(completedFocusSessionSeconds);
+async function getCanonicalTimerAndDuckRewardsState(
+  nowTimestampMilliseconds: number
+): Promise<CanonicalStateResult> {
+  let timerState = await readTimerStateFromSessionStorage();
+  let duckRewardsState = await readDuckRewardsStateFromLocalStorage();
 
-  if (sanitizedCompletedFocusSessionSeconds < 1) {
-    return;
+  let hasTimerStateChanged = false;
+  let hasDuckRewardsStateChanged = false;
+
+  if (timerState.isRunning) {
+    const remainingSeconds = calculateRemainingSecondsForRunningTimer(timerState, nowTimestampMilliseconds);
+
+    if (remainingSeconds < 1) {
+      timerState = {
+        ...timerState,
+        isRunning: false,
+        startedAtTimestampMilliseconds: null,
+        remainingSecondsWhenNotRunning: 0
+      };
+      hasTimerStateChanged = true;
+
+      duckRewardsState = applyCompletedFocusSessionToTotals(
+        duckRewardsState,
+        timerState.configuredDurationSeconds
+      );
+      hasDuckRewardsStateChanged = true;
+    }
   }
 
-  const duckRewardsState = await readDuckRewardsStateFromLocalStorage();
+  const synchronizedDuckRewardsState = synchronizeDuckRewardProgressStateWithTimer(
+    duckRewardsState,
+    timerState,
+    nowTimestampMilliseconds
+  );
 
-  const updatedDuckRewardsState: DuckRewardsState = {
-    ...duckRewardsState,
-    totalCompletedSessions: duckRewardsState.totalCompletedSessions + 1,
-    totalCompletedFocusSeconds: duckRewardsState.totalCompletedFocusSeconds + sanitizedCompletedFocusSessionSeconds
-  };
-
-  if (!updatedDuckRewardsState.selectedDuckRewardItemId) {
-    await writeDuckRewardsStateToLocalStorage(updatedDuckRewardsState);
-    return;
+  if (!areDuckRewardsStatesEqual(duckRewardsState, synchronizedDuckRewardsState)) {
+    duckRewardsState = synchronizedDuckRewardsState;
+    hasDuckRewardsStateChanged = true;
   }
 
-  const selectedDuckRewardItemId = updatedDuckRewardsState.selectedDuckRewardItemId;
-  const requiredSecondsForHatch = REQUIRED_SECONDS_BY_DUCK_REWARD_ITEM_ID[selectedDuckRewardItemId];
-
-  let updatedProgressSeconds =
-    updatedDuckRewardsState.selectedDuckRewardItemProgressSeconds + sanitizedCompletedFocusSessionSeconds;
-  const updatedDucks = [...updatedDuckRewardsState.ducks];
-
-  while (updatedProgressSeconds >= requiredSecondsForHatch) {
-    updatedProgressSeconds -= requiredSecondsForHatch;
-    updatedDucks.push(createDuck(selectedDuckRewardItemId));
+  if (hasTimerStateChanged) {
+    await writeTimerStateToSessionStorage(timerState);
   }
 
-  await writeDuckRewardsStateToLocalStorage({
-    ...updatedDuckRewardsState,
-    selectedDuckRewardItemProgressSeconds: updatedProgressSeconds,
-    ducks: updatedDucks
-  });
-}
-
-async function getCanonicalTimerState(): Promise<TimerState> {
-  const nowTimestampMilliseconds = Date.now();
-  const timerState = await readTimerStateFromSessionStorage();
-
-  if (!timerState.isRunning) {
-    return timerState;
+  if (hasDuckRewardsStateChanged) {
+    await writeDuckRewardsStateToLocalStorage(duckRewardsState);
   }
 
-  const remainingSeconds = calculateRemainingSecondsForRunningTimer(timerState, nowTimestampMilliseconds);
-
-  if (remainingSeconds > 0) {
-    return timerState;
-  }
-
-  const completedTimerState: TimerState = {
-    ...timerState,
-    isRunning: false,
-    startedAtTimestampMilliseconds: null,
-    remainingSecondsWhenNotRunning: 0
-  };
-
-  await writeTimerStateToSessionStorage(completedTimerState);
-  await applyCompletedFocusSessionToDuckRewards(timerState.configuredDurationSeconds);
-
-  return completedTimerState;
+  return { timerState, duckRewardsState };
 }
 
 async function startTimer(durationSecondsFromMessage: number): Promise<TimerMessageResponse> {
   const nowTimestampMilliseconds = Date.now();
-  const timerState = await readTimerStateFromSessionStorage();
+  const canonicalStateResult = await getCanonicalTimerAndDuckRewardsState(nowTimestampMilliseconds);
 
-  if (timerState.isRunning) {
-    const remainingSeconds = calculateRemainingSecondsForRunningTimer(timerState, nowTimestampMilliseconds);
-    return createTimerStatusResponse(true, timerState.hasStartedAtLeastOnce, remainingSeconds);
-  }
-
-  const shouldResumePausedTimer =
-    timerState.hasStartedAtLeastOnce && timerState.remainingSecondsWhenNotRunning > 0;
-
-  if (shouldResumePausedTimer) {
-    const resumedTimerState: TimerState = {
-      ...timerState,
-      isRunning: true,
-      startedAtTimestampMilliseconds: calculateStartedAtTimestampMillisecondsForResumedTimer(
-        timerState,
-        nowTimestampMilliseconds
-      )
-    };
-
-    await writeTimerStateToSessionStorage(resumedTimerState);
+  if (canonicalStateResult.timerState.isRunning) {
+    const remainingSeconds = calculateRemainingSecondsForRunningTimer(
+      canonicalStateResult.timerState,
+      nowTimestampMilliseconds
+    );
 
     return createTimerStatusResponse(
       true,
-      resumedTimerState.hasStartedAtLeastOnce,
-      resumedTimerState.remainingSecondsWhenNotRunning
+      canonicalStateResult.timerState.hasStartedAtLeastOnce,
+      remainingSeconds,
+      canonicalStateResult.timerState.configuredDurationSeconds
     );
   }
 
-  const durationSeconds = parseDurationSeconds(durationSecondsFromMessage);
-  const startedTimerState: TimerState = {
-    isRunning: true,
-    hasStartedAtLeastOnce: true,
-    configuredDurationSeconds: durationSeconds,
-    startedAtTimestampMilliseconds: nowTimestampMilliseconds,
-    remainingSecondsWhenNotRunning: durationSeconds
-  };
+  const shouldResumePausedTimer =
+    canonicalStateResult.timerState.hasStartedAtLeastOnce &&
+    canonicalStateResult.timerState.remainingSecondsWhenNotRunning > 0;
 
-  await writeTimerStateToSessionStorage(startedTimerState);
+  let updatedTimerState: TimerState;
 
-  return createTimerStatusResponse(true, startedTimerState.hasStartedAtLeastOnce, durationSeconds);
+  if (shouldResumePausedTimer) {
+    updatedTimerState = {
+      ...canonicalStateResult.timerState,
+      isRunning: true,
+      startedAtTimestampMilliseconds: calculateStartedAtTimestampMillisecondsForResumedTimer(
+        canonicalStateResult.timerState,
+        nowTimestampMilliseconds
+      )
+    };
+  } else {
+    const durationSeconds = parseDurationSeconds(durationSecondsFromMessage);
+
+    updatedTimerState = {
+      isRunning: true,
+      hasStartedAtLeastOnce: true,
+      configuredDurationSeconds: durationSeconds,
+      startedAtTimestampMilliseconds: nowTimestampMilliseconds,
+      remainingSecondsWhenNotRunning: durationSeconds
+    };
+  }
+
+  await writeTimerStateToSessionStorage(updatedTimerState);
+
+  const synchronizedDuckRewardsState = synchronizeDuckRewardProgressStateWithTimer(
+    canonicalStateResult.duckRewardsState,
+    updatedTimerState,
+    nowTimestampMilliseconds
+  );
+
+  if (!areDuckRewardsStatesEqual(canonicalStateResult.duckRewardsState, synchronizedDuckRewardsState)) {
+    await writeDuckRewardsStateToLocalStorage(synchronizedDuckRewardsState);
+  }
+
+  return createTimerStatusResponse(
+    true,
+    updatedTimerState.hasStartedAtLeastOnce,
+    updatedTimerState.remainingSecondsWhenNotRunning,
+    updatedTimerState.configuredDurationSeconds
+  );
 }
 
 async function pauseTimer(): Promise<TimerMessageResponse> {
-  const timerState = await readTimerStateFromSessionStorage();
+  const nowTimestampMilliseconds = Date.now();
+  const canonicalStateResult = await getCanonicalTimerAndDuckRewardsState(nowTimestampMilliseconds);
 
-  if (!timerState.isRunning) {
+  if (!canonicalStateResult.timerState.isRunning) {
     return createTimerStatusResponse(
       false,
-      timerState.hasStartedAtLeastOnce,
-      timerState.remainingSecondsWhenNotRunning
+      canonicalStateResult.timerState.hasStartedAtLeastOnce,
+      canonicalStateResult.timerState.remainingSecondsWhenNotRunning,
+      canonicalStateResult.timerState.configuredDurationSeconds
     );
   }
 
-  const remainingSecondsWhenStopped = calculateRemainingSecondsForRunningTimer(timerState, Date.now());
+  const remainingSecondsWhenStopped = calculateRemainingSecondsForRunningTimer(
+    canonicalStateResult.timerState,
+    nowTimestampMilliseconds
+  );
+
   const stoppedTimerState: TimerState = {
-    ...timerState,
+    ...canonicalStateResult.timerState,
     isRunning: false,
     startedAtTimestampMilliseconds: null,
     remainingSecondsWhenNotRunning: remainingSecondsWhenStopped
@@ -408,78 +609,152 @@ async function pauseTimer(): Promise<TimerMessageResponse> {
 
   await writeTimerStateToSessionStorage(stoppedTimerState);
 
+  const synchronizedDuckRewardsState = synchronizeDuckRewardProgressStateWithTimer(
+    canonicalStateResult.duckRewardsState,
+    stoppedTimerState,
+    nowTimestampMilliseconds
+  );
+
+  if (!areDuckRewardsStatesEqual(canonicalStateResult.duckRewardsState, synchronizedDuckRewardsState)) {
+    await writeDuckRewardsStateToLocalStorage(synchronizedDuckRewardsState);
+  }
+
   return createTimerStatusResponse(
     false,
     stoppedTimerState.hasStartedAtLeastOnce,
-    stoppedTimerState.remainingSecondsWhenNotRunning
+    stoppedTimerState.remainingSecondsWhenNotRunning,
+    stoppedTimerState.configuredDurationSeconds
   );
 }
 
 async function resetTimer(durationSecondsFromMessage: number): Promise<TimerMessageResponse> {
-  const durationSeconds = parseDurationSeconds(durationSecondsFromMessage);
+  const nowTimestampMilliseconds = Date.now();
+  const canonicalStateResult = await getCanonicalTimerAndDuckRewardsState(nowTimestampMilliseconds);
+
+  const resetDurationSeconds = canonicalStateResult.timerState.hasStartedAtLeastOnce
+    ? canonicalStateResult.timerState.configuredDurationSeconds
+    : parseDurationSeconds(durationSecondsFromMessage);
+
   const resetTimerState: TimerState = {
     isRunning: false,
     hasStartedAtLeastOnce: false,
-    configuredDurationSeconds: durationSeconds,
+    configuredDurationSeconds: resetDurationSeconds,
     startedAtTimestampMilliseconds: null,
-    remainingSecondsWhenNotRunning: durationSeconds
+    remainingSecondsWhenNotRunning: resetDurationSeconds
   };
 
   await writeTimerStateToSessionStorage(resetTimerState);
 
-  return createTimerStatusResponse(false, resetTimerState.hasStartedAtLeastOnce, durationSeconds);
+  const synchronizedDuckRewardsState = synchronizeDuckRewardProgressStateWithTimer(
+    canonicalStateResult.duckRewardsState,
+    resetTimerState,
+    nowTimestampMilliseconds
+  );
+
+  if (!areDuckRewardsStatesEqual(canonicalStateResult.duckRewardsState, synchronizedDuckRewardsState)) {
+    await writeDuckRewardsStateToLocalStorage(synchronizedDuckRewardsState);
+  }
+
+  return createTimerStatusResponse(
+    false,
+    resetTimerState.hasStartedAtLeastOnce,
+    resetTimerState.remainingSecondsWhenNotRunning,
+    resetTimerState.configuredDurationSeconds
+  );
 }
 
 async function getTimerStateMessageResponse(): Promise<TimerMessageResponse> {
   const nowTimestampMilliseconds = Date.now();
-  const timerState = await getCanonicalTimerState();
+  const canonicalStateResult = await getCanonicalTimerAndDuckRewardsState(nowTimestampMilliseconds);
 
-  if (!timerState.isRunning) {
+  if (!canonicalStateResult.timerState.isRunning) {
     return createTimerStatusResponse(
       false,
-      timerState.hasStartedAtLeastOnce,
-      timerState.remainingSecondsWhenNotRunning
+      canonicalStateResult.timerState.hasStartedAtLeastOnce,
+      canonicalStateResult.timerState.remainingSecondsWhenNotRunning,
+      canonicalStateResult.timerState.configuredDurationSeconds
     );
   }
 
-  const remainingSeconds = calculateRemainingSecondsForRunningTimer(timerState, nowTimestampMilliseconds);
+  const remainingSeconds = calculateRemainingSecondsForRunningTimer(
+    canonicalStateResult.timerState,
+    nowTimestampMilliseconds
+  );
 
-  if (remainingSeconds < 1) {
-    const completedTimerState: TimerState = {
-      ...timerState,
-      isRunning: false,
-      startedAtTimestampMilliseconds: null,
-      remainingSecondsWhenNotRunning: 0
-    };
-
-    await writeTimerStateToSessionStorage(completedTimerState);
-
-    return createTimerStatusResponse(false, completedTimerState.hasStartedAtLeastOnce, 0);
-  }
-
-  return createTimerStatusResponse(true, timerState.hasStartedAtLeastOnce, remainingSeconds);
+  return createTimerStatusResponse(
+    true,
+    canonicalStateResult.timerState.hasStartedAtLeastOnce,
+    remainingSeconds,
+    canonicalStateResult.timerState.configuredDurationSeconds
+  );
 }
 
 async function getDuckRewardsStateMessageResponse(): Promise<DuckRewardsMessageResponse> {
-  const duckRewardsState = await readDuckRewardsStateFromLocalStorage();
-  return createDuckRewardsStatusResponse(duckRewardsState);
+  const nowTimestampMilliseconds = Date.now();
+  const canonicalStateResult = await getCanonicalTimerAndDuckRewardsState(nowTimestampMilliseconds);
+
+  return createDuckRewardsStatusResponse(
+    canonicalStateResult.duckRewardsState,
+    canonicalStateResult.timerState,
+    nowTimestampMilliseconds
+  );
 }
 
 async function selectDuckRewardItem(duckRewardItemId: DuckRewardItemId): Promise<DuckRewardsMessageResponse> {
-  const duckRewardsState = await readDuckRewardsStateFromLocalStorage();
-  const hasSelectedDifferentDuckRewardItemId = duckRewardsState.selectedDuckRewardItemId !== duckRewardItemId;
+  const nowTimestampMilliseconds = Date.now();
+  const canonicalStateResult = await getCanonicalTimerAndDuckRewardsState(nowTimestampMilliseconds);
+
+  if (canonicalStateResult.timerState.isRunning) {
+    return createErrorResponse("Cannot change duck reward while timer is running.");
+  }
 
   const updatedDuckRewardsState: DuckRewardsState = {
-    ...duckRewardsState,
+    ...canonicalStateResult.duckRewardsState,
     selectedDuckRewardItemId: duckRewardItemId,
-    selectedDuckRewardItemProgressSeconds: hasSelectedDifferentDuckRewardItemId
-      ? 0
-      : duckRewardsState.selectedDuckRewardItemProgressSeconds
+    selectedDuckRewardItemProgressSeconds: 0,
+    selectedDuckRewardItemProgressStartedAtTimestampMilliseconds: null,
+    isSelectedDuckRewardClaimAvailable: false
   };
 
   await writeDuckRewardsStateToLocalStorage(updatedDuckRewardsState);
 
-  return createDuckRewardsStatusResponse(updatedDuckRewardsState);
+  return createDuckRewardsStatusResponse(
+    updatedDuckRewardsState,
+    canonicalStateResult.timerState,
+    nowTimestampMilliseconds
+  );
+}
+
+async function claimSelectedDuckReward(): Promise<DuckRewardsMessageResponse> {
+  const nowTimestampMilliseconds = Date.now();
+  const canonicalStateResult = await getCanonicalTimerAndDuckRewardsState(nowTimestampMilliseconds);
+
+  if (!canonicalStateResult.duckRewardsState.selectedDuckRewardItemId) {
+    return createErrorResponse("No duck reward is selected.");
+  }
+
+  if (!canonicalStateResult.duckRewardsState.isSelectedDuckRewardClaimAvailable) {
+    return createErrorResponse("Selected duck reward is not ready to claim.");
+  }
+
+  const selectedDuckRewardItemId = canonicalStateResult.duckRewardsState.selectedDuckRewardItemId;
+
+  const updatedDuckRewardsState: DuckRewardsState = {
+    ...canonicalStateResult.duckRewardsState,
+    selectedDuckRewardItemId: null,
+    selectedDuckRewardItemProgressSeconds: 0,
+    selectedDuckRewardItemProgressStartedAtTimestampMilliseconds: null,
+    isSelectedDuckRewardClaimAvailable: false,
+    ducks: [...canonicalStateResult.duckRewardsState.ducks, createDuck(selectedDuckRewardItemId)]
+  };
+
+  await writeDuckRewardsStateToLocalStorage(updatedDuckRewardsState);
+
+  return createDuckRewardsStatusResponse(
+    updatedDuckRewardsState,
+    canonicalStateResult.timerState,
+    nowTimestampMilliseconds
+  );
 }
 
 async function handleExtensionRequestMessage(
@@ -507,6 +782,10 @@ async function handleExtensionRequestMessage(
 
   if (message.type === SELECT_DUCK_REWARD_ITEM_MESSAGE_TYPE) {
     return selectDuckRewardItem(message.duckRewardItemId);
+  }
+
+  if (message.type === CLAIM_SELECTED_DUCK_REWARD_MESSAGE_TYPE) {
+    return claimSelectedDuckReward();
   }
 
   return createErrorResponse("Unknown message type.");

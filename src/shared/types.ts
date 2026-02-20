@@ -17,24 +17,34 @@ export interface Duck {
 export interface DuckRewardsState {
   selectedDuckRewardItemId: DuckRewardItemId | null;
   selectedDuckRewardItemProgressSeconds: number;
+  selectedDuckRewardItemProgressStartedAtTimestampMilliseconds: number | null;
+  isSelectedDuckRewardClaimAvailable: boolean;
   ducks: Duck[];
   totalCompletedSessions: number;
   totalCompletedFocusSeconds: number;
+}
+
+export interface DuckRewardDefinitionResponse {
+  displayName: string;
+  rewardType: "duckEgg";
+  requiredProgressSeconds: number;
 }
 
 export interface TimerStatusResponse {
   isRunning: boolean;
   hasStartedAtLeastOnce: boolean;
   remainingSeconds: number;
+  configuredDurationSeconds: number;
 }
 
 export interface DuckRewardsStatusResponse {
   selectedDuckRewardItemId: DuckRewardItemId | null;
   selectedDuckRewardItemProgressSeconds: number;
+  isSelectedDuckRewardClaimAvailable: boolean;
   ducks: Duck[];
   totalCompletedSessions: number;
   totalCompletedFocusSeconds: number;
-  requiredSecondsByDuckRewardItemId: Record<DuckRewardItemId, number>;
+  duckRewardDefinitionsById: Record<DuckRewardItemId, DuckRewardDefinitionResponse>;
 }
 
 export interface ErrorResponse {

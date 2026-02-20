@@ -15,6 +15,7 @@ export const RESET_TIMER_MESSAGE_TYPE = "resetTimer";
 export const GET_TIMER_STATE_MESSAGE_TYPE = "getTimerState";
 export const GET_DUCK_REWARDS_STATE_MESSAGE_TYPE = "getDuckRewardsState";
 export const SELECT_DUCK_REWARD_ITEM_MESSAGE_TYPE = "selectDuckRewardItem";
+export const CLAIM_SELECTED_DUCK_REWARD_MESSAGE_TYPE = "claimSelectedDuckReward";
 
 export interface StartTimerMessage {
   type: typeof START_TIMER_MESSAGE_TYPE;
@@ -47,6 +48,10 @@ export interface SelectDuckRewardItemMessage {
   duckRewardItemId: DuckRewardItemId;
 }
 
+export interface ClaimSelectedDuckRewardMessage {
+  type: typeof CLAIM_SELECTED_DUCK_REWARD_MESSAGE_TYPE;
+}
+
 export type TimerRequestMessage =
   | StartTimerMessage
   | StopTimerMessage
@@ -54,7 +59,10 @@ export type TimerRequestMessage =
   | ResetTimerMessage
   | GetTimerStateMessage;
 
-export type DuckRewardsRequestMessage = GetDuckRewardsStateMessage | SelectDuckRewardItemMessage;
+export type DuckRewardsRequestMessage =
+  | GetDuckRewardsStateMessage
+  | SelectDuckRewardItemMessage
+  | ClaimSelectedDuckRewardMessage;
 
 export type ExtensionRequestMessage = TimerRequestMessage | DuckRewardsRequestMessage;
 
@@ -78,7 +86,8 @@ function isTimerStatusResponse(value: unknown): value is TimerStatusResponse {
   return (
     typeof value.isRunning === "boolean" &&
     typeof value.hasStartedAtLeastOnce === "boolean" &&
-    typeof value.remainingSeconds === "number"
+    typeof value.remainingSeconds === "number" &&
+    typeof value.configuredDurationSeconds === "number"
   );
 }
 
@@ -103,20 +112,32 @@ function isDuckRewardsStatusResponse(value: unknown): value is DuckRewardsStatus
     return false;
   }
 
-  const requiredSecondsByDuckRewardItemId = value.requiredSecondsByDuckRewardItemId;
-  if (!isObjectRecord(requiredSecondsByDuckRewardItemId)) {
+  const duckRewardDefinitionsById = value.duckRewardDefinitionsById;
+  if (!isObjectRecord(duckRewardDefinitionsById)) {
+    return false;
+  }
+
+  const duckEggOneDefinition = duckRewardDefinitionsById.duckEgg1;
+  const duckEggTwoDefinition = duckRewardDefinitionsById.duckEgg2;
+
+  if (!isObjectRecord(duckEggOneDefinition) || !isObjectRecord(duckEggTwoDefinition)) {
     return false;
   }
 
   return (
     (value.selectedDuckRewardItemId === null || isDuckRewardItemId(value.selectedDuckRewardItemId)) &&
     typeof value.selectedDuckRewardItemProgressSeconds === "number" &&
+    typeof value.isSelectedDuckRewardClaimAvailable === "boolean" &&
     Array.isArray(value.ducks) &&
     value.ducks.every((duck) => isDuck(duck)) &&
     typeof value.totalCompletedSessions === "number" &&
     typeof value.totalCompletedFocusSeconds === "number" &&
-    typeof requiredSecondsByDuckRewardItemId.duckEgg1 === "number" &&
-    typeof requiredSecondsByDuckRewardItemId.duckEgg2 === "number"
+    typeof duckEggOneDefinition.displayName === "string" &&
+    duckEggOneDefinition.rewardType === "duckEgg" &&
+    typeof duckEggOneDefinition.requiredProgressSeconds === "number" &&
+    typeof duckEggTwoDefinition.displayName === "string" &&
+    duckEggTwoDefinition.rewardType === "duckEgg" &&
+    typeof duckEggTwoDefinition.requiredProgressSeconds === "number"
   );
 }
 
@@ -159,6 +180,10 @@ export function isExtensionRequestMessage(value: unknown): value is ExtensionReq
 
   if (value.type === SELECT_DUCK_REWARD_ITEM_MESSAGE_TYPE) {
     return isDuckRewardItemId(value.duckRewardItemId);
+  }
+
+  if (value.type === CLAIM_SELECTED_DUCK_REWARD_MESSAGE_TYPE) {
+    return true;
   }
 
   return false;
