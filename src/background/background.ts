@@ -708,6 +708,23 @@ async function selectDuckRewardItem(duckRewardItemId: DuckRewardItemId): Promise
     return createErrorResponse("Cannot change duck reward while timer is running.");
   }
 
+  const currentlySelectedDuckRewardItemId = canonicalStateResult.duckRewardsState.selectedDuckRewardItemId;
+
+  if (
+    currentlySelectedDuckRewardItemId !== null &&
+    currentlySelectedDuckRewardItemId !== duckRewardItemId
+  ) {
+    return createErrorResponse("Cannot select a new duck reward until the current duck reward is claimed.");
+  }
+
+  if (currentlySelectedDuckRewardItemId === duckRewardItemId) {
+    return createDuckRewardsStatusResponse(
+      canonicalStateResult.duckRewardsState,
+      canonicalStateResult.timerState,
+      nowTimestampMilliseconds
+    );
+  }
+
   const updatedDuckRewardsState: DuckRewardsState = {
     ...canonicalStateResult.duckRewardsState,
     selectedDuckRewardItemId: duckRewardItemId,

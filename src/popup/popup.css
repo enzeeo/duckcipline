@@ -121,14 +121,22 @@ body {
   color: #fff;
 }
 
-.duck-reward-selection-row button.is-locked {
+.duck-reward-selection-row button.is-selection-locked {
   background: #e5e7eb;
   border-color: #9ca3af;
   color: #6b7280;
 }
 
+.duck-reward-selection-row button.is-running-locked {
+  opacity: 0.45;
+}
+
 .duck-reward-selection-row button:disabled {
   opacity: 1;
+}
+
+.duck-reward-selection-row button.is-running-locked:disabled {
+  opacity: 0.45;
 }
 
 .duck-reward-text {

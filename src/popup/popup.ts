@@ -87,6 +87,7 @@ const duckEggTwoStatusTextElement = getRequiredParagraphElement("duckEggTwoStatu
 
 let selectedDurationSelectionMode: DurationSelectionMode = "twentyFive";
 let isTimerRunningInCurrentViewState = false;
+let selectedDuckRewardItemIdInCurrentViewState: DuckRewardItemId | null = null;
 
 function createErrorResponse(message: string): ErrorResponse {
   return { error: message };
@@ -207,17 +208,21 @@ function updateDuckRewardSelectionButtons(
   selectedDuckRewardItemId: DuckRewardItemId | null,
   isTimerRunning: boolean
 ): void {
+  const hasSelectedDuckRewardItem = selectedDuckRewardItemId !== null;
   const hasSelectedDuckEggOne = selectedDuckRewardItemId === "duckEgg1";
   const hasSelectedDuckEggTwo = selectedDuckRewardItemId === "duckEgg2";
-  const isDuckEggOneLocked = isTimerRunning && !hasSelectedDuckEggOne;
-  const isDuckEggTwoLocked = isTimerRunning && !hasSelectedDuckEggTwo;
+  const isDuckEggOneSelectionLocked = hasSelectedDuckRewardItem && !hasSelectedDuckEggOne;
+  const isDuckEggTwoSelectionLocked = hasSelectedDuckRewardItem && !hasSelectedDuckEggTwo;
+  const areRewardSelectionButtonsDisabled = isTimerRunning || hasSelectedDuckRewardItem;
 
   selectDuckEggOneButtonElement.classList.toggle("is-selected", hasSelectedDuckEggOne);
   selectDuckEggTwoButtonElement.classList.toggle("is-selected", hasSelectedDuckEggTwo);
-  selectDuckEggOneButtonElement.classList.toggle("is-locked", isDuckEggOneLocked);
-  selectDuckEggTwoButtonElement.classList.toggle("is-locked", isDuckEggTwoLocked);
-  selectDuckEggOneButtonElement.disabled = isTimerRunning;
-  selectDuckEggTwoButtonElement.disabled = isTimerRunning;
+  selectDuckEggOneButtonElement.classList.toggle("is-selection-locked", isDuckEggOneSelectionLocked);
+  selectDuckEggTwoButtonElement.classList.toggle("is-selection-locked", isDuckEggTwoSelectionLocked);
+  selectDuckEggOneButtonElement.classList.toggle("is-running-locked", isTimerRunning);
+  selectDuckEggTwoButtonElement.classList.toggle("is-running-locked", isTimerRunning);
+  selectDuckEggOneButtonElement.disabled = areRewardSelectionButtonsDisabled;
+  selectDuckEggTwoButtonElement.disabled = areRewardSelectionButtonsDisabled;
 }
 
 function updateClaimDuckRewardButtonVisibility(duckRewardsState: DuckRewardsMessageResponse): void {
@@ -239,7 +244,7 @@ function updateClaimDuckRewardButtonVisibility(duckRewardsState: DuckRewardsMess
 
 function createSelectedDuckRewardLabel(duckRewardsState: DuckRewardsMessageResponse): string {
   if ("error" in duckRewardsState) {
-    return "Selected reward: error";
+    return "Selected reward: unavailable";
   }
 
   if (!duckRewardsState.selectedDuckRewardItemId) {
@@ -280,7 +285,10 @@ function updateDuckRewardsDisplay(duckRewardsState: DuckRewardsMessageResponse):
   updateClaimDuckRewardButtonVisibility(duckRewardsState);
 
   if ("error" in duckRewardsState) {
-    updateDuckRewardSelectionButtons(null, isTimerRunningInCurrentViewState);
+    updateDuckRewardSelectionButtons(
+      selectedDuckRewardItemIdInCurrentViewState,
+      isTimerRunningInCurrentViewState
+    );
     selectedDuckRewardProgressTextElement.textContent = "Progress: unavailable";
     totalCompletedSessionsTextElement.textContent = "Completed sessions: unavailable";
     totalCompletedFocusSecondsTextElement.textContent = "Completed focus seconds: unavailable";
@@ -288,6 +296,8 @@ function updateDuckRewardsDisplay(duckRewardsState: DuckRewardsMessageResponse):
     duckEggTwoStatusTextElement.textContent = "Duck Egg 2: error";
     return;
   }
+
+  selectedDuckRewardItemIdInCurrentViewState = duckRewardsState.selectedDuckRewardItemId;
 
   const duckRewardItemHatchCounts = calculateDuckRewardItemHatchCounts(duckRewardsState.ducks);
 
@@ -399,6 +409,10 @@ async function handleSelectDuckRewardItemButtonClick(duckRewardItemId: DuckRewar
     return;
   }
 
+  if (selectedDuckRewardItemIdInCurrentViewState !== null) {
+    return;
+  }
+
   const selectDuckRewardItemMessage: SelectDuckRewardItemMessage = {
     type: SELECT_DUCK_REWARD_ITEM_MESSAGE_TYPE,
     duckRewardItemId
@@ -422,7 +436,7 @@ async function handleClaimDuckRewardButtonClick(): Promise<void> {
   const duckRewardsState = await sendDuckRewardsRuntimeMessage(claimSelectedDuckRewardMessage);
 
   if ("error" in duckRewardsState) {
-    selectedDuckRewardItemTextElement.textContent = duckRewardsState.error;
+    await refreshAllDisplays();
     return;
   }
 
@@ -445,7 +459,7 @@ startButtonElement.addEventListener("click", () => {
   handleStartButtonClick()
     .then(() => refreshDuckRewardsDisplay())
     .catch(() => {
-      selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
+      refreshAllDisplays().catch(() => {});
     });
 });
 
@@ -453,7 +467,7 @@ pauseButtonElement.addEventListener("click", () => {
   handlePauseButtonClick()
     .then(() => refreshDuckRewardsDisplay())
     .catch(() => {
-      selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
+      refreshAllDisplays().catch(() => {});
     });
 });
 
@@ -461,7 +475,7 @@ resetButtonElement.addEventListener("click", () => {
   handleResetButtonClick()
     .then(() => refreshDuckRewardsDisplay())
     .catch(() => {
-      selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
+      refreshAllDisplays().catch(() => {});
     });
 });
 
@@ -479,18 +493,18 @@ selectDuckEggTwoButtonElement.addEventListener("click", () => {
 
 claimDuckRewardButtonElement.addEventListener("click", () => {
   handleClaimDuckRewardButtonClick().catch(() => {
-    selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
+    refreshAllDisplays().catch(() => {});
   });
 });
 
 setDurationSelectionMode("twentyFive");
 
 refreshAllDisplays().catch(() => {
-  selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
+  selectedDuckRewardItemTextElement.textContent = "Selected reward: unavailable";
 });
 
 setInterval(() => {
   refreshAllDisplays().catch(() => {
-    selectedDuckRewardItemTextElement.textContent = "Selected reward: error";
+    selectedDuckRewardItemTextElement.textContent = "Selected reward: unavailable";
   });
 }, UPDATE_INTERVAL_MILLISECONDS);
