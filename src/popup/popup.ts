@@ -1,16 +1,29 @@
 import {
+  CLAIM_SELECTED_DUCK_REWARD_MESSAGE_TYPE,
+  GET_DUCK_REWARDS_STATE_MESSAGE_TYPE,
   GET_TIMER_STATE_MESSAGE_TYPE,
   PAUSE_TIMER_MESSAGE_TYPE,
   RESET_TIMER_MESSAGE_TYPE,
+  SELECT_DUCK_REWARD_ITEM_MESSAGE_TYPE,
   START_TIMER_MESSAGE_TYPE,
+  isDuckRewardsMessageResponse,
   isTimerMessageResponse,
+  type ClaimSelectedDuckRewardMessage,
+  type GetDuckRewardsStateMessage,
   type GetTimerStateMessage,
   type PauseTimerMessage,
   type ResetTimerMessage,
+  type SelectDuckRewardItemMessage,
   type StartTimerMessage,
   type TimerRequestMessage
 } from "../shared/messages.js";
-import type { TimerMessageResponse } from "../shared/types.js";
+import type {
+  Duck,
+  DuckRewardItemId,
+  DuckRewardsMessageResponse,
+  ErrorResponse,
+  TimerMessageResponse
+} from "../shared/types.js";
 
 const UPDATE_INTERVAL_MILLISECONDS = 1000;
 const SECONDS_PER_MINUTE = 60;
@@ -51,8 +64,11 @@ function getRequiredButtonElement(elementId: string): HTMLButtonElement {
   return element;
 }
 
+const selectedDuckRewardItemTextElement = getRequiredParagraphElement("selectedDuckRewardItemText");
 const timerDisplayElement = getRequiredParagraphElement("timerDisplay");
-const timerStatusElement = getRequiredParagraphElement("timerStatus");
+const selectedDuckRewardRemainingTextElement = getRequiredParagraphElement("selectedDuckRewardRemainingText");
+const claimDuckRewardButtonElement = getRequiredButtonElement("claimDuckRewardButton");
+
 const durationMinutesInputElement = getRequiredInputElement("durationMinutesInput");
 const presetTwentyFiveMinutesButtonElement = getRequiredButtonElement("presetTwentyFiveMinutesButton");
 const presetFiftyMinutesButtonElement = getRequiredButtonElement("presetFiftyMinutesButton");
@@ -61,9 +77,20 @@ const startButtonElement = getRequiredButtonElement("startButton");
 const pauseButtonElement = getRequiredButtonElement("pauseButton");
 const resetButtonElement = getRequiredButtonElement("resetButton");
 
-let selectedDurationSelectionMode: DurationSelectionMode = "twentyFive";
+const selectDuckEggOneButtonElement = getRequiredButtonElement("selectDuckEggOneButton");
+const selectDuckEggTwoButtonElement = getRequiredButtonElement("selectDuckEggTwoButton");
+const selectedDuckRewardProgressTextElement = getRequiredParagraphElement("selectedDuckRewardProgressText");
+const totalCompletedSessionsTextElement = getRequiredParagraphElement("totalCompletedSessionsText");
+const totalCompletedFocusSecondsTextElement = getRequiredParagraphElement("totalCompletedFocusSecondsText");
+const duckEggOneStatusTextElement = getRequiredParagraphElement("duckEggOneStatusText");
+const duckEggTwoStatusTextElement = getRequiredParagraphElement("duckEggTwoStatusText");
 
-function createErrorResponse(message: string): TimerMessageResponse {
+let selectedDurationSelectionMode: DurationSelectionMode = "twentyFive";
+let isTimerRunningInCurrentViewState = false;
+let selectedDuckRewardItemIdInCurrentViewState: DuckRewardItemId | null = null;
+let isCustomDurationInputRepresentingSeconds = false;
+
+function createErrorResponse(message: string): ErrorResponse {
   return { error: message };
 }
 
@@ -80,25 +107,40 @@ function formatAsHoursMinutesSeconds(totalSeconds: number): string {
 }
 
 function readCustomDurationMinutesFromInput(): number {
-  const parsedDurationMinutes = Number.parseInt(durationMinutesInputElement.value, 10);
+  const parsedDurationMinutes = Number.parseFloat(durationMinutesInputElement.value);
 
-  if (!Number.isFinite(parsedDurationMinutes) || parsedDurationMinutes < 1) {
+  if (!Number.isFinite(parsedDurationMinutes) || parsedDurationMinutes <= 0) {
     return DEFAULT_CUSTOM_DURATION_MINUTES;
   }
 
   return parsedDurationMinutes;
 }
 
-function getSelectedDurationMinutes(): number {
+function readCustomDurationSecondsFromInput(): number {
+  const parsedDurationSeconds = Number.parseFloat(durationMinutesInputElement.value);
+
+  if (!Number.isFinite(parsedDurationSeconds) || parsedDurationSeconds <= 0) {
+    return DEFAULT_CUSTOM_DURATION_MINUTES * SECONDS_PER_MINUTE;
+  }
+
+  return Math.floor(parsedDurationSeconds);
+}
+
+function getSelectedDurationSeconds(): number {
   if (selectedDurationSelectionMode === "twentyFive") {
-    return PRESET_TWENTY_FIVE_MINUTES;
+    return PRESET_TWENTY_FIVE_MINUTES * SECONDS_PER_MINUTE;
   }
 
   if (selectedDurationSelectionMode === "fifty") {
-    return PRESET_FIFTY_MINUTES;
+    return PRESET_FIFTY_MINUTES * SECONDS_PER_MINUTE;
   }
 
-  return readCustomDurationMinutesFromInput();
+  if (isCustomDurationInputRepresentingSeconds) {
+    return readCustomDurationSecondsFromInput();
+  }
+
+  const customDurationMinutes = readCustomDurationMinutesFromInput();
+  return Math.max(1, Math.round(customDurationMinutes * SECONDS_PER_MINUTE));
 }
 
 function setDurationSelectionMode(durationSelectionMode: DurationSelectionMode): void {
@@ -128,24 +170,11 @@ function setDurationSelectionMode(durationSelectionMode: DurationSelectionMode):
   durationMinutesInputElement.focus();
 }
 
-function createStatusLabel(timerState: TimerMessageResponse): string {
-  if ("error" in timerState) {
-    return "Error";
-  }
-
-  if (timerState.isRunning) {
-    return "Running";
-  }
-
-  if (timerState.hasStartedAtLeastOnce && timerState.remainingSeconds === 0) {
-    return "Completed";
-  }
-
-  if (timerState.hasStartedAtLeastOnce) {
-    return "Paused";
-  }
-
-  return "Ready";
+function setCustomDurationFromDuckRewardSeconds(duckRewardRequiredProgressSeconds: number): void {
+  const normalizedDuckRewardRequiredProgressSeconds = Math.max(1, Math.floor(duckRewardRequiredProgressSeconds));
+  isCustomDurationInputRepresentingSeconds = true;
+  setDurationSelectionMode("custom");
+  durationMinutesInputElement.value = String(normalizedDuckRewardRequiredProgressSeconds);
 }
 
 function updateActionButtons(timerState: TimerMessageResponse): void {
@@ -158,7 +187,7 @@ function updateActionButtons(timerState: TimerMessageResponse): void {
   }
 
   if (timerState.isRunning) {
-    startButtonElement.textContent = "Running";
+    startButtonElement.textContent = "Started";
     startButtonElement.disabled = true;
     pauseButtonElement.disabled = false;
     resetButtonElement.disabled = false;
@@ -176,23 +205,174 @@ function updateActionButtons(timerState: TimerMessageResponse): void {
   resetButtonElement.disabled = false;
 }
 
-function updatePopupDisplay(timerState: TimerMessageResponse): void {
+function updateTimerDisplay(timerState: TimerMessageResponse): void {
   if ("error" in timerState) {
-    timerStatusElement.textContent = "Error";
+    isTimerRunningInCurrentViewState = false;
     updateActionButtons(timerState);
     return;
   }
 
+  isTimerRunningInCurrentViewState = timerState.isRunning;
   timerDisplayElement.textContent = formatAsHoursMinutesSeconds(timerState.remainingSeconds);
-  timerStatusElement.textContent = createStatusLabel(timerState);
   updateActionButtons(timerState);
 }
 
-async function sendRuntimeMessage(message: TimerRequestMessage): Promise<TimerMessageResponse> {
+function calculateDuckRewardItemHatchCounts(ducks: Duck[]): Record<DuckRewardItemId, number> {
+  return ducks.reduce<Record<DuckRewardItemId, number>>(
+    (duckRewardItemHatchCounts, duck) => {
+      duckRewardItemHatchCounts[duck.sourceDuckRewardItemId] += 1;
+      return duckRewardItemHatchCounts;
+    },
+    { duckEgg1: 0, duckEgg2: 0 }
+  );
+}
+
+function updateDuckRewardSelectionButtons(
+  selectedDuckRewardItemId: DuckRewardItemId | null,
+  isTimerRunning: boolean
+): void {
+  const hasSelectedDuckRewardItem = selectedDuckRewardItemId !== null;
+  const hasSelectedDuckEggOne = selectedDuckRewardItemId === "duckEgg1";
+  const hasSelectedDuckEggTwo = selectedDuckRewardItemId === "duckEgg2";
+  const isDuckEggOneSelectionLocked = hasSelectedDuckRewardItem && !hasSelectedDuckEggOne;
+  const isDuckEggTwoSelectionLocked = hasSelectedDuckRewardItem && !hasSelectedDuckEggTwo;
+  const areRewardSelectionButtonsDisabled = isTimerRunning || hasSelectedDuckRewardItem;
+
+  selectDuckEggOneButtonElement.classList.toggle("is-selected", hasSelectedDuckEggOne);
+  selectDuckEggTwoButtonElement.classList.toggle("is-selected", hasSelectedDuckEggTwo);
+  selectDuckEggOneButtonElement.classList.toggle("is-selection-locked", isDuckEggOneSelectionLocked);
+  selectDuckEggTwoButtonElement.classList.toggle("is-selection-locked", isDuckEggTwoSelectionLocked);
+  selectDuckEggOneButtonElement.classList.toggle("is-running-locked", isTimerRunning);
+  selectDuckEggTwoButtonElement.classList.toggle("is-running-locked", isTimerRunning);
+  selectDuckEggOneButtonElement.disabled = areRewardSelectionButtonsDisabled;
+  selectDuckEggTwoButtonElement.disabled = areRewardSelectionButtonsDisabled;
+}
+
+function updateClaimDuckRewardButtonVisibility(duckRewardsState: DuckRewardsMessageResponse): void {
+  if ("error" in duckRewardsState) {
+    claimDuckRewardButtonElement.hidden = true;
+    claimDuckRewardButtonElement.disabled = true;
+    return;
+  }
+
+  if (!duckRewardsState.selectedDuckRewardItemId || !duckRewardsState.isSelectedDuckRewardClaimAvailable) {
+    claimDuckRewardButtonElement.hidden = true;
+    claimDuckRewardButtonElement.disabled = true;
+    return;
+  }
+
+  claimDuckRewardButtonElement.hidden = false;
+  claimDuckRewardButtonElement.disabled = false;
+}
+
+function createSelectedDuckRewardLabel(duckRewardsState: DuckRewardsMessageResponse): string {
+  if ("error" in duckRewardsState) {
+    return "Selected reward: unavailable";
+  }
+
+  if (!duckRewardsState.selectedDuckRewardItemId) {
+    return "Selected reward: none";
+  }
+
+  const selectedDuckRewardDefinition =
+    duckRewardsState.duckRewardDefinitionsById[duckRewardsState.selectedDuckRewardItemId];
+  return `Selected reward: ${selectedDuckRewardDefinition.displayName}`;
+}
+
+function createSelectedDuckRewardRemainingLabel(duckRewardsState: DuckRewardsMessageResponse): string {
+  if ("error" in duckRewardsState) {
+    return "Reward time left: unavailable";
+  }
+
+  if (!duckRewardsState.selectedDuckRewardItemId) {
+    return "Reward time left: choose a reward item";
+  }
+
+  if (duckRewardsState.isSelectedDuckRewardClaimAvailable) {
+    return "Reward time left: 00:00:00 (Ready to claim)";
+  }
+
+  const selectedDuckRewardDefinition =
+    duckRewardsState.duckRewardDefinitionsById[duckRewardsState.selectedDuckRewardItemId];
+  const remainingSeconds = Math.max(
+    selectedDuckRewardDefinition.requiredProgressSeconds - duckRewardsState.selectedDuckRewardItemProgressSeconds,
+    0
+  );
+
+  return `Reward time left: ${formatAsHoursMinutesSeconds(remainingSeconds)}`;
+}
+
+function updateDuckRewardsDisplay(duckRewardsState: DuckRewardsMessageResponse): void {
+  selectedDuckRewardItemTextElement.textContent = createSelectedDuckRewardLabel(duckRewardsState);
+  selectedDuckRewardRemainingTextElement.textContent = createSelectedDuckRewardRemainingLabel(duckRewardsState);
+  updateClaimDuckRewardButtonVisibility(duckRewardsState);
+
+  if ("error" in duckRewardsState) {
+    updateDuckRewardSelectionButtons(
+      selectedDuckRewardItemIdInCurrentViewState,
+      isTimerRunningInCurrentViewState
+    );
+    selectedDuckRewardProgressTextElement.textContent = "Progress: unavailable";
+    totalCompletedSessionsTextElement.textContent = "Completed sessions: unavailable";
+    totalCompletedFocusSecondsTextElement.textContent = "Completed focus seconds: unavailable";
+    duckEggOneStatusTextElement.textContent = "Duck Egg 1: error";
+    duckEggTwoStatusTextElement.textContent = "Duck Egg 2: error";
+    return;
+  }
+
+  selectedDuckRewardItemIdInCurrentViewState = duckRewardsState.selectedDuckRewardItemId;
+
+  const duckRewardItemHatchCounts = calculateDuckRewardItemHatchCounts(duckRewardsState.ducks);
+
+  totalCompletedSessionsTextElement.textContent = `Completed sessions: ${duckRewardsState.totalCompletedSessions}`;
+  totalCompletedFocusSecondsTextElement.textContent =
+    `Completed focus seconds: ${duckRewardsState.totalCompletedFocusSeconds}`;
+
+  duckEggOneStatusTextElement.textContent =
+    duckRewardItemHatchCounts.duckEgg1 > 0
+      ? `Duck Egg 1: Hatched (${duckRewardItemHatchCounts.duckEgg1})`
+      : "Duck Egg 1: Locked (0)";
+  duckEggTwoStatusTextElement.textContent =
+    duckRewardItemHatchCounts.duckEgg2 > 0
+      ? `Duck Egg 2: Hatched (${duckRewardItemHatchCounts.duckEgg2})`
+      : "Duck Egg 2: Locked (0)";
+
+  if (!duckRewardsState.selectedDuckRewardItemId) {
+    selectedDuckRewardProgressTextElement.textContent = "Progress: choose a reward item";
+    updateDuckRewardSelectionButtons(null, isTimerRunningInCurrentViewState);
+    return;
+  }
+
+  const selectedDuckRewardDefinition =
+    duckRewardsState.duckRewardDefinitionsById[duckRewardsState.selectedDuckRewardItemId];
+
+  selectedDuckRewardProgressTextElement.textContent =
+    `Progress: ${duckRewardsState.selectedDuckRewardItemProgressSeconds} / ` +
+    `${selectedDuckRewardDefinition.requiredProgressSeconds} seconds`;
+
+  updateDuckRewardSelectionButtons(
+    duckRewardsState.selectedDuckRewardItemId,
+    isTimerRunningInCurrentViewState
+  );
+}
+
+async function sendTimerRuntimeMessage(message: TimerRequestMessage): Promise<TimerMessageResponse> {
   const response = await chrome.runtime.sendMessage(message);
 
   if (!isTimerMessageResponse(response)) {
-    return createErrorResponse("Unexpected runtime response.");
+    return createErrorResponse("Unexpected runtime timer response.");
+  }
+
+  return response;
+}
+
+async function sendDuckRewardsRuntimeMessage(
+  message: GetDuckRewardsStateMessage | SelectDuckRewardItemMessage | ClaimSelectedDuckRewardMessage
+): Promise<DuckRewardsMessageResponse> {
+  const response = await chrome.runtime.sendMessage(message);
+
+  if (!isDuckRewardsMessageResponse(response)) {
+    return createErrorResponse("Unexpected runtime duck rewards response.");
   }
 
   return response;
@@ -200,38 +380,96 @@ async function sendRuntimeMessage(message: TimerRequestMessage): Promise<TimerMe
 
 async function refreshTimerDisplay(): Promise<void> {
   const getTimerStateMessage: GetTimerStateMessage = { type: GET_TIMER_STATE_MESSAGE_TYPE };
-  const timerState = await sendRuntimeMessage(getTimerStateMessage);
-  updatePopupDisplay(timerState);
+  const timerState = await sendTimerRuntimeMessage(getTimerStateMessage);
+  updateTimerDisplay(timerState);
+}
+
+async function refreshDuckRewardsDisplay(): Promise<void> {
+  const getDuckRewardsStateMessage: GetDuckRewardsStateMessage = {
+    type: GET_DUCK_REWARDS_STATE_MESSAGE_TYPE
+  };
+  const duckRewardsState = await sendDuckRewardsRuntimeMessage(getDuckRewardsStateMessage);
+  updateDuckRewardsDisplay(duckRewardsState);
+}
+
+async function refreshAllDisplays(): Promise<void> {
+  await refreshTimerDisplay();
+  await refreshDuckRewardsDisplay();
 }
 
 async function handleStartButtonClick(): Promise<void> {
-  const durationMinutes = getSelectedDurationMinutes();
-  const durationSeconds = durationMinutes * SECONDS_PER_MINUTE;
+  const durationSeconds = getSelectedDurationSeconds();
   const startTimerMessage: StartTimerMessage = {
     type: START_TIMER_MESSAGE_TYPE,
     durationSeconds
   };
 
-  const timerState = await sendRuntimeMessage(startTimerMessage);
-  updatePopupDisplay(timerState);
+  const timerState = await sendTimerRuntimeMessage(startTimerMessage);
+  updateTimerDisplay(timerState);
 }
 
 async function handlePauseButtonClick(): Promise<void> {
   const pauseTimerMessage: PauseTimerMessage = { type: PAUSE_TIMER_MESSAGE_TYPE };
-  const timerState = await sendRuntimeMessage(pauseTimerMessage);
-  updatePopupDisplay(timerState);
+  const timerState = await sendTimerRuntimeMessage(pauseTimerMessage);
+  updateTimerDisplay(timerState);
 }
 
 async function handleResetButtonClick(): Promise<void> {
-  const durationMinutes = getSelectedDurationMinutes();
-  const durationSeconds = durationMinutes * SECONDS_PER_MINUTE;
+  const durationSeconds = getSelectedDurationSeconds();
   const resetTimerMessage: ResetTimerMessage = {
     type: RESET_TIMER_MESSAGE_TYPE,
     durationSeconds
   };
 
-  const timerState = await sendRuntimeMessage(resetTimerMessage);
-  updatePopupDisplay(timerState);
+  const timerState = await sendTimerRuntimeMessage(resetTimerMessage);
+  updateTimerDisplay(timerState);
+}
+
+async function handleSelectDuckRewardItemButtonClick(duckRewardItemId: DuckRewardItemId): Promise<void> {
+  if (isTimerRunningInCurrentViewState) {
+    return;
+  }
+
+  if (selectedDuckRewardItemIdInCurrentViewState !== null) {
+    return;
+  }
+
+  const selectDuckRewardItemMessage: SelectDuckRewardItemMessage = {
+    type: SELECT_DUCK_REWARD_ITEM_MESSAGE_TYPE,
+    duckRewardItemId
+  };
+
+  const duckRewardsState = await sendDuckRewardsRuntimeMessage(selectDuckRewardItemMessage);
+
+  if ("error" in duckRewardsState) {
+    await refreshAllDisplays();
+    return;
+  }
+
+  updateDuckRewardsDisplay(duckRewardsState);
+  const selectedDuckRewardItemId = duckRewardsState.selectedDuckRewardItemId;
+
+  if (selectedDuckRewardItemId !== null) {
+    const selectedDuckRewardDefinition = duckRewardsState.duckRewardDefinitionsById[selectedDuckRewardItemId];
+    setCustomDurationFromDuckRewardSeconds(selectedDuckRewardDefinition.requiredProgressSeconds);
+  }
+
+  await refreshTimerDisplay();
+}
+
+async function handleClaimDuckRewardButtonClick(): Promise<void> {
+  const claimSelectedDuckRewardMessage: ClaimSelectedDuckRewardMessage = {
+    type: CLAIM_SELECTED_DUCK_REWARD_MESSAGE_TYPE
+  };
+
+  const duckRewardsState = await sendDuckRewardsRuntimeMessage(claimSelectedDuckRewardMessage);
+
+  if ("error" in duckRewardsState) {
+    await refreshAllDisplays();
+    return;
+  }
+
+  updateDuckRewardsDisplay(duckRewardsState);
 }
 
 presetTwentyFiveMinutesButtonElement.addEventListener("click", () => {
@@ -243,35 +481,60 @@ presetFiftyMinutesButtonElement.addEventListener("click", () => {
 });
 
 presetCustomDurationButtonElement.addEventListener("click", () => {
+  isCustomDurationInputRepresentingSeconds = false;
   setDurationSelectionMode("custom");
 });
 
 startButtonElement.addEventListener("click", () => {
-  handleStartButtonClick().catch(() => {
-    timerStatusElement.textContent = "Error";
-  });
+  handleStartButtonClick()
+    .then(() => refreshDuckRewardsDisplay())
+    .catch(() => {
+      refreshAllDisplays().catch(() => {});
+    });
 });
 
 pauseButtonElement.addEventListener("click", () => {
-  handlePauseButtonClick().catch(() => {
-    timerStatusElement.textContent = "Error";
-  });
+  handlePauseButtonClick()
+    .then(() => refreshDuckRewardsDisplay())
+    .catch(() => {
+      refreshAllDisplays().catch(() => {});
+    });
 });
 
 resetButtonElement.addEventListener("click", () => {
-  handleResetButtonClick().catch(() => {
-    timerStatusElement.textContent = "Error";
+  handleResetButtonClick()
+    .then(() => refreshDuckRewardsDisplay())
+    .catch(() => {
+      refreshAllDisplays().catch(() => {});
+    });
+});
+
+selectDuckEggOneButtonElement.addEventListener("click", () => {
+  handleSelectDuckRewardItemButtonClick("duckEgg1").catch(() => {
+    refreshAllDisplays().catch(() => {});
+  });
+});
+
+selectDuckEggTwoButtonElement.addEventListener("click", () => {
+  handleSelectDuckRewardItemButtonClick("duckEgg2").catch(() => {
+    refreshAllDisplays().catch(() => {});
+  });
+});
+
+claimDuckRewardButtonElement.addEventListener("click", () => {
+  handleClaimDuckRewardButtonClick().catch(() => {
+    refreshAllDisplays().catch(() => {});
   });
 });
 
 setDurationSelectionMode("twentyFive");
 
-refreshTimerDisplay().catch(() => {
-  timerStatusElement.textContent = "Error";
+refreshAllDisplays().catch(() => {
+  selectedDuckRewardItemTextElement.textContent = "Selected reward: unavailable";
 });
 
 setInterval(() => {
-  refreshTimerDisplay().catch(() => {
-    timerStatusElement.textContent = "Error";
+  refreshAllDisplays().catch(() => {
+    selectedDuckRewardItemTextElement.textContent = "Selected reward: unavailable";
   });
 }, UPDATE_INTERVAL_MILLISECONDS);

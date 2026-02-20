@@ -40,9 +40,20 @@ body {
   letter-spacing: 1px;
 }
 
-.timer-status {
-  margin: 8px 0 0;
-  color: #555;
+.selected-duck-reward-text {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #333;
+}
+
+.selected-duck-reward-remaining-text {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #444;
+}
+
+.claim-duck-reward-button {
+  margin-top: 8px;
 }
 
 .controls {
@@ -85,6 +96,53 @@ body {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 8px;
+  margin-bottom: 16px;
+}
+
+.duck-rewards-section {
+  border-top: 1px solid #ddd;
+  padding-top: 12px;
+}
+
+.duck-rewards-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.duck-reward-selection-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.duck-reward-selection-row button.is-selected {
+  background: #111;
+  color: #fff;
+}
+
+.duck-reward-selection-row button.is-selection-locked {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+  color: #6b7280;
+}
+
+.duck-reward-selection-row button.is-running-locked {
+  opacity: 0.45;
+}
+
+.duck-reward-selection-row button:disabled {
+  opacity: 1;
+}
+
+.duck-reward-selection-row button.is-running-locked:disabled {
+  opacity: 0.45;
+}
+
+.duck-reward-text {
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: #333;
 }
 
 button {
