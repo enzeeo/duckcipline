@@ -4,10 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Duckcipline</title>
-    <link rel="stylesheet" href="./popup.css" />
+    <link rel="stylesheet" href="./timer.css" />
   </head>
   <body>
     <main class="container">
+      <section class="top-navigation">
+        <button id="openHomesteadButton" class="view-toggle-button" type="button">To Homestead</button>
+      </section>
+
       <section class="timer-block">
         <h1 class="title">Duckcipline</h1>
         <p id="selectedDuckRewardItemText" class="selected-duck-reward-text">Selected reward: none</p>
@@ -63,6 +67,6 @@
       </section>
     </main>
 
-    <script type="module" src="./popup.ts"></script>
+    <script type="module" src="./timer.ts"></script>
   </body>
 </html>

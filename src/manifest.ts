@@ -9,7 +9,7 @@ export default defineManifest({
     default_title: "Duckcipline Focus Timer"
   },
   side_panel: {
-    default_path: "src/popup/popup.html"
+    default_path: "src/timer/timer.html"
   },
   background: {
     service_worker: "src/background/background.ts",

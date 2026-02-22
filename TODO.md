@@ -82,14 +82,64 @@
 
 # V3 – Garden System
 
-- [ ] Define grid size + tile size
-- [ ] Implement tile data structure
-- [ ] Render tile grid
-- [ ] Implement grid snap placement
-- [ ] Add object layer
-- [ ] Implement collision grid
-- [ ] Add duck wandering logic
-- [ ] Save/load garden state
+## V3A – Foundation (Implementation)
+
+- [ ] Define garden data models (GardenState, TileDefinition, DuckEntity, DuckMovementRuntimeState)
+- [ ] Define tile indexing helpers (x/y to flat array index)
+- [ ] Add garden constants (tile size, map width, map height, layer empty value)
+- [ ] Build ground layer array rendering
+- [ ] Build object layer array rendering
+- [ ] Build foreground layer rendering (front occlusion layer)
+- [ ] Implement render order (ground -> object -> ducks -> foreground)
+- [ ] Add collision layer generation and collision lookup helpers
+- [ ] Add garden storage read/write in chrome.storage.local
+- [ ] Add garden state bootstrap defaults
+
+## V3B – Ducks In Garden (Implementation)
+
+- [ ] Add duck spawn placement validation (bounds + collision)
+- [ ] Add duck runtime movement state tracking (from/to tile + progress)
+- [ ] Implement timestamp-based duck interpolation rendering
+- [ ] Implement simple duck wandering behavior (idle/walk)
+- [ ] Persist duck grid positions after movement completion
+- [ ] Prevent duck movement into blocked collision tiles
+
+## V3C – Garden Editing (Implementation)
+
+- [ ] Add edit mode toggle in UI
+- [ ] Add tile brush selection (ground/object/foreground)
+- [ ] Implement grid-snap tile placement
+- [ ] Implement tile removal tool
+- [ ] Recompute collision when blocking objects are placed/removed
+- [ ] Save edits to local storage
+
+## V3D – Pixel Art Asset Pipeline (Implementation)
+
+- [ ] Create sprite sheets for ground, objects, foreground, and ducks
+- [ ] Define sprite metadata mapping (tile id -> source x/y/width/height)
+- [ ] Define duck animation metadata (idle/walk frame lists + frames per second)
+- [ ] Add image preload/ready flow before first garden render
+
+## V3E – Testing (Implementation)
+
+- [ ] Verify draw order hides ducks behind foreground objects
+- [ ] Verify collision blocks ducks and placement
+- [ ] Verify duck movement is smooth (no visible snapping between tiles)
+- [ ] Verify full save/load round-trip for garden + ducks
+- [ ] Verify behavior after side panel close/reopen
+
+## V3 – Needs Definition (Fleshing Out)
+
+- [ ] Confirm garden map size for v1 (example 40x30 or other)
+- [ ] Confirm camera behavior (fixed view or scrollable)
+- [ ] Confirm v1 tile catalog ids and blocking rules
+- [ ] Confirm duck movement speed target
+- [ ] Confirm duck behavior scope for v1 (random walk only or additional rules)
+- [ ] Confirm required duck animations and frames per second
+- [ ] Confirm edit mode scope for v1 (which layers are editable)
+- [ ] Confirm whether undo/redo is needed in v1
+- [ ] Confirm exact persisted fields for garden save format
+- [ ] Confirm asset folder/file naming conventions
 
 ---
 

@@ -1,0 +1,54 @@
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  font-family: sans-serif;
+}
+
+.container {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100vh;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.top-navigation {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.view-toggle-button {
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid #777;
+  background: #fff;
+  cursor: pointer;
+}
+
+.homestead-block {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.placeholder-text {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #475569;
+}

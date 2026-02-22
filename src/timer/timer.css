@@ -16,8 +16,18 @@ body {
   min-height: 100vh;
   padding: 16px;
   display: grid;
-  grid-template-rows: 1fr auto;
-  gap: 24px;
+  grid-template-rows: auto 1fr auto;
+  gap: 18px;
+}
+
+.top-navigation {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.view-toggle-button {
+  padding: 6px 10px;
+  font-size: 12px;
 }
 
 .timer-block {

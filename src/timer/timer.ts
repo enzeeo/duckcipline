@@ -31,6 +31,7 @@ const MINUTES_PER_HOUR = 60;
 const PRESET_TWENTY_FIVE_MINUTES = 25;
 const PRESET_FIFTY_MINUTES = 50;
 const DEFAULT_CUSTOM_DURATION_MINUTES = PRESET_TWENTY_FIVE_MINUTES;
+const HOMESTEAD_HTML_PATH = "src/homestead/homestead.html";
 
 type DurationSelectionMode = "twentyFive" | "fifty" | "custom";
 
@@ -64,6 +65,8 @@ function getRequiredButtonElement(elementId: string): HTMLButtonElement {
   return element;
 }
 
+const openHomesteadButtonElement = getRequiredButtonElement("openHomesteadButton");
+
 const selectedDuckRewardItemTextElement = getRequiredParagraphElement("selectedDuckRewardItemText");
 const timerDisplayElement = getRequiredParagraphElement("timerDisplay");
 const selectedDuckRewardRemainingTextElement = getRequiredParagraphElement("selectedDuckRewardRemainingText");
@@ -92,6 +95,10 @@ let isCustomDurationInputRepresentingSeconds = false;
 
 function createErrorResponse(message: string): ErrorResponse {
   return { error: message };
+}
+
+function navigateToHomesteadView(): void {
+  window.location.href = chrome.runtime.getURL(HOMESTEAD_HTML_PATH);
 }
 
 function padTimeSegment(segmentValue: number): string {
@@ -483,6 +490,10 @@ presetFiftyMinutesButtonElement.addEventListener("click", () => {
 presetCustomDurationButtonElement.addEventListener("click", () => {
   isCustomDurationInputRepresentingSeconds = false;
   setDurationSelectionMode("custom");
+});
+
+openHomesteadButtonElement.addEventListener("click", () => {
+  navigateToHomesteadView();
 });
 
 startButtonElement.addEventListener("click", () => {
