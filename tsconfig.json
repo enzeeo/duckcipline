@@ -14,7 +14,8 @@
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "types": [
-      "chrome"
+      "chrome",
+      "vite/client"
     ]
   },
   "include": [

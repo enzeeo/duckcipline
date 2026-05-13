@@ -1,0 +1,271 @@
+import {
+  HOMESTEAD_COLUMNS,
+  HOMESTEAD_OBJECTS,
+  HOMESTEAD_ROWS,
+  HOMESTEAD_TILE_SIZE,
+  getTileTypeAt
+} from "../shared/homesteadMap.js";
+import type { Duck, DuckPosition, HomesteadCameraState } from "../shared/types.js";
+import type { SpriteKey, SpriteMap } from "./assetLoader.js";
+
+interface RenderOptions {
+  canvas: HTMLCanvasElement;
+  camera: HomesteadCameraState;
+  ducks: Duck[];
+  selectedDuckId: string | null;
+  placementPreviewPosition: DuckPosition | null;
+  animationFrameIndex: number;
+  spriteMap: SpriteMap;
+}
+
+function drawPixelTileFallback(
+  context: CanvasRenderingContext2D,
+  spriteKey: SpriteKey,
+  x: number,
+  y: number,
+  size: number
+): void {
+  if (spriteKey === "tile:water") {
+    context.fillStyle = "#4f9db0";
+    context.fillRect(x, y, size, size);
+    context.fillStyle = "#2e6f7e";
+    context.fillRect(x + 4, y + 10, size - 8, 3);
+    return;
+  }
+
+  if (spriteKey.startsWith("tile:waterRipple")) {
+    context.fillStyle = "#4f9db0";
+    context.fillRect(x, y, size, size);
+    context.fillStyle = "#c6f3ff";
+    context.fillRect(x + 7, y + 9, size - 14, 2);
+    context.fillRect(x + 11, y + 19, size - 18, 2);
+    return;
+  }
+
+  if (spriteKey === "tile:path" || spriteKey === "tile:dirtPath") {
+    context.fillStyle = "#b88745";
+    context.fillRect(x, y, size, size);
+    context.fillStyle = "#9b6f35";
+    context.fillRect(x + 3, y + 20, 6, 4);
+    context.fillRect(x + 20, y + 7, 5, 5);
+    return;
+  }
+
+  if (spriteKey === "tile:flower") {
+    context.fillStyle = "#78a653";
+    context.fillRect(x, y, size, size);
+    context.fillStyle = "#f2c14e";
+    context.fillRect(x + 12, y + 12, 8, 8);
+    return;
+  }
+
+  context.fillStyle = spriteKey === "tile:grassVariant" ? "#86b95e" : "#7dad56";
+  context.fillRect(x, y, size, size);
+  context.fillStyle = "#6b9747";
+  context.fillRect(x + 4, y + 5, 5, 2);
+  context.fillRect(x + 20, y + 19, 7, 2);
+}
+
+function drawObjectFallback(
+  context: CanvasRenderingContext2D,
+  spriteKey: SpriteKey,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
+  if (spriteKey === "object:tree") {
+    context.fillStyle = "#6b4b28";
+    context.fillRect(x + width / 2 - 5, y + height - 22, 10, 18);
+    context.fillStyle = "#3e5d2e";
+    context.fillRect(x + 8, y + 8, width - 16, height - 24);
+    context.fillStyle = "#5f7f3f";
+    context.fillRect(x + 16, y, width - 32, height - 30);
+    return;
+  }
+
+  if (spriteKey === "object:reeds") {
+    context.fillStyle = "#5f7f3f";
+    context.fillRect(x + 9, y + 8, 4, height - 8);
+    context.fillRect(x + 18, y + 4, 4, height - 4);
+    context.fillStyle = "#9b6f35";
+    context.fillRect(x + 8, y + 6, 6, 4);
+    context.fillRect(x + 17, y + 2, 6, 4);
+    return;
+  }
+
+  if (spriteKey === "object:lilyPad") {
+    context.fillStyle = "#3f8f46";
+    context.fillRect(x + 6, y + 9, width - 12, height - 14);
+    context.clearRect(x + width - 11, y + 9, 5, 5);
+    context.fillStyle = "#dfeec3";
+    context.fillRect(x + 14, y + 14, 4, 3);
+    return;
+  }
+
+  if (spriteKey === "object:nest") {
+    context.fillStyle = "#8b5a2b";
+    context.fillRect(x + 5, y + 12, width - 10, height - 14);
+    context.fillStyle = "#c08a43";
+    context.fillRect(x + 9, y + 9, width - 18, 5);
+    return;
+  }
+
+  context.fillStyle = "#8d8976";
+  context.fillRect(x + 6, y + 10, width - 12, height - 14);
+  context.fillStyle = "#b9b29c";
+  context.fillRect(x + 12, y + 7, width - 20, 5);
+}
+
+function drawDuckFallback(
+  context: CanvasRenderingContext2D,
+  duck: Duck,
+  x: number,
+  y: number,
+  size: number
+): void {
+  const isFancy = duck.variantId.startsWith("fancy");
+  const isPond = duck.variantId.startsWith("pond");
+
+  if (duck.activity === "swim") {
+    context.strokeStyle = "#c6f3ff";
+    context.lineWidth = 2;
+    context.strokeRect(x + 3, y + 18, size - 6, 6);
+  }
+
+  context.fillStyle = isFancy ? "#fff8df" : isPond ? "#dceef2" : "#f2c14e";
+  context.fillRect(x + 8, y + 10, 16, 14);
+  context.fillRect(x + 18, y + 7, 8, 8);
+  context.fillStyle = "#d9822b";
+  context.fillRect(x + 25, y + 11, 5, 3);
+  context.fillStyle = "#2f2418";
+  context.fillRect(x + 22, y + 10, 2, 2);
+
+  if (duck.growthStage === "duckling") {
+    context.clearRect(x + size - 5, y + size - 5, 4, 4);
+  }
+}
+
+function drawSpriteOrFallback(
+  context: CanvasRenderingContext2D,
+  spriteMap: SpriteMap,
+  spriteKey: SpriteKey,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  duck: Duck | null = null
+): void {
+  const image = spriteMap[spriteKey];
+
+  if (image) {
+    context.drawImage(image, x, y, width, height);
+    return;
+  }
+
+  if (spriteKey.startsWith("tile:")) {
+    drawPixelTileFallback(context, spriteKey, x, y, width);
+    return;
+  }
+
+  if (spriteKey.startsWith("object:")) {
+    drawObjectFallback(context, spriteKey, x, y, width, height);
+    return;
+  }
+
+  if (duck) {
+    drawDuckFallback(context, duck, x, y, width);
+  }
+}
+
+export function renderHomesteadCanvas(options: RenderOptions): void {
+  const context = options.canvas.getContext("2d");
+
+  if (!context) {
+    return;
+  }
+
+  context.imageSmoothingEnabled = false;
+  context.clearRect(0, 0, options.canvas.width, options.canvas.height);
+
+  const startColumn = Math.max(0, Math.floor(options.camera.x / HOMESTEAD_TILE_SIZE) - 1);
+  const endColumn = Math.min(
+    HOMESTEAD_COLUMNS,
+    Math.ceil((options.camera.x + options.canvas.width) / HOMESTEAD_TILE_SIZE) + 1
+  );
+  const startRow = Math.max(0, Math.floor(options.camera.y / HOMESTEAD_TILE_SIZE) - 1);
+  const endRow = Math.min(
+    HOMESTEAD_ROWS,
+    Math.ceil((options.camera.y + options.canvas.height) / HOMESTEAD_TILE_SIZE) + 1
+  );
+
+  for (let row = startRow; row < endRow; row += 1) {
+    for (let column = startColumn; column < endColumn; column += 1) {
+      const tileType = getTileTypeAt(column, row);
+      const spriteKey: SpriteKey =
+        tileType === "waterRipple" ? `tile:waterRipple:${options.animationFrameIndex}` : `tile:${tileType}`;
+      drawSpriteOrFallback(
+        context,
+        options.spriteMap,
+        spriteKey,
+        column * HOMESTEAD_TILE_SIZE - options.camera.x,
+        row * HOMESTEAD_TILE_SIZE - options.camera.y,
+        HOMESTEAD_TILE_SIZE,
+        HOMESTEAD_TILE_SIZE
+      );
+    }
+  }
+
+  for (const object of HOMESTEAD_OBJECTS) {
+    drawSpriteOrFallback(
+      context,
+      options.spriteMap,
+      `object:${object.type}`,
+      object.column * HOMESTEAD_TILE_SIZE - options.camera.x,
+      object.row * HOMESTEAD_TILE_SIZE - options.camera.y,
+      object.widthTiles * HOMESTEAD_TILE_SIZE,
+      object.heightTiles * HOMESTEAD_TILE_SIZE
+    );
+  }
+
+  if (options.placementPreviewPosition !== null) {
+    context.strokeStyle = "#2e6f7e";
+    context.lineWidth = 2;
+    context.strokeRect(
+      Math.floor(options.placementPreviewPosition.x / HOMESTEAD_TILE_SIZE) * HOMESTEAD_TILE_SIZE - options.camera.x,
+      Math.floor(options.placementPreviewPosition.y / HOMESTEAD_TILE_SIZE) * HOMESTEAD_TILE_SIZE - options.camera.y,
+      HOMESTEAD_TILE_SIZE,
+      HOMESTEAD_TILE_SIZE
+    );
+  }
+
+  for (const duck of options.ducks) {
+    if (duck.placementStatus !== "placed" || duck.position === null) {
+      continue;
+    }
+
+    const duckX = duck.position.x - HOMESTEAD_TILE_SIZE / 2 - options.camera.x;
+    const duckY = duck.position.y - HOMESTEAD_TILE_SIZE / 2 - options.camera.y;
+    const renderedActivity = duck.activity === "rest" ? "sleep" : duck.activity;
+    const animatedSpriteKey: SpriteKey =
+      `duck:${duck.variantId}:${duck.growthStage}:${renderedActivity}:${options.animationFrameIndex}`;
+    const staticSpriteKey: SpriteKey = `duck:${duck.variantId}:${duck.growthStage}`;
+
+    drawSpriteOrFallback(
+      context,
+      options.spriteMap,
+      options.spriteMap[animatedSpriteKey] ? animatedSpriteKey : staticSpriteKey,
+      duckX,
+      duckY,
+      HOMESTEAD_TILE_SIZE,
+      HOMESTEAD_TILE_SIZE,
+      duck
+    );
+
+    if (duck.id === options.selectedDuckId) {
+      context.strokeStyle = "#f2c14e";
+      context.lineWidth = 2;
+      context.strokeRect(duckX - 2, duckY - 2, HOMESTEAD_TILE_SIZE + 4, HOMESTEAD_TILE_SIZE + 4);
+    }
+  }
+}

@@ -1,4 +1,28 @@
-export type DuckRewardItemId = "duckEgg1" | "duckEgg2";
+export type ProjectType = "egg" | "seeds";
+
+export type EggProjectId = "meadowEgg" | "pondEgg" | "fancyEgg";
+export type SeedProjectId = "smallSeedPatch" | "gardenBed" | "bigHarvest";
+export type ProjectId = EggProjectId | SeedProjectId;
+
+export type DuckVariantId =
+  | "meadow-a"
+  | "meadow-b"
+  | "pond-a"
+  | "pond-b"
+  | "fancy-a"
+  | "fancy-b"
+  | "brown-green"
+  | "white"
+  | "yellow"
+  | "gray"
+  | "light-brown"
+  | "gold"
+  | "white-black";
+
+export type DuckGrowthStage = "duckling" | "youngDuck" | "adultDuck";
+export type DuckPlacementStatus = "unplaced" | "placed";
+export type DuckActivity = "idle" | "wander" | "swim" | "rest" | "eat";
+export type FeedDuckMode = "single" | "toNextStage";
 
 export interface TimerState {
   isRunning: boolean;
@@ -8,26 +32,59 @@ export interface TimerState {
   remainingSecondsWhenNotRunning: number;
 }
 
+export interface ProjectProgressState {
+  projectId: ProjectId;
+  progressSeconds: number;
+  isReadyToClaim: boolean;
+  progressStartedAtTimestampMilliseconds: number | null;
+}
+
+export interface DuckPosition {
+  x: number;
+  y: number;
+}
+
 export interface Duck {
   id: string;
-  sourceDuckRewardItemId: DuckRewardItemId;
+  name: string;
+  variantId: DuckVariantId;
+  sourceEggProjectId: EggProjectId;
+  growthStage: DuckGrowthStage;
+  seedsFedForCurrentStage: number;
+  placementStatus: DuckPlacementStatus;
+  position: DuckPosition | null;
+  activity: DuckActivity;
+  favoriteActivity: string;
   hatchedAtTimestampMilliseconds: number;
+  lastUpdatedAtTimestampMilliseconds: number;
 }
 
-export interface DuckRewardsState {
-  selectedDuckRewardItemId: DuckRewardItemId | null;
-  selectedDuckRewardItemProgressSeconds: number;
-  selectedDuckRewardItemProgressStartedAtTimestampMilliseconds: number | null;
-  isSelectedDuckRewardClaimAvailable: boolean;
+export interface HomesteadCameraState {
+  x: number;
+  y: number;
+}
+
+export interface GameState {
+  activeProjectId: ProjectId | null;
+  projectProgressById: Partial<Record<ProjectId, ProjectProgressState>>;
   ducks: Duck[];
+  seedCount: number;
   totalCompletedSessions: number;
   totalCompletedFocusSeconds: number;
+  homesteadCamera: HomesteadCameraState;
 }
 
-export interface DuckRewardDefinitionResponse {
+export interface HatchTableEntry {
+  variantId: DuckVariantId;
+  chanceWeight: number;
+}
+
+export interface ProjectDefinitionResponse {
+  id: ProjectId;
+  type: ProjectType;
   displayName: string;
-  rewardType: "duckEgg";
   requiredProgressSeconds: number;
+  rewardDescription: string;
 }
 
 export interface TimerStatusResponse {
@@ -37,14 +94,12 @@ export interface TimerStatusResponse {
   configuredDurationSeconds: number;
 }
 
-export interface DuckRewardsStatusResponse {
-  selectedDuckRewardItemId: DuckRewardItemId | null;
-  selectedDuckRewardItemProgressSeconds: number;
-  isSelectedDuckRewardClaimAvailable: boolean;
-  ducks: Duck[];
-  totalCompletedSessions: number;
-  totalCompletedFocusSeconds: number;
-  duckRewardDefinitionsById: Record<DuckRewardItemId, DuckRewardDefinitionResponse>;
+export interface GameStatusResponse {
+  gameState: GameState;
+  projectDefinitions: ProjectDefinitionResponse[];
+  maxDuckCount: number;
+  nowTimestampMilliseconds: number;
+  statusMessage: string | null;
 }
 
 export interface ErrorResponse {
@@ -52,4 +107,4 @@ export interface ErrorResponse {
 }
 
 export type TimerMessageResponse = TimerStatusResponse | ErrorResponse;
-export type DuckRewardsMessageResponse = DuckRewardsStatusResponse | ErrorResponse;
+export type GameMessageResponse = GameStatusResponse | ErrorResponse;

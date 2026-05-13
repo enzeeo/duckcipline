@@ -7,7 +7,10 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "dev": "vite",
     "build": "npm run typecheck && vite build",
-    "build:watch": "vite build --watch"
+    "build:watch": "vite build --watch",
+    "assets:prompts": "python3 scripts/generate_sprite_sheet_prompts.py",
+    "assets:extract": "python3 scripts/extract_selected_sprite_sheets.py",
+    "assets:verify": "python3 scripts/verify_pixel_assets.py"
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.3.0",

@@ -7,59 +7,105 @@
     <link rel="stylesheet" href="./popup.css" />
   </head>
   <body>
-    <main class="container">
-      <section class="timer-block">
-        <h1 class="title">Duckcipline</h1>
-        <p id="selectedDuckRewardItemText" class="selected-duck-reward-text">Selected reward: none</p>
-        <p id="timerDisplay" class="timer-display">00:25:00</p>
-        <p id="selectedDuckRewardRemainingText" class="selected-duck-reward-remaining-text">
-          Reward time left: choose a reward item
-        </p>
-        <button id="claimDuckRewardButton" class="claim-duck-reward-button" type="button" hidden>
-          Claim Duck
-        </button>
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <h1 class="title">Duckcipline</h1>
+          <p id="statusMessage" class="status-message">Pick a project to begin.</p>
+        </div>
+        <p id="seedCountText" class="seed-count">0 seeds</p>
+      </header>
+
+      <nav class="tab-list" aria-label="Duckcipline views">
+        <button id="focusTabButton" class="tab-button is-selected" type="button" aria-controls="focusTab">Focus</button>
+        <button id="homesteadTabButton" class="tab-button" type="button" aria-controls="homesteadTab">Homestead</button>
+      </nav>
+
+      <section id="focusTab" class="tab-panel focus-panel">
+        <section class="timer-panel">
+          <p id="timerDisplay" class="timer-display">00:25:00</p>
+          <p id="timerStateText" class="timer-state">Ready</p>
+          <div class="focus-progress-shell" aria-label="Timer progress">
+            <div id="timerProgressBar" class="focus-progress-bar"></div>
+          </div>
+          <div class="button-row">
+            <button id="startButton" class="primary-action" type="button">Start</button>
+            <button id="pauseButton" type="button">Pause</button>
+            <button id="resetButton" type="button">Reset</button>
+          </div>
+        </section>
+
+        <section class="duration-panel" aria-labelledby="durationLabel">
+          <p id="durationLabel" class="section-label">Focus duration</p>
+          <div class="duration-preset-row">
+            <button id="presetTwentyFiveMinutesButton" class="duration-preset-button is-selected" type="button">25m</button>
+            <button id="presetFiftyMinutesButton" class="duration-preset-button" type="button">50m</button>
+            <button id="presetCustomDurationButton" class="duration-preset-button" type="button">Custom</button>
+          </div>
+          <label class="field-label" for="durationMinutesInput">Custom minutes</label>
+          <input id="durationMinutesInput" class="duration-input" type="number" min="1" step="1" value="25" disabled />
+        </section>
+
+        <section class="active-project-panel">
+          <div class="section-heading-row">
+            <p class="section-label">Active project</p>
+            <button id="changeProjectButton" class="small-action" type="button">Change</button>
+          </div>
+          <p id="activeProjectText" class="active-project-text">No project selected.</p>
+          <div class="project-progress-shell" aria-label="Project progress">
+            <div id="projectProgressBar" class="project-progress-bar"></div>
+          </div>
+          <p id="projectProgressText" class="project-progress-text">0 / 0 seconds</p>
+          <button id="claimProjectButton" class="claim-project-button" type="button" hidden>Claim</button>
+        </section>
+
+        <section id="projectPicker" class="project-picker">
+          <p class="section-label">Egg projects</p>
+          <div id="eggProjectList" class="project-list"></div>
+          <p class="section-label">Seed projects</p>
+          <div id="seedProjectList" class="project-list"></div>
+        </section>
+
+        <section class="stats-panel">
+          <p id="duckCapacityText">Ducks: 0 / 20</p>
+          <p id="sessionStatsText">Sessions: 0 · Focus: 0s</p>
+        </section>
       </section>
 
-      <section class="controls">
-        <p class="duration-label">Duration</p>
-
-        <div class="duration-preset-row">
-          <button id="presetTwentyFiveMinutesButton" class="duration-preset-button" type="button">25m</button>
-          <button id="presetFiftyMinutesButton" class="duration-preset-button" type="button">50m</button>
-          <button id="presetCustomDurationButton" class="duration-preset-button" type="button">Custom</button>
+      <section id="homesteadTab" class="tab-panel homestead-panel" hidden>
+        <div id="homesteadFrame" class="homestead-frame">
+          <canvas id="homesteadCanvas" class="homestead-canvas" width="320" height="320"></canvas>
         </div>
 
-        <label class="duration-label" for="durationMinutesInput">Custom duration (minutes)</label>
-        <input
-          id="durationMinutesInput"
-          class="duration-input"
-          type="number"
-          min="1"
-          step="1"
-          value="25"
-          disabled
-        />
+        <aside class="homestead-drawer">
+          <section>
+            <div class="section-heading-row">
+              <p class="section-label">Unplaced ducks</p>
+              <p id="placementHintText" class="drawer-hint">Click a duck, then click the map.</p>
+            </div>
+            <div id="unplacedDuckTray" class="unplaced-duck-tray"></div>
+          </section>
 
-        <div class="button-row">
-          <button id="startButton" type="button">Start</button>
-          <button id="pauseButton" type="button">Pause</button>
-          <button id="resetButton" type="button">Reset</button>
-        </div>
-
-        <section class="duck-rewards-section">
-          <h2 class="duck-rewards-title">Duck Rewards</h2>
-
-          <div class="duck-reward-selection-row">
-            <button id="selectDuckEggOneButton" type="button">Set Duck Egg 1</button>
-            <button id="selectDuckEggTwoButton" type="button">Set Duck Egg 2</button>
-          </div>
-
-          <p id="selectedDuckRewardProgressText" class="duck-reward-text">Progress: choose a reward item</p>
-          <p id="totalCompletedSessionsText" class="duck-reward-text">Completed sessions: 0</p>
-          <p id="totalCompletedFocusSecondsText" class="duck-reward-text">Completed focus seconds: 0</p>
-          <p id="duckEggOneStatusText" class="duck-reward-text">Duck Egg 1: Locked (0)</p>
-          <p id="duckEggTwoStatusText" class="duck-reward-text">Duck Egg 2: Locked (0)</p>
-        </section>
+          <section id="duckDetailsPanel" class="duck-details-panel">
+            <p id="duckDetailsEmptyText" class="drawer-empty">Select a duck to inspect it.</p>
+            <div id="duckDetailsContent" hidden>
+              <div class="section-heading-row">
+                <p id="selectedDuckNameText" class="selected-duck-name">Duck</p>
+                <p id="selectedDuckStageText" class="selected-duck-stage">Duckling</p>
+              </div>
+              <p id="selectedDuckMetaText" class="duck-meta"></p>
+              <label class="field-label" for="duckNameInput">Name</label>
+              <div class="rename-row">
+                <input id="duckNameInput" class="duration-input" type="text" maxlength="18" />
+                <button id="renameDuckButton" type="button">Rename</button>
+              </div>
+              <div class="button-row two-up">
+                <button id="feedOneSeedButton" type="button">Feed 1 seed</button>
+                <button id="feedToNextStageButton" type="button">Feed to next</button>
+              </div>
+            </div>
+          </section>
+        </aside>
       </section>
     </main>
 

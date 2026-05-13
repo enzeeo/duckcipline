@@ -1,5 +1,40 @@
+@font-face {
+  font-family: "Pixelify Duck";
+  src: local("Pixelify Sans");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Nunito Duck";
+  src: local("Nunito");
+  font-display: swap;
+}
+
 :root {
   color-scheme: light;
+  --ink: #2f2418;
+  --muted-text: #6f6046;
+  --panel-cream: #fff8df;
+  --surface-straw: #f4e5b8;
+  --moss-green: #5f7f3f;
+  --deep-moss: #3e5d2e;
+  --pond-blue: #4f9db0;
+  --deep-pond: #2e6f7e;
+  --duck-gold: #f2c14e;
+  --soil-brown: #9b6f35;
+  --error-red: #b94e48;
+  --focus-ring: #2e6f7e;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --radius: 8px;
+  --pixel-border: 2px solid var(--ink);
+  --shadow: 0 3px 0 rgba(47, 36, 24, 0.2);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 html,
@@ -7,152 +42,328 @@ body {
   width: 100%;
   height: 100%;
   margin: 0;
-  font-family: sans-serif;
+  background: var(--panel-cream);
+  color: var(--ink);
+  font-family: "Nunito Duck", "Trebuchet MS", Arial, sans-serif;
+  font-size: 16px;
 }
 
-.container {
-  box-sizing: border-box;
+button,
+input {
+  font: inherit;
+}
+
+button {
+  min-height: 44px;
+  border: var(--pixel-border);
+  border-radius: var(--radius);
+  background: #fff3c5;
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #ffe38c;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.app-shell {
   width: 100%;
   min-height: 100vh;
-  padding: 16px;
   display: grid;
-  grid-template-rows: 1fr auto;
-  gap: 24px;
+  grid-template-rows: auto auto 1fr;
+  gap: var(--space-3);
+  padding: var(--space-3);
 }
 
-.timer-block {
+.app-header {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.title,
+.tab-button,
+.timer-display,
+.section-label,
+.seed-count,
+.selected-duck-name {
+  font-family: "Pixelify Duck", "Arial Black", sans-serif;
 }
 
 .title {
-  margin: 0 0 12px;
-  font-size: 16px;
+  margin: 0;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.status-message {
+  margin: var(--space-1) 0 0;
+  color: var(--muted-text);
+}
+
+.status-message.is-error {
+  color: var(--error-red);
+}
+
+.seed-count {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--pixel-border);
+  border-radius: var(--radius);
+  background: var(--duck-gold);
+  white-space: nowrap;
+}
+
+.tab-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+}
+
+.tab-button.is-selected,
+.duration-preset-button.is-selected,
+.project-button.is-selected {
+  background: var(--deep-moss);
+  color: var(--panel-cream);
+}
+
+.tab-panel {
+  min-width: 0;
+}
+
+.focus-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.timer-panel,
+.duration-panel,
+.active-project-panel,
+.project-picker,
+.stats-panel,
+.duck-details-panel {
+  padding: var(--space-3);
+  border: var(--pixel-border);
+  border-radius: var(--radius);
+  background: var(--surface-straw);
 }
 
 .timer-display {
   margin: 0;
-  font-size: 52px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  text-align: center;
+  font-size: clamp(42px, 14vw, 76px);
+  line-height: 1;
 }
 
-.selected-duck-reward-text {
-  margin: 0 0 8px;
-  font-size: 13px;
-  color: #333;
+.timer-state,
+.active-project-text,
+.project-progress-text,
+.stats-panel p,
+.drawer-hint,
+.drawer-empty,
+.duck-meta {
+  margin: var(--space-2) 0;
+  color: var(--muted-text);
 }
 
-.selected-duck-reward-remaining-text {
-  margin: 6px 0 0;
-  font-size: 12px;
-  color: #444;
-}
-
-.claim-duck-reward-button {
-  margin-top: 8px;
-}
-
-.controls {
+.focus-progress-shell,
+.project-progress-shell {
   width: 100%;
+  height: 18px;
+  overflow: hidden;
+  border: var(--pixel-border);
+  border-radius: 999px;
+  background: #fffbe9;
 }
 
-.duration-label {
-  display: block;
-  margin: 0 0 6px;
-  font-size: 13px;
+.focus-progress-bar,
+.project-progress-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--pond-blue), var(--duck-gold));
 }
 
-.duration-preset-row {
+.button-row,
+.duration-preset-row,
+.project-list {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.duration-preset-button {
-  padding: 8px;
-  border: 1px solid #777;
-  background: #fff;
-  cursor: pointer;
-}
-
-.duration-preset-button.is-selected {
-  background: #111;
-  color: #fff;
-}
-
-.duration-input {
-  box-sizing: border-box;
-  width: 100%;
-  margin-bottom: 14px;
-  padding: 6px 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
 }
 
 .button-row {
+  margin-top: var(--space-3);
+}
+
+.button-row.two-up,
+.rename-row {
+  grid-template-columns: 1fr 1fr;
+}
+
+.primary-action,
+.claim-project-button {
+  background: var(--duck-gold);
+}
+
+.section-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.section-label {
+  margin: 0 0 var(--space-2);
+  font-size: 17px;
+}
+
+.small-action {
+  min-height: 34px;
+  padding: 4px 10px;
+}
+
+.field-label {
+  display: block;
+  margin: var(--space-2) 0 var(--space-1);
+  color: var(--muted-text);
+}
+
+.duration-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: var(--pixel-border);
+  border-radius: var(--radius);
+  background: #fffdf1;
+  color: var(--ink);
+}
+
+.project-picker.is-hidden {
+  display: none;
+}
+
+.project-list {
+  grid-template-columns: 1fr;
+  margin-bottom: var(--space-3);
+}
+
+.project-button {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 16px;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  text-align: left;
 }
 
-.duck-rewards-section {
-  border-top: 1px solid #ddd;
-  padding-top: 12px;
-}
-
-.duck-rewards-title {
-  margin: 0 0 8px;
+.project-button span {
+  color: var(--muted-text);
   font-size: 14px;
 }
 
-.duck-reward-selection-row {
+.homestead-panel {
+  height: calc(100vh - 116px);
+  min-height: 484px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 8px;
+  grid-template-rows: minmax(240px, 1fr) auto;
+  gap: var(--space-3);
 }
 
-.duck-reward-selection-row button.is-selected {
-  background: #111;
-  color: #fff;
+.homestead-frame {
+  min-height: 240px;
+  padding: 12px;
+  border: var(--pixel-border);
+  border-radius: var(--radius);
+  background: var(--deep-moss);
 }
 
-.duck-reward-selection-row button.is-selection-locked {
-  background: #e5e7eb;
-  border-color: #9ca3af;
-  color: #6b7280;
+.homestead-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: var(--pixel-border);
+  background: #7dad56;
+  image-rendering: pixelated;
+  touch-action: none;
+  cursor: grab;
 }
 
-.duck-reward-selection-row button.is-running-locked {
-  opacity: 0.45;
+.homestead-canvas.is-dragging {
+  cursor: grabbing;
 }
 
-.duck-reward-selection-row button:disabled {
-  opacity: 1;
+.homestead-drawer {
+  display: grid;
+  gap: var(--space-3);
+  max-height: 340px;
+  overflow: auto;
 }
 
-.duck-reward-selection-row button.is-running-locked:disabled {
-  opacity: 0.45;
+.unplaced-duck-tray {
+  min-height: 60px;
+  display: flex;
+  gap: var(--space-2);
+  overflow-x: auto;
+  padding-bottom: var(--space-1);
 }
 
-.duck-reward-text {
-  margin: 0 0 4px;
-  font-size: 12px;
-  color: #333;
+.duck-thumbnail {
+  width: 52px;
+  min-width: 52px;
+  height: 52px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  background: #fffbe9;
 }
 
-button {
-  padding: 8px;
-  border: 1px solid #777;
-  background: #fff;
-  cursor: pointer;
+.duck-thumbnail.is-selected {
+  background: var(--duck-gold);
 }
 
-button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.duck-thumbnail-sprite {
+  width: 28px;
+  height: 24px;
+  background: var(--duck-gold);
+  border: 2px solid var(--ink);
+  box-shadow: 10px -4px 0 -2px #fff8df;
+}
+
+.duck-details-panel {
+  min-height: 120px;
+}
+
+.selected-duck-name,
+.selected-duck-stage {
+  margin: 0;
+}
+
+.rename-row {
+  display: grid;
+  gap: var(--space-2);
+}
+
+@media (min-width: 520px) {
+  .project-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .homestead-drawer {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
 }

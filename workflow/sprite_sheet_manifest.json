@@ -1,0 +1,191 @@
+{
+  "magickBinary": "magick",
+  "cleanOutputDirectories": [
+    "src/assets/pixel/ducks",
+    "src/assets/pixel/tiles",
+    "src/assets/pixel/objects",
+    "src/assets/pixel/ui"
+  ],
+  "spriteSheets": [
+    {
+      "id": "eggs-and-nest",
+      "type": "grid",
+      "sourcePath": "src/assets/pixel/source-sheets/eggs-and-nest.png",
+      "sprites": [
+        {
+          "outputPath": "src/assets/pixel/ui/egg-meadow.png",
+          "crop": { "x": 60, "y": 185, "width": 390, "height": 485 },
+          "floodTransparent": true
+        },
+        {
+          "outputPath": "src/assets/pixel/ui/egg-pond.png",
+          "crop": { "x": 490, "y": 185, "width": 390, "height": 485 },
+          "floodTransparent": true
+        },
+        {
+          "outputPath": "src/assets/pixel/ui/egg-fancy.png",
+          "crop": { "x": 920, "y": 185, "width": 390, "height": 485 },
+          "floodTransparent": true
+        },
+        {
+          "outputPath": "src/assets/pixel/objects/nest.png",
+          "crop": { "x": 1310, "y": 210, "width": 455, "height": 360 },
+          "floodTransparent": true
+        }
+      ]
+    },
+    {
+      "id": "terrain-and-props",
+      "type": "grid",
+      "sourcePath": "src/assets/pixel/source-sheets/terrain-and-props.png",
+      "sprites": [
+        {
+          "outputPath": "src/assets/pixel/tiles/grass.png",
+          "crop": { "x": 38, "y": 52, "width": 158, "height": 158 },
+          "trim": false
+        },
+        {
+          "outputPath": "src/assets/pixel/tiles/grass-variant-1.png",
+          "crop": { "x": 236, "y": 52, "width": 158, "height": 158 },
+          "trim": false
+        },
+        {
+          "outputPath": "src/assets/pixel/tiles/flower.png",
+          "crop": { "x": 430, "y": 52, "width": 158, "height": 158 },
+          "trim": false
+        },
+        {
+          "outputPath": "src/assets/pixel/tiles/path.png",
+          "crop": { "x": 620, "y": 52, "width": 158, "height": 158 },
+          "trim": false
+        },
+        {
+          "outputPath": "src/assets/pixel/tiles/dirt-path.png",
+          "crop": { "x": 810, "y": 52, "width": 158, "height": 158 },
+          "trim": false
+        },
+        {
+          "outputPath": "src/assets/pixel/tiles/water.png",
+          "crop": { "x": 992, "y": 52, "width": 158, "height": 158 },
+          "trim": false
+        },
+        {
+          "outputPath": "src/assets/pixel/tiles/water-ripple-0.png",
+          "crop": { "x": 992, "y": 52, "width": 158, "height": 158 },
+          "trim": false
+        },
+        {
+          "outputPath": "src/assets/pixel/tiles/water-ripple-1.png",
+          "crop": { "x": 1178, "y": 52, "width": 158, "height": 158 },
+          "trim": false
+        },
+        {
+          "outputPath": "src/assets/pixel/tiles/water-ripple-2.png",
+          "crop": { "x": 42, "y": 282, "width": 158, "height": 158 },
+          "trim": false
+        },
+        {
+          "outputPath": "src/assets/pixel/tiles/water-ripple-3.png",
+          "crop": { "x": 234, "y": 282, "width": 158, "height": 158 },
+          "trim": false
+        },
+        {
+          "outputPath": "src/assets/pixel/objects/rock.png",
+          "crop": { "x": 18, "y": 585, "width": 170, "height": 135 },
+          "floodTransparent": true
+        },
+        {
+          "outputPath": "src/assets/pixel/objects/lily-pad.png",
+          "crop": { "x": 620, "y": 595, "width": 160, "height": 120 },
+          "floodTransparent": true
+        },
+        {
+          "outputPath": "src/assets/pixel/objects/reeds.png",
+          "crop": { "x": 990, "y": 548, "width": 145, "height": 170 },
+          "floodTransparent": true
+        },
+        {
+          "outputPath": "src/assets/pixel/objects/tree.png",
+          "crop": { "x": 1340, "y": 495, "width": 180, "height": 250 },
+          "outputWidth": 64,
+          "outputHeight": 64,
+          "floodTransparent": true
+        }
+      ]
+    },
+    {
+      "id": "ui-icons",
+      "type": "grid",
+      "sourcePath": "src/assets/pixel/source-sheets/ui-icons.png",
+      "sprites": [
+        {
+          "outputPath": "src/assets/pixel/ui/seed.png",
+          "crop": { "x": 1350, "y": 105, "width": 260, "height": 245 },
+          "transparentColor": "#ff00ff"
+        },
+        {
+          "outputPath": "src/assets/pixel/ui/seed-bag.png",
+          "crop": { "x": 155, "y": 460, "width": 290, "height": 300 },
+          "transparentColor": "#ff00ff"
+        },
+        {
+          "outputPath": "src/assets/pixel/ui/claim-sparkle.png",
+          "crop": { "x": 570, "y": 495, "width": 240, "height": 235 },
+          "transparentColor": "#ff00ff"
+        },
+        {
+          "outputPath": "src/assets/pixel/ui/duck-footprint.png",
+          "crop": { "x": 965, "y": 505, "width": 220, "height": 230 },
+          "transparentColor": "#ff00ff"
+        },
+        {
+          "outputPath": "src/assets/pixel/ui/hourglass.png",
+          "crop": { "x": 1350, "y": 455, "width": 260, "height": 320 },
+          "transparentColor": "#ff00ff"
+        },
+        {
+          "outputPath": "src/assets/pixel/ui/panel-frame.png",
+          "crop": { "x": 1350, "y": 455, "width": 260, "height": 320 },
+          "transparentColor": "#ff00ff"
+        }
+      ]
+    },
+    {
+      "id": "duck-placeholders",
+      "type": "duckPlaceholders",
+      "sourcePath": "src/assets/pixel/source-sheets/duck-animations.png",
+      "framesByActivity": {
+        "idle": [
+          { "crop": { "x": 85, "y": 50, "width": 190, "height": 205 }, "floodTransparent": true },
+          { "crop": { "x": 310, "y": 50, "width": 190, "height": 205 }, "floodTransparent": true },
+          { "crop": { "x": 535, "y": 50, "width": 190, "height": 205 }, "floodTransparent": true },
+          { "crop": { "x": 755, "y": 50, "width": 190, "height": 205 }, "floodTransparent": true }
+        ],
+        "wander": [
+          { "crop": { "x": 55, "y": 320, "width": 185, "height": 195 }, "floodTransparent": true },
+          { "crop": { "x": 260, "y": 320, "width": 185, "height": 195 }, "floodTransparent": true },
+          { "crop": { "x": 455, "y": 320, "width": 185, "height": 195 }, "floodTransparent": true },
+          { "crop": { "x": 645, "y": 320, "width": 185, "height": 195 }, "floodTransparent": true }
+        ],
+        "swim": [
+          { "crop": { "x": 60, "y": 580, "width": 265, "height": 170 }, "floodTransparent": true },
+          { "crop": { "x": 395, "y": 580, "width": 265, "height": 170 }, "floodTransparent": true },
+          { "crop": { "x": 730, "y": 580, "width": 265, "height": 170 }, "floodTransparent": true },
+          { "crop": { "x": 1075, "y": 580, "width": 265, "height": 170 }, "floodTransparent": true }
+        ],
+        "eat": [
+          { "crop": { "x": 70, "y": 780, "width": 245, "height": 190 }, "floodTransparent": true },
+          { "crop": { "x": 420, "y": 780, "width": 245, "height": 190 }, "floodTransparent": true },
+          { "crop": { "x": 740, "y": 780, "width": 245, "height": 190 }, "floodTransparent": true },
+          { "crop": { "x": 1065, "y": 780, "width": 245, "height": 190 }, "floodTransparent": true }
+        ],
+        "sleep": [
+          { "crop": { "x": 420, "y": 780, "width": 245, "height": 190 }, "floodTransparent": true },
+          { "crop": { "x": 740, "y": 780, "width": 245, "height": 190 }, "floodTransparent": true },
+          { "crop": { "x": 420, "y": 780, "width": 245, "height": 190 }, "floodTransparent": true },
+          { "crop": { "x": 740, "y": 780, "width": 245, "height": 190 }, "floodTransparent": true }
+        ]
+      }
+    }
+  ]
+}
