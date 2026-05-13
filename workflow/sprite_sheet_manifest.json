@@ -42,52 +42,62 @@
         {
           "outputPath": "src/assets/pixel/tiles/grass.png",
           "crop": { "x": 38, "y": 52, "width": 158, "height": 158 },
-          "trim": false
+          "floodTransparent": true,
+          "floodTransparentFuzz": "10%"
         },
         {
           "outputPath": "src/assets/pixel/tiles/grass-variant-1.png",
           "crop": { "x": 236, "y": 52, "width": 158, "height": 158 },
-          "trim": false
+          "floodTransparent": true,
+          "floodTransparentFuzz": "10%"
         },
         {
           "outputPath": "src/assets/pixel/tiles/flower.png",
           "crop": { "x": 430, "y": 52, "width": 158, "height": 158 },
-          "trim": false
+          "floodTransparent": true,
+          "floodTransparentFuzz": "10%"
         },
         {
           "outputPath": "src/assets/pixel/tiles/path.png",
           "crop": { "x": 620, "y": 52, "width": 158, "height": 158 },
-          "trim": false
+          "floodTransparent": true,
+          "floodTransparentFuzz": "10%"
         },
         {
           "outputPath": "src/assets/pixel/tiles/dirt-path.png",
           "crop": { "x": 810, "y": 52, "width": 158, "height": 158 },
-          "trim": false
+          "floodTransparent": true,
+          "floodTransparentFuzz": "10%"
         },
         {
           "outputPath": "src/assets/pixel/tiles/water.png",
           "crop": { "x": 992, "y": 52, "width": 158, "height": 158 },
-          "trim": false
+          "floodTransparent": true,
+          "floodTransparentFuzz": "10%"
         },
         {
           "outputPath": "src/assets/pixel/tiles/water-ripple-0.png",
           "crop": { "x": 992, "y": 52, "width": 158, "height": 158 },
-          "trim": false
+          "floodTransparent": true,
+          "floodTransparentFuzz": "10%"
         },
         {
           "outputPath": "src/assets/pixel/tiles/water-ripple-1.png",
-          "crop": { "x": 1178, "y": 52, "width": 158, "height": 158 },
-          "trim": false
+          "crop": { "x": 992, "y": 52, "width": 158, "height": 158 },
+          "floodTransparent": true,
+          "floodTransparentFuzz": "10%"
         },
         {
           "outputPath": "src/assets/pixel/tiles/water-ripple-2.png",
-          "crop": { "x": 42, "y": 282, "width": 158, "height": 158 },
-          "trim": false
+          "crop": { "x": 992, "y": 52, "width": 158, "height": 158 },
+          "floodTransparent": true,
+          "floodTransparentFuzz": "10%"
         },
         {
           "outputPath": "src/assets/pixel/tiles/water-ripple-3.png",
-          "crop": { "x": 234, "y": 282, "width": 158, "height": 158 },
-          "trim": false
+          "crop": { "x": 992, "y": 52, "width": 158, "height": 158 },
+          "floodTransparent": true,
+          "floodTransparentFuzz": "10%"
         },
         {
           "outputPath": "src/assets/pixel/objects/rock.png",

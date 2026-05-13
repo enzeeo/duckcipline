@@ -25,6 +25,37 @@ export interface HomesteadMap {
   objects: ReadonlyArray<HomesteadObject>;
 }
 
+interface OrganicPatch {
+  centerColumn: number;
+  centerRow: number;
+  radiusColumns: number;
+  radiusRows: number;
+}
+
+const MAIN_POND: OrganicPatch = {
+  centerColumn: 28,
+  centerRow: 17,
+  radiusColumns: 7.2,
+  radiusRows: 5.2
+};
+
+const GRASS_VARIANT_PATCHES: ReadonlyArray<OrganicPatch> = [
+  { centerColumn: 7, centerRow: 7, radiusColumns: 5.8, radiusRows: 4.2 },
+  { centerColumn: 17, centerRow: 9, radiusColumns: 5.2, radiusRows: 3.4 },
+  { centerColumn: 39, centerRow: 8, radiusColumns: 6.2, radiusRows: 4.8 },
+  { centerColumn: 10, centerRow: 29, radiusColumns: 6.6, radiusRows: 4.2 },
+  { centerColumn: 30, centerRow: 27, radiusColumns: 7.4, radiusRows: 4.6 },
+  { centerColumn: 43, centerRow: 29, radiusColumns: 4.8, radiusRows: 4.0 }
+];
+
+const FLOWER_CLUSTERS: ReadonlyArray<OrganicPatch> = [
+  { centerColumn: 5, centerRow: 14, radiusColumns: 2.8, radiusRows: 2.0 },
+  { centerColumn: 15, centerRow: 5, radiusColumns: 3.0, radiusRows: 1.8 },
+  { centerColumn: 36, centerRow: 13, radiusColumns: 3.2, radiusRows: 2.2 },
+  { centerColumn: 23, centerRow: 28, radiusColumns: 3.4, radiusRows: 2.0 },
+  { centerColumn: 41, centerRow: 24, radiusColumns: 3.0, radiusRows: 2.4 }
+];
+
 export const HOMESTEAD_OBJECTS: ReadonlyArray<HomesteadObject> = [
   { type: "tree", column: 4, row: 4, widthTiles: 2, heightTiles: 2 },
   { type: "tree", column: 41, row: 5, widthTiles: 2, heightTiles: 2 },
@@ -46,6 +77,81 @@ export const HOMESTEAD_MAP: HomesteadMap = {
   objects: HOMESTEAD_OBJECTS
 };
 
+function getDeterministicPercent(column: number, row: number, salt: number): number {
+  const firstMix = Math.imul(column + salt * 37, 374761393);
+  const secondMix = Math.imul(row + salt * 97, 668265263);
+  const mixedValue = (firstMix ^ secondMix) >>> 0;
+  const shiftedValue = (mixedValue ^ (mixedValue >>> 13)) >>> 0;
+
+  return shiftedValue % 100;
+}
+
+function getOrganicPatchValue(column: number, row: number, patch: OrganicPatch, salt: number): number {
+  const normalizedColumn = (column - patch.centerColumn) / patch.radiusColumns;
+  const normalizedRow = (row - patch.centerRow) / patch.radiusRows;
+  const edgeJitter = (getDeterministicPercent(column, row, salt) - 50) / 420;
+
+  return normalizedColumn * normalizedColumn + normalizedRow * normalizedRow + edgeJitter;
+}
+
+function isInsideOrganicPatch(column: number, row: number, patch: OrganicPatch, salt: number): boolean {
+  return getOrganicPatchValue(column, row, patch, salt) <= 1;
+}
+
+function isWaterTileType(tileType: HomesteadTileType): boolean {
+  return tileType === "water" || tileType === "waterRipple";
+}
+
+function getPathTileTypeAt(column: number, row: number, pondPatchValue: number): HomesteadTileType | null {
+  const lowerPathCenterRow = 20 + Math.sin(column * 0.48) * 1.2;
+  const lowerPathDistance = Math.abs(row - lowerPathCenterRow);
+  const isLowerPath = column >= 3 && column <= 24 && lowerPathDistance <= 1.15;
+
+  const verticalPathCenterColumn = 21 + Math.sin(row * 0.52) * 1.1;
+  const verticalPathDistance = Math.abs(column - verticalPathCenterColumn);
+  const isVerticalPath = row >= 9 && row <= 26 && verticalPathDistance <= 1.15;
+
+  const isPondBankPath =
+    pondPatchValue > 1 &&
+    pondPatchValue < 1.34 &&
+    column >= MAIN_POND.centerColumn - 8 &&
+    column <= MAIN_POND.centerColumn + 8 &&
+    row >= MAIN_POND.centerRow - 6 &&
+    row <= MAIN_POND.centerRow + 6 &&
+    getDeterministicPercent(column, row, 17) < 68;
+
+  if (!isLowerPath && !isVerticalPath && !isPondBankPath) {
+    return null;
+  }
+
+  return getDeterministicPercent(column, row, 23) < 24 ? "dirtPath" : "path";
+}
+
+function isFlowerTileAt(column: number, row: number): boolean {
+  if (column <= 2 || row <= 2 || column >= HOMESTEAD_COLUMNS - 2 || row >= HOMESTEAD_ROWS - 2) {
+    return false;
+  }
+
+  const isInFlowerCluster = FLOWER_CLUSTERS.some((patch, index) => {
+    return isInsideOrganicPatch(column, row, patch, 31 + index) && getDeterministicPercent(column, row, 41 + index) < 46;
+  });
+
+  if (isInFlowerCluster) {
+    return true;
+  }
+
+  return GRASS_VARIANT_PATCHES.some((patch, index) => {
+    const patchValue = getOrganicPatchValue(column, row, patch, 51 + index);
+    return patchValue > 0.82 && patchValue < 1.26 && getDeterministicPercent(column, row, 61 + index) < 12;
+  });
+}
+
+function isGrassVariantTileAt(column: number, row: number): boolean {
+  return GRASS_VARIANT_PATCHES.some((patch, index) => {
+    return isInsideOrganicPatch(column, row, patch, 71 + index) && getDeterministicPercent(column, row, 81 + index) < 84;
+  });
+}
+
 export function clampCamera(
   camera: HomesteadCameraState,
   viewportWidth: number,
@@ -61,26 +167,22 @@ export function clampCamera(
 }
 
 export function getTileTypeAt(column: number, row: number): HomesteadTileType {
-  const pondCenterColumn = 28;
-  const pondCenterRow = 17;
-  const pondRadiusX = 6.5;
-  const pondRadiusY = 4.5;
-  const normalizedPondX = (column - pondCenterColumn) / pondRadiusX;
-  const normalizedPondY = (row - pondCenterRow) / pondRadiusY;
+  const pondPatchValue = getOrganicPatchValue(column, row, MAIN_POND, 7);
 
-  if (normalizedPondX * normalizedPondX + normalizedPondY * normalizedPondY <= 1) {
-    return (column + row) % 4 === 0 ? "waterRipple" : "water";
+  if (pondPatchValue <= 1) {
+    return getDeterministicPercent(column, row, 11) < 26 ? "waterRipple" : "water";
   }
 
-  if ((row === 18 && column >= 4 && column <= 21) || (column === 21 && row >= 10 && row <= 25)) {
-    return (column + row) % 5 === 0 ? "dirtPath" : "path";
+  const pathTileType = getPathTileTypeAt(column, row, pondPatchValue);
+  if (pathTileType !== null) {
+    return pathTileType;
   }
 
-  if ((column + row) % 13 === 0 && column > 2 && row > 2 && column < HOMESTEAD_COLUMNS - 2 && row < HOMESTEAD_ROWS - 2) {
+  if (isFlowerTileAt(column, row)) {
     return "flower";
   }
 
-  return (column * 3 + row) % 11 === 0 ? "grassVariant" : "grass";
+  return isGrassVariantTileAt(column, row) ? "grassVariant" : "grass";
 }
 
 export function isInsideWorld(column: number, row: number): boolean {
@@ -116,7 +218,7 @@ export function isManualDuckPlacementValid(position: DuckPosition): boolean {
     return false;
   }
 
-  if (getTileTypeAt(tilePosition.column, tilePosition.row) === "water") {
+  if (isWaterTileType(getTileTypeAt(tilePosition.column, tilePosition.row))) {
     return false;
   }
 
@@ -130,7 +232,7 @@ export function isDuckAiPositionValid(position: DuckPosition, canEnterWater: boo
     return false;
   }
 
-  if (!canEnterWater && getTileTypeAt(tilePosition.column, tilePosition.row) === "water") {
+  if (!canEnterWater && isWaterTileType(getTileTypeAt(tilePosition.column, tilePosition.row))) {
     return false;
   }
 

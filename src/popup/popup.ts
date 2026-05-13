@@ -465,6 +465,8 @@ function setActiveTab(nextActiveTab: ActiveTab): void {
   homesteadTabElement.hidden = isFocusActive;
   focusTabButtonElement.classList.toggle("is-selected", isFocusActive);
   homesteadTabButtonElement.classList.toggle("is-selected", !isFocusActive);
+  focusTabButtonElement.setAttribute("aria-selected", String(isFocusActive));
+  homesteadTabButtonElement.setAttribute("aria-selected", String(!isFocusActive));
 
   if (nextActiveTab === "homestead") {
     resizeCanvasToFrame();
