@@ -1,0 +1,107 @@
+digraph PopupPageWorkflow {
+  graph [
+    rankdir=TB,
+    splines=ortho,
+    nodesep=0.7,
+    ranksep=0.9,
+    bgcolor="white",
+    fontname="Helvetica"
+  ];
+
+  node [
+    shape=box,
+    style="rounded,filled",
+    fillcolor="#F7FAFC",
+    color="#64748B",
+    fontname="Helvetica",
+    fontsize=11,
+    margin="0.12,0.08"
+  ];
+
+  edge [
+    color="#475569",
+    arrowsize=0.7,
+    penwidth=1.0,
+    fontname="Helvetica",
+    fontsize=10
+  ];
+
+  user_opens_panel [label="User opens side panel\n(src/popup/popup.html)"];
+
+  initialize_ui [label="Initialize popup UI\n- Default duration mode: 25 minutes\n- Attach button listeners"];
+
+  initial_refresh [label="Initial refresh\nrefreshAllDisplays()\n- getTimerState\n- getDuckRewardsState"];
+
+  timer_and_reward_display [
+    label="Render persistent display\n- Selected reward text above timer\n- Main timer\n- Reward time left below timer\n- Claim button visible only when claimable",
+    group="center"
+  ];
+
+  polling_refresh [label="Background polling every 1000ms\nrefreshAllDisplays()", group="center"];
+
+  choose_duration [label="User sets duration\n- 25m preset\n- 50m preset\n- Custom minutes", group="left"];
+
+  start_timer [
+    label="Start or Resume\n- send startTimer(durationSeconds)\n- update timer display\n- refresh duck rewards",
+    group="center"
+  ];
+
+  pause_timer [label="Pause\n- send pauseTimer\n- update timer and rewards", group="left"];
+
+  reset_timer [label="Reset\n- send resetTimer\n- timer resets to session start duration\n- reward progress remains", group="right"];
+
+  select_reward [label="Select duck reward\n- Set Duck Egg 1 or Set Duck Egg 2", group="right"];
+
+  select_reward_guard [label="Guard\nReward selection allowed only when\ntimer is not running"];
+
+  select_reward_allowed_idle [label="Allowed while timer is idle\nselection updates and progress resets"];
+
+  select_reward_allowed_running_later [label="Allowed now, then timer starts later\nprogress begins from zero"];
+
+  select_reward_denied [label="If timer is running\n- Keep current reward\n- Show error text"];
+
+  selected_reward_progress [label="While timer runs\nreward progress accumulates continuously\n(timestamp based in background)"];
+
+  claim_available [label="When reward requirement reached\nclaim button appears\n(capped at one unclaimed reward)"];
+
+  claim_reward [label="Claim Duck\n- send claimSelectedDuckReward\n- store new duck object\n- clear selected reward\n- user must select a new reward"];
+
+  persistence_note [
+    label="Persistence behavior\n- Timer state: chrome.storage.session\n- Reward state and ducks: chrome.storage.local\n- Rehydrates when panel reopens",
+    fillcolor="#EFF6FF",
+    color="#3B82F6"
+  ];
+
+  user_opens_panel -> initialize_ui;
+  initialize_ui -> initial_refresh;
+  initial_refresh -> timer_and_reward_display;
+  timer_and_reward_display:sw -> polling_refresh:n [minlen=2, weight=60];
+  polling_refresh:n -> timer_and_reward_display:sw [constraint=false];
+
+  { rank=same; pause_timer; reset_timer; }
+  { rank=same; choose_duration; select_reward; }
+
+  timer_and_reward_display:w -> choose_duration:n [minlen=2];
+  timer_and_reward_display:s -> start_timer:n [weight=60];
+  timer_and_reward_display:sw -> pause_timer:n [dir=both, minlen=2];
+  timer_and_reward_display:e -> reset_timer:n;
+  timer_and_reward_display:se -> select_reward:n [minlen=2];
+
+  choose_duration -> start_timer [constraint=false];
+  start_timer -> selected_reward_progress;
+  reset_timer -> timer_and_reward_display:e;
+
+  select_reward -> select_reward_guard;
+  select_reward_guard -> select_reward_allowed_running_later;
+  select_reward_guard -> select_reward_allowed_idle;
+  select_reward_guard -> select_reward_denied;
+  select_reward_allowed_running_later -> selected_reward_progress;
+  select_reward_allowed_idle -> timer_and_reward_display:sw;
+  select_reward_denied -> timer_and_reward_display:se;
+
+  selected_reward_progress -> claim_available;
+  claim_available -> claim_reward;
+  claim_reward -> timer_and_reward_display:se;
+
+  timer_and_reward_display -> persistence_note [style=dashed, arrowhead=none];
+}

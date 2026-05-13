@@ -10,8 +10,14 @@
     <main class="container">
       <section class="timer-block">
         <h1 class="title">Duckcipline</h1>
+        <p id="selectedDuckRewardItemText" class="selected-duck-reward-text">Selected reward: none</p>
         <p id="timerDisplay" class="timer-display">00:25:00</p>
-        <p id="timerStatus" class="timer-status">Stopped</p>
+        <p id="selectedDuckRewardRemainingText" class="selected-duck-reward-remaining-text">
+          Reward time left: choose a reward item
+        </p>
+        <button id="claimDuckRewardButton" class="claim-duck-reward-button" type="button" hidden>
+          Claim Duck
+        </button>
       </section>
 
       <section class="controls">
@@ -39,6 +45,21 @@
           <button id="pauseButton" type="button">Pause</button>
           <button id="resetButton" type="button">Reset</button>
         </div>
+
+        <section class="duck-rewards-section">
+          <h2 class="duck-rewards-title">Duck Rewards</h2>
+
+          <div class="duck-reward-selection-row">
+            <button id="selectDuckEggOneButton" type="button">Set Duck Egg 1</button>
+            <button id="selectDuckEggTwoButton" type="button">Set Duck Egg 2</button>
+          </div>
+
+          <p id="selectedDuckRewardProgressText" class="duck-reward-text">Progress: choose a reward item</p>
+          <p id="totalCompletedSessionsText" class="duck-reward-text">Completed sessions: 0</p>
+          <p id="totalCompletedFocusSecondsText" class="duck-reward-text">Completed focus seconds: 0</p>
+          <p id="duckEggOneStatusText" class="duck-reward-text">Duck Egg 1: Locked (0)</p>
+          <p id="duckEggTwoStatusText" class="duck-reward-text">Duck Egg 2: Locked (0)</p>
+        </section>
       </section>
     </main>
 
