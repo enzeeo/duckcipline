@@ -5,15 +5,13 @@ import {
   HOMESTEAD_TILE_SIZE,
   getTileTypeAt
 } from "../shared/homesteadMap.js";
-import type { Duck, DuckPosition, HomesteadCameraState } from "../shared/types.js";
+import type { Duck, HomesteadCameraState } from "../shared/types.js";
 import type { SpriteKey, SpriteMap } from "./assetLoader.js";
 
 interface RenderOptions {
   canvas: HTMLCanvasElement;
   camera: HomesteadCameraState;
   ducks: Duck[];
-  selectedDuckId: string | null;
-  placementPreviewPosition: DuckPosition | null;
   animationFrameIndex: number;
   spriteMap: SpriteMap;
 }
@@ -178,6 +176,10 @@ function drawSpriteOrFallback(
   }
 }
 
+function getPixelAlignedScreenCoordinate(worldCoordinate: number, cameraCoordinate: number): number {
+  return Math.floor(worldCoordinate - cameraCoordinate);
+}
+
 export function renderHomesteadCanvas(options: RenderOptions): void {
   const context = options.canvas.getContext("2d");
 
@@ -208,8 +210,8 @@ export function renderHomesteadCanvas(options: RenderOptions): void {
         context,
         options.spriteMap,
         spriteKey,
-        column * HOMESTEAD_TILE_SIZE - options.camera.x,
-        row * HOMESTEAD_TILE_SIZE - options.camera.y,
+        getPixelAlignedScreenCoordinate(column * HOMESTEAD_TILE_SIZE, options.camera.x),
+        getPixelAlignedScreenCoordinate(row * HOMESTEAD_TILE_SIZE, options.camera.y),
         HOMESTEAD_TILE_SIZE,
         HOMESTEAD_TILE_SIZE
       );
@@ -221,21 +223,10 @@ export function renderHomesteadCanvas(options: RenderOptions): void {
       context,
       options.spriteMap,
       `object:${object.type}`,
-      object.column * HOMESTEAD_TILE_SIZE - options.camera.x,
-      object.row * HOMESTEAD_TILE_SIZE - options.camera.y,
+      getPixelAlignedScreenCoordinate(object.column * HOMESTEAD_TILE_SIZE, options.camera.x),
+      getPixelAlignedScreenCoordinate(object.row * HOMESTEAD_TILE_SIZE, options.camera.y),
       object.widthTiles * HOMESTEAD_TILE_SIZE,
       object.heightTiles * HOMESTEAD_TILE_SIZE
-    );
-  }
-
-  if (options.placementPreviewPosition !== null) {
-    context.strokeStyle = "#2e6f7e";
-    context.lineWidth = 2;
-    context.strokeRect(
-      Math.floor(options.placementPreviewPosition.x / HOMESTEAD_TILE_SIZE) * HOMESTEAD_TILE_SIZE - options.camera.x,
-      Math.floor(options.placementPreviewPosition.y / HOMESTEAD_TILE_SIZE) * HOMESTEAD_TILE_SIZE - options.camera.y,
-      HOMESTEAD_TILE_SIZE,
-      HOMESTEAD_TILE_SIZE
     );
   }
 
@@ -261,11 +252,5 @@ export function renderHomesteadCanvas(options: RenderOptions): void {
       HOMESTEAD_TILE_SIZE,
       duck
     );
-
-    if (duck.id === options.selectedDuckId) {
-      context.strokeStyle = "#f2c14e";
-      context.lineWidth = 2;
-      context.strokeRect(duckX - 2, duckY - 2, HOMESTEAD_TILE_SIZE + 4, HOMESTEAD_TILE_SIZE + 4);
-    }
   }
 }

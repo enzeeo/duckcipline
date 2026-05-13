@@ -1,10 +1,14 @@
 import { DUCK_GROWTH_SEED_REQUIREMENTS } from "../shared/balance.js";
 import { getActivityLabel, getDuckVariantFamily } from "../shared/duckDefinitions.js";
 import {
+  HOMESTEAD_COLUMNS,
   HOMESTEAD_FRAME_GUTTER,
+  HOMESTEAD_ROWS,
   HOMESTEAD_TILE_SIZE,
   clampCamera,
   getCenteredTileWorldPosition,
+  getTilePositionFromWorldPosition,
+  getTileTypeAt,
   isDuckAiPositionValid,
   isManualDuckPlacementValid
 } from "../shared/homesteadMap.js";
@@ -61,9 +65,20 @@ const MINUTES_PER_HOUR = 60;
 const PRESET_TWENTY_FIVE_MINUTES = 25;
 const PRESET_FIFTY_MINUTES = 50;
 const DEFAULT_CUSTOM_DURATION_MINUTES = PRESET_TWENTY_FIVE_MINUTES;
+const DUCK_IDLE_BETWEEN_WALKS_MILLISECONDS = 3000;
+const DUCK_RANDOM_DESTINATION_ATTEMPTS = 28;
+const DUCK_MINIMUM_DESTINATION_TILE_DISTANCE = 6;
+const DUCK_WALK_SPEED_PIXELS_PER_SECOND = 38;
+const DUCK_SWIM_SPEED_PIXELS_PER_SECOND = 30;
+const DUCK_WAYPOINT_REACHED_DISTANCE_PIXELS = 2;
 
 type DurationSelectionMode = "twentyFive" | "fifty" | "custom";
 type ActiveTab = "focus" | "homestead";
+
+interface HomesteadTileCoordinate {
+  column: number;
+  row: number;
+}
 
 interface PointerDragState {
   pointerId: number;
@@ -73,7 +88,14 @@ interface PointerDragState {
   lastClientY: number;
   mode: "camera" | "duck";
   duckId: string | null;
+  duckStartPosition: DuckPosition | null;
   hasMoved: boolean;
+}
+
+interface DuckRoamState {
+  path: DuckPosition[];
+  waypointIndex: number;
+  idleUntilTimestampMilliseconds: number;
 }
 
 function getRequiredElement<T extends HTMLElement>(elementId: string, constructor: { new (): T }): T {
@@ -138,8 +160,8 @@ let pointerDragState: PointerDragState | null = null;
 let animationFrameId: number | null = null;
 let previousAnimationTimestampMilliseconds = 0;
 let lastSimulationSaveTimestampMilliseconds = 0;
-let placementPreviewPosition: DuckPosition | null = null;
 let localDucks: Duck[] = [];
+const duckRoamStateById = new Map<string, DuckRoamState>();
 
 function createErrorResponse(message: string): { error: string } {
   return { error: message };
@@ -351,8 +373,16 @@ function updateGameDisplay(gameResponse: GameMessageResponse): void {
     return;
   }
 
-  gameStateSnapshot = gameResponse;
-  localDucks = gameResponse.gameState.ducks;
+  const mergedLocalDucks = mergeLiveDuckSimulationState(gameResponse.gameState.ducks);
+  gameStateSnapshot = {
+    ...gameResponse,
+    gameState: {
+      ...gameResponse.gameState,
+      ducks: mergedLocalDucks
+    }
+  };
+  localDucks = mergedLocalDucks;
+  pruneDuckRoamStates(localDucks);
 
   if (gameResponse.statusMessage !== null) {
     showStatus(gameResponse.statusMessage);
@@ -510,6 +540,197 @@ function findDuckAtWorldPosition(position: DuckPosition): Duck | null {
   return null;
 }
 
+function isPondDuck(duck: Duck): boolean {
+  return getDuckVariantFamily(duck.variantId) === "pond";
+}
+
+function isWaterWorldPosition(position: DuckPosition): boolean {
+  const tilePosition = getTilePositionFromWorldPosition(position);
+  const tileType = getTileTypeAt(tilePosition.column, tilePosition.row);
+
+  return tileType === "water" || tileType === "waterRipple";
+}
+
+function isDuckTileValid(tileCoordinate: HomesteadTileCoordinate, canEnterWater: boolean): boolean {
+  return isDuckAiPositionValid(getCenteredTileWorldPosition(tileCoordinate.column, tileCoordinate.row), canEnterWater);
+}
+
+function getDuckMovementActivity(duck: Duck, position: DuckPosition): Duck["activity"] {
+  return isPondDuck(duck) && isWaterWorldPosition(position) ? "swim" : "wander";
+}
+
+function createTileKey(tileCoordinate: HomesteadTileCoordinate): string {
+  return `${tileCoordinate.column},${tileCoordinate.row}`;
+}
+
+function parseTileKey(tileKey: string): HomesteadTileCoordinate {
+  const [columnText, rowText] = tileKey.split(",");
+
+  return {
+    column: Number(columnText),
+    row: Number(rowText)
+  };
+}
+
+function getNeighborTileCoordinates(tileCoordinate: HomesteadTileCoordinate): HomesteadTileCoordinate[] {
+  return [
+    { column: tileCoordinate.column + 1, row: tileCoordinate.row },
+    { column: tileCoordinate.column - 1, row: tileCoordinate.row },
+    { column: tileCoordinate.column, row: tileCoordinate.row + 1 },
+    { column: tileCoordinate.column, row: tileCoordinate.row - 1 }
+  ];
+}
+
+function findPathBetweenTiles(
+  startTile: HomesteadTileCoordinate,
+  destinationTile: HomesteadTileCoordinate,
+  canEnterWater: boolean
+): HomesteadTileCoordinate[] {
+  if (!isDuckTileValid(startTile, canEnterWater) || !isDuckTileValid(destinationTile, canEnterWater)) {
+    return [];
+  }
+
+  const startKey = createTileKey(startTile);
+  const destinationKey = createTileKey(destinationTile);
+  const frontier = [startTile];
+  const previousTileKeyByKey = new Map<string, string | null>([[startKey, null]]);
+
+  for (let frontierIndex = 0; frontierIndex < frontier.length; frontierIndex += 1) {
+    const currentTile = frontier[frontierIndex];
+    const currentKey = createTileKey(currentTile);
+
+    if (currentKey === destinationKey) {
+      break;
+    }
+
+    for (const neighborTile of getNeighborTileCoordinates(currentTile)) {
+      if (
+        neighborTile.column < 0 ||
+        neighborTile.row < 0 ||
+        neighborTile.column >= HOMESTEAD_COLUMNS ||
+        neighborTile.row >= HOMESTEAD_ROWS ||
+        !isDuckTileValid(neighborTile, canEnterWater)
+      ) {
+        continue;
+      }
+
+      const neighborKey = createTileKey(neighborTile);
+
+      if (previousTileKeyByKey.has(neighborKey)) {
+        continue;
+      }
+
+      previousTileKeyByKey.set(neighborKey, currentKey);
+      frontier.push(neighborTile);
+    }
+  }
+
+  if (!previousTileKeyByKey.has(destinationKey)) {
+    return [];
+  }
+
+  const path: HomesteadTileCoordinate[] = [];
+  let currentKey: string | null = destinationKey;
+
+  while (currentKey !== null) {
+    path.push(parseTileKey(currentKey));
+    currentKey = previousTileKeyByKey.get(currentKey) ?? null;
+  }
+
+  path.reverse();
+  return path.slice(1);
+}
+
+function getRandomValidDestinationTile(duck: Duck, startTile: HomesteadTileCoordinate): HomesteadTileCoordinate | null {
+  const canEnterWater = isPondDuck(duck);
+  let fallbackTile: HomesteadTileCoordinate | null = null;
+
+  for (let attemptIndex = 0; attemptIndex < DUCK_RANDOM_DESTINATION_ATTEMPTS; attemptIndex += 1) {
+    const destinationTile = {
+      column: Math.floor(Math.random() * HOMESTEAD_COLUMNS),
+      row: Math.floor(Math.random() * HOMESTEAD_ROWS)
+    };
+
+    if (!isDuckTileValid(destinationTile, canEnterWater)) {
+      continue;
+    }
+
+    fallbackTile = destinationTile;
+
+    const tileDistance =
+      Math.abs(destinationTile.column - startTile.column) + Math.abs(destinationTile.row - startTile.row);
+
+    if (tileDistance >= DUCK_MINIMUM_DESTINATION_TILE_DISTANCE) {
+      return destinationTile;
+    }
+  }
+
+  return fallbackTile;
+}
+
+function createRoamPathForDuck(duck: Duck): DuckPosition[] {
+  if (duck.position === null) {
+    return [];
+  }
+
+  const startTile = getTilePositionFromWorldPosition(duck.position);
+  const destinationTile = getRandomValidDestinationTile(duck, startTile);
+
+  if (destinationTile === null) {
+    return [];
+  }
+
+  return findPathBetweenTiles(startTile, destinationTile, isPondDuck(duck)).map((tileCoordinate) =>
+    getCenteredTileWorldPosition(tileCoordinate.column, tileCoordinate.row)
+  );
+}
+
+function resetDuckRoamState(duckId: string): void {
+  duckRoamStateById.delete(duckId);
+}
+
+function isDuckBeingDragged(duckId: string): boolean {
+  return pointerDragState?.mode === "duck" && pointerDragState.duckId === duckId;
+}
+
+function pruneDuckRoamStates(ducks: Duck[]): void {
+  const activeDuckIds = new Set(ducks.map((duck) => duck.id));
+
+  for (const duckId of duckRoamStateById.keys()) {
+    if (!activeDuckIds.has(duckId)) {
+      duckRoamStateById.delete(duckId);
+    }
+  }
+}
+
+function mergeLiveDuckSimulationState(ducks: Duck[]): Duck[] {
+  if (activeTab !== "homestead") {
+    return ducks;
+  }
+
+  const liveDuckById = new Map(localDucks.map((duck) => [duck.id, duck]));
+
+  return ducks.map((duck) => {
+    const liveDuck = liveDuckById.get(duck.id);
+
+    if (
+      liveDuck?.placementStatus === "placed" &&
+      liveDuck.position !== null &&
+      duck.placementStatus === "placed" &&
+      duck.position !== null
+    ) {
+      return {
+        ...duck,
+        position: liveDuck.position,
+        activity: liveDuck.activity,
+        lastUpdatedAtTimestampMilliseconds: liveDuck.lastUpdatedAtTimestampMilliseconds
+      };
+    }
+
+    return duck;
+  });
+}
+
 function resizeCanvasToFrame(): void {
   if (gameStateSnapshot === null || homesteadTabElement.hidden) {
     return;
@@ -543,8 +764,6 @@ function renderCanvas(): void {
     canvas: homesteadCanvasElement,
     camera: gameStateSnapshot.gameState.homesteadCamera,
     ducks: localDucks,
-    selectedDuckId,
-    placementPreviewPosition,
     animationFrameIndex: Math.floor(Date.now() / 180) % 4,
     spriteMap
   });
@@ -649,7 +868,6 @@ async function placeDuckAtWorldPosition(duckId: string, worldPosition: DuckPosit
   if (!isManualDuckPlacementValid(centeredPosition)) {
     placementHintTextElement.textContent = "That tile is blocked.";
     showStatus("Invalid placement.", true);
-    placementPreviewPosition = centeredPosition;
     renderCanvas();
     return;
   }
@@ -663,10 +881,11 @@ async function placeDuckAtWorldPosition(duckId: string, worldPosition: DuckPosit
   updateGameDisplay(await sendGameRuntimeMessage(placeDuckMessage));
   selectedUnplacedDuckId = null;
   selectedDuckId = duckId;
+  resetDuckRoamState(duckId);
   placementHintTextElement.textContent = "Duck placed.";
 }
 
-async function moveDuckToWorldPosition(duckId: string, worldPosition: DuckPosition): Promise<void> {
+async function moveDuckToWorldPosition(duckId: string, worldPosition: DuckPosition): Promise<boolean> {
   const tileColumn = Math.floor(worldPosition.x / HOMESTEAD_TILE_SIZE);
   const tileRow = Math.floor(worldPosition.y / HOMESTEAD_TILE_SIZE);
   const centeredPosition = getCenteredTileWorldPosition(tileColumn, tileRow);
@@ -674,7 +893,7 @@ async function moveDuckToWorldPosition(duckId: string, worldPosition: DuckPositi
   if (!isManualDuckPlacementValid(centeredPosition)) {
     placementHintTextElement.textContent = "That tile is blocked.";
     showStatus("Invalid move.", true);
-    return;
+    return false;
   }
 
   const moveDuckMessage: MoveDuckMessage = {
@@ -683,7 +902,19 @@ async function moveDuckToWorldPosition(duckId: string, worldPosition: DuckPositi
     x: centeredPosition.x,
     y: centeredPosition.y
   };
+  localDucks = localDucks.map((duck) =>
+    duck.id === duckId
+      ? {
+          ...duck,
+          position: centeredPosition,
+          activity: "idle",
+          lastUpdatedAtTimestampMilliseconds: Date.now()
+        }
+      : duck
+  );
+  resetDuckRoamState(duckId);
   updateGameDisplay(await sendGameRuntimeMessage(moveDuckMessage));
+  return true;
 }
 
 function updateLocalCamera(deltaX: number, deltaY: number): void {
@@ -729,8 +960,10 @@ function handleCanvasPointerDown(event: PointerEvent): void {
       lastClientY: event.clientY,
       mode: "duck",
       duckId: clickedDuck.id,
+      duckStartPosition: clickedDuck.position,
       hasMoved: false
     };
+    resetDuckRoamState(clickedDuck.id);
     renderDuckDetails();
     renderCanvas();
     return;
@@ -744,6 +977,7 @@ function handleCanvasPointerDown(event: PointerEvent): void {
     lastClientY: event.clientY,
     mode: "camera",
     duckId: null,
+    duckStartPosition: null,
     hasMoved: false
   };
   homesteadCanvasElement.classList.add("is-dragging");
@@ -763,7 +997,18 @@ function handleCanvasPointerMove(event: PointerEvent): void {
   if (pointerDragState.mode === "camera") {
     updateLocalCamera(deltaX, deltaY);
   } else if (pointerDragState.duckId !== null) {
-    placementPreviewPosition = getPointerWorldPosition(event);
+    const worldPosition = getPointerWorldPosition(event);
+    localDucks = localDucks.map((duck) =>
+      duck.id === pointerDragState?.duckId && duck.placementStatus === "placed"
+        ? {
+            ...duck,
+            position: worldPosition,
+            activity: getDuckMovementActivity(duck, worldPosition),
+            lastUpdatedAtTimestampMilliseconds: Date.now()
+          }
+        : duck
+    );
+    renderDuckDetails();
   }
 
   pointerDragState.lastClientX = event.clientX;
@@ -778,7 +1023,6 @@ function handleCanvasPointerUp(event: PointerEvent): void {
 
   const endedDragState = pointerDragState;
   pointerDragState = null;
-  placementPreviewPosition = null;
   homesteadCanvasElement.classList.remove("is-dragging");
 
   if (endedDragState.mode === "camera") {
@@ -794,9 +1038,29 @@ function handleCanvasPointerUp(event: PointerEvent): void {
   }
 
   if (endedDragState.duckId !== null && endedDragState.hasMoved) {
-    moveDuckToWorldPosition(endedDragState.duckId, getPointerWorldPosition(event)).catch(() => {
-      showStatus("Move failed.", true);
-    });
+    const draggedDuckId = endedDragState.duckId;
+
+    moveDuckToWorldPosition(draggedDuckId, getPointerWorldPosition(event))
+      .then((didMoveDuck) => {
+        if (!didMoveDuck && endedDragState.duckStartPosition !== null) {
+          localDucks = localDucks.map((duck) =>
+            duck.id === draggedDuckId
+              ? {
+                  ...duck,
+                  position: endedDragState.duckStartPosition,
+                  activity: "idle",
+                  lastUpdatedAtTimestampMilliseconds: Date.now()
+                }
+              : duck
+          );
+          resetDuckRoamState(draggedDuckId);
+          renderDuckDetails();
+          renderCanvas();
+        }
+      })
+      .catch(() => {
+        showStatus("Move failed.", true);
+      });
   }
 
   renderCanvas();
@@ -808,50 +1072,96 @@ function simulateDuckMovement(deltaMilliseconds: number): void {
   }
 
   const deltaSeconds = Math.min(0.1, deltaMilliseconds / 1000);
+  const nowTimestampMilliseconds = Date.now();
 
   localDucks = localDucks.map((duck) => {
     if (duck.placementStatus !== "placed" || duck.position === null) {
+      resetDuckRoamState(duck.id);
       return duck;
     }
 
-    let activity = duck.activity;
-
-    if (Math.random() < 0.006) {
-      const isPondDuck = getDuckVariantFamily(duck.variantId) === "pond";
-      const activityRoll = Math.random();
-
-      if (isPondDuck && activityRoll < 0.4) {
-        activity = "swim";
-      } else if (activityRoll < 0.55) {
-        activity = "wander";
-      } else if (activityRoll < 0.8) {
-        activity = "rest";
-      } else {
-        activity = "idle";
-      }
+    if (isDuckBeingDragged(duck.id)) {
+      return duck;
     }
 
-    if (activity !== "wander" && activity !== "swim") {
-      return { ...duck, activity };
+    let roamState = duckRoamStateById.get(duck.id);
+
+    if (roamState === undefined) {
+      roamState = {
+        path: [],
+        waypointIndex: 0,
+        idleUntilTimestampMilliseconds: nowTimestampMilliseconds
+      };
+      duckRoamStateById.set(duck.id, roamState);
     }
 
-    const angle = Math.random() * Math.PI * 2;
-    const speed = activity === "swim" ? 18 : 12;
-    const nextPosition = {
-      x: duck.position.x + Math.cos(angle) * speed * deltaSeconds,
-      y: duck.position.y + Math.sin(angle) * speed * deltaSeconds
-    };
-    const canEnterWater = getDuckVariantFamily(duck.variantId) === "pond";
-
-    if (!isDuckAiPositionValid(nextPosition, canEnterWater)) {
+    if (roamState.idleUntilTimestampMilliseconds > nowTimestampMilliseconds) {
       return { ...duck, activity: "idle" };
     }
+
+    if (roamState.waypointIndex >= roamState.path.length) {
+      const path = createRoamPathForDuck(duck);
+
+      if (path.length === 0) {
+        duckRoamStateById.set(duck.id, {
+          path: [],
+          waypointIndex: 0,
+          idleUntilTimestampMilliseconds: nowTimestampMilliseconds + DUCK_IDLE_BETWEEN_WALKS_MILLISECONDS
+        });
+        return { ...duck, activity: "idle" };
+      }
+
+      roamState = {
+        path,
+        waypointIndex: 0,
+        idleUntilTimestampMilliseconds: 0
+      };
+      duckRoamStateById.set(duck.id, roamState);
+    }
+
+    const waypoint = roamState.path[roamState.waypointIndex];
+    const distanceX = waypoint.x - duck.position.x;
+    const distanceY = waypoint.y - duck.position.y;
+    const distanceToWaypoint = Math.hypot(distanceX, distanceY);
+    const speed = getDuckMovementActivity(duck, duck.position) === "swim"
+      ? DUCK_SWIM_SPEED_PIXELS_PER_SECOND
+      : DUCK_WALK_SPEED_PIXELS_PER_SECOND;
+    const travelDistance = speed * deltaSeconds;
+    const didReachWaypoint =
+      distanceToWaypoint <= DUCK_WAYPOINT_REACHED_DISTANCE_PIXELS || travelDistance >= distanceToWaypoint;
+    const nextPosition = didReachWaypoint
+      ? waypoint
+      : {
+          x: duck.position.x + (distanceX / distanceToWaypoint) * travelDistance,
+          y: duck.position.y + (distanceY / distanceToWaypoint) * travelDistance
+        };
+    const nextWaypointIndex = didReachWaypoint ? roamState.waypointIndex + 1 : roamState.waypointIndex;
+
+    if (nextWaypointIndex >= roamState.path.length) {
+      duckRoamStateById.set(duck.id, {
+        path: [],
+        waypointIndex: 0,
+        idleUntilTimestampMilliseconds: nowTimestampMilliseconds + DUCK_IDLE_BETWEEN_WALKS_MILLISECONDS
+      });
+
+      return {
+        ...duck,
+        position: nextPosition,
+        activity: "idle",
+        lastUpdatedAtTimestampMilliseconds: nowTimestampMilliseconds
+      };
+    }
+
+    duckRoamStateById.set(duck.id, {
+      ...roamState,
+      waypointIndex: nextWaypointIndex
+    });
 
     return {
       ...duck,
       position: nextPosition,
-      activity,
-      lastUpdatedAtTimestampMilliseconds: Date.now()
+      activity: getDuckMovementActivity(duck, nextPosition),
+      lastUpdatedAtTimestampMilliseconds: nowTimestampMilliseconds
     };
   });
 }
