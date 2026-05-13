@@ -36,6 +36,13 @@ import {
   isExtensionRequestMessage,
   type ExtensionRequestMessage
 } from "../shared/messages.js";
+import {
+  calculateRemainingSecondsForRunningTimer,
+  calculateStartedAtTimestampMillisecondsForResumedTimer,
+  createDefaultTimerState,
+  isTimerState,
+  parseTimerDurationSeconds
+} from "../timer/timerState.js";
 import type {
   ErrorResponse,
   GameMessageResponse,
@@ -48,8 +55,6 @@ import type {
 const TIMER_STATE_STORAGE_KEY = "timerState";
 const GAME_STATE_STORAGE_KEY = "gameState";
 const LEGACY_DUCK_REWARDS_STATE_STORAGE_KEY = "duckRewardsState";
-const DEFAULT_DURATION_SECONDS = 25 * 60;
-const MILLISECONDS_PER_SECOND = 1000;
 
 type ExtensionMessageResponse = TimerMessageResponse | GameMessageResponse;
 
@@ -91,72 +96,8 @@ function createGameStatusResponse(
   };
 }
 
-function createDefaultTimerState(): TimerState {
-  return {
-    isRunning: false,
-    hasStartedAtLeastOnce: false,
-    configuredDurationSeconds: DEFAULT_DURATION_SECONDS,
-    startedAtTimestampMilliseconds: null,
-    remainingSecondsWhenNotRunning: DEFAULT_DURATION_SECONDS
-  };
-}
-
-function isTimerState(value: unknown): value is TimerState {
-  if (typeof value !== "object" || value === null) {
-    return false;
-  }
-
-  const possibleTimerState = value as Record<string, unknown>;
-  const hasValidStartTimestamp =
-    typeof possibleTimerState.startedAtTimestampMilliseconds === "number" ||
-    possibleTimerState.startedAtTimestampMilliseconds === null;
-  const hasValidStartHistory =
-    typeof possibleTimerState.hasStartedAtLeastOnce === "boolean" ||
-    typeof possibleTimerState.hasStartedAtLeastOnce === "undefined";
-
-  return (
-    typeof possibleTimerState.isRunning === "boolean" &&
-    hasValidStartHistory &&
-    typeof possibleTimerState.configuredDurationSeconds === "number" &&
-    hasValidStartTimestamp &&
-    typeof possibleTimerState.remainingSecondsWhenNotRunning === "number"
-  );
-}
-
 function areGameStatesEqual(leftState: GameState, rightState: GameState): boolean {
   return JSON.stringify(leftState) === JSON.stringify(rightState);
-}
-
-function parseDurationSeconds(durationSecondsFromMessage: number): number {
-  if (!Number.isFinite(durationSecondsFromMessage) || durationSecondsFromMessage < 1) {
-    return DEFAULT_DURATION_SECONDS;
-  }
-
-  return Math.floor(durationSecondsFromMessage);
-}
-
-function calculateRemainingSecondsForRunningTimer(
-  timerState: TimerState,
-  nowTimestampMilliseconds: number
-): number {
-  if (!timerState.startedAtTimestampMilliseconds) {
-    return timerState.configuredDurationSeconds;
-  }
-
-  const elapsedMilliseconds = nowTimestampMilliseconds - timerState.startedAtTimestampMilliseconds;
-  const elapsedSeconds = Math.floor(elapsedMilliseconds / MILLISECONDS_PER_SECOND);
-  return Math.max(0, timerState.configuredDurationSeconds - elapsedSeconds);
-}
-
-function calculateStartedAtTimestampMillisecondsForResumedTimer(
-  timerState: TimerState,
-  nowTimestampMilliseconds: number
-): number {
-  const elapsedSecondsBeforePause =
-    timerState.configuredDurationSeconds - timerState.remainingSecondsWhenNotRunning;
-  const elapsedMillisecondsBeforePause = Math.max(0, elapsedSecondsBeforePause) * MILLISECONDS_PER_SECOND;
-
-  return nowTimestampMilliseconds - elapsedMillisecondsBeforePause;
 }
 
 async function configureSidePanelBehavior(): Promise<void> {
@@ -319,9 +260,9 @@ async function startTimer(durationSecondsFromMessage: number): Promise<TimerMess
     : {
         isRunning: true,
         hasStartedAtLeastOnce: true,
-        configuredDurationSeconds: parseDurationSeconds(durationSecondsFromMessage),
+        configuredDurationSeconds: parseTimerDurationSeconds(durationSecondsFromMessage),
         startedAtTimestampMilliseconds: nowTimestampMilliseconds,
-        remainingSecondsWhenNotRunning: parseDurationSeconds(durationSecondsFromMessage)
+        remainingSecondsWhenNotRunning: parseTimerDurationSeconds(durationSecondsFromMessage)
       };
 
   await writeTimerStateToSessionStorage(updatedTimerState);
@@ -395,7 +336,7 @@ async function resetTimer(durationSecondsFromMessage: number): Promise<TimerMess
 
   const resetDurationSeconds = canonicalStateResult.timerState.hasStartedAtLeastOnce
     ? canonicalStateResult.timerState.configuredDurationSeconds
-    : parseDurationSeconds(durationSecondsFromMessage);
+    : parseTimerDurationSeconds(durationSecondsFromMessage);
   const resetTimerState: TimerState = {
     isRunning: false,
     hasStartedAtLeastOnce: false,

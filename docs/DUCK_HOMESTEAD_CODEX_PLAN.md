@@ -23,7 +23,7 @@ Existing architecture includes:
 - Duck reward state stored in `chrome.storage.local`
 - Two hardcoded duck egg rewards
 - Current UI is a plain single-column timer side panel.
-- No `DESIGN.md` or reusable design system exists yet.
+- No reusable design system existed when this plan was written. The current design contract lives in `docs/DESIGN.md`.
 - `src/assets/ducks/` exists, but the V1 pixel asset pack still needs to be created.
 
 Preserve this foundation. Extend it into a broader persistent game system.
