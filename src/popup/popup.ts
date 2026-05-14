@@ -415,6 +415,21 @@ async function refreshAllDisplays(): Promise<void> {
   await refreshGameDisplay();
 }
 
+async function catchUpHomesteadAfterAway(): Promise<void> {
+  await refreshGameDisplay();
+
+  if (activeTab !== "homestead") {
+    return;
+  }
+
+  if (homesteadInteraction.catchUpAfterAway(Date.now(), Math.random)) {
+    syncGameStateSnapshotFromHomestead();
+    renderDuckDetails();
+    renderCanvas();
+    await saveHomesteadState();
+  }
+}
+
 async function handleStartButtonClick(): Promise<void> {
   const startTimerMessage: StartTimerMessage = {
     type: START_TIMER_MESSAGE_TYPE,
@@ -474,6 +489,9 @@ function setActiveTab(nextActiveTab: ActiveTab): void {
   if (nextActiveTab === "homestead") {
     resizeCanvasToFrame();
     startAnimationLoop();
+    catchUpHomesteadAfterAway().catch(() => {
+      showStatus("Homestead unavailable.", true);
+    });
   } else {
     saveHomesteadState().catch(() => {});
     stopAnimationLoop();

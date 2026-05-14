@@ -59,7 +59,8 @@ export function createDefaultGameState(): GameState {
     seedCount: 0,
     totalCompletedSessions: 0,
     totalCompletedFocusSeconds: 0,
-    homesteadCamera: { x: 0, y: 0, zoom: 1 }
+    homesteadCamera: { x: 0, y: 0, zoom: 1 },
+    lastHomesteadSimulationTimestampMilliseconds: 0
   };
 }
 
@@ -270,7 +271,11 @@ export function normalizeGameState(value: unknown, nowTimestampMilliseconds: num
       typeof value.totalCompletedSessions === "number" ? Math.max(0, value.totalCompletedSessions) : 0,
     totalCompletedFocusSeconds:
       typeof value.totalCompletedFocusSeconds === "number" ? Math.max(0, value.totalCompletedFocusSeconds) : 0,
-    homesteadCamera: normalizeHomesteadCameraState(value.homesteadCamera)
+    homesteadCamera: normalizeHomesteadCameraState(value.homesteadCamera),
+    lastHomesteadSimulationTimestampMilliseconds:
+      typeof value.lastHomesteadSimulationTimestampMilliseconds === "number"
+        ? Math.max(0, value.lastHomesteadSimulationTimestampMilliseconds)
+        : nowTimestampMilliseconds
   };
 }
 
@@ -301,7 +306,8 @@ export function migrateLegacyDuckRewardsState(
     totalCompletedSessions:
       typeof legacyState.totalCompletedSessions === "number" ? legacyState.totalCompletedSessions : 0,
     totalCompletedFocusSeconds:
-      typeof legacyState.totalCompletedFocusSeconds === "number" ? legacyState.totalCompletedFocusSeconds : 0
+      typeof legacyState.totalCompletedFocusSeconds === "number" ? legacyState.totalCompletedFocusSeconds : 0,
+    lastHomesteadSimulationTimestampMilliseconds: nowTimestampMilliseconds
   };
 
   if (activeProjectId !== null) {
@@ -692,17 +698,23 @@ export function updateDuckPlacement(
               lastUpdatedAtTimestampMilliseconds: nowTimestampMilliseconds
             }
           : duck
-      )
+      ),
+      lastHomesteadSimulationTimestampMilliseconds: nowTimestampMilliseconds
     },
     statusMessage: "Duck placed."
   };
 }
 
-export function updateDuckSimulationState(gameState: GameState, updates: DuckSimulationStateUpdate[]): GameState {
+export function updateDuckSimulationState(
+  gameState: GameState,
+  updates: DuckSimulationStateUpdate[],
+  nowTimestampMilliseconds: number
+): GameState {
   const updateByDuckId = new Map(updates.map((update) => [update.duckId, update]));
 
   return {
     ...gameState,
+    lastHomesteadSimulationTimestampMilliseconds: nowTimestampMilliseconds,
     ducks: gameState.ducks.map((duck) => {
       const update = updateByDuckId.get(duck.id);
 

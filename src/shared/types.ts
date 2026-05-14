@@ -84,6 +84,7 @@ export interface GameState {
   totalCompletedSessions: number;
   totalCompletedFocusSeconds: number;
   homesteadCamera: HomesteadCameraState;
+  lastHomesteadSimulationTimestampMilliseconds: number;
 }
 
 export interface HatchTableEntry {

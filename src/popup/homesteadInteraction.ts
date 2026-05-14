@@ -4,10 +4,14 @@ import {
   HOMESTEAD_TILE_SIZE,
   clampCamera,
   getCenteredTileWorldPosition,
+  getTilePositionFromWorldPosition,
+  getTileTerrainKindAt,
   isManualDuckPlacementValid
 } from "../shared/homesteadMap.js";
+import { isDuckEatingAnimationActive } from "../shared/duckAnimation.js";
 import type {
   Duck,
+  DuckActivity,
   DuckPosition,
   DuckSimulationStateUpdate,
   GameStatusResponse,
@@ -15,6 +19,7 @@ import type {
 } from "../shared/types.js";
 import {
   pruneDuckRoamStates,
+  simulateDuckMovementCatchUp,
   simulateDuckMovement as simulateHomesteadDuckMovement,
   type DuckRoamState
 } from "./homesteadSimulation.js";
@@ -162,6 +167,7 @@ export interface HomesteadInteraction {
     baseCamera?: HomesteadCameraState | null
   ): void;
   handleWheelZoom(requestedZoom: number, clientX: number, clientY: number, canvasMetrics: HomesteadCanvasMetrics): boolean;
+  catchUpAfterAway(nowTimestampMilliseconds: number, random: () => number): boolean;
   advanceAnimationFrame(input: {
     timestampMilliseconds: number;
     isHomesteadActive: boolean;
@@ -188,6 +194,7 @@ class HomesteadInteractionController implements HomesteadInteraction {
   private isFollowingSelectedDuck = false;
   private previousAnimationTimestampMilliseconds = 0;
   private lastSimulationSaveTimestampMilliseconds = 0;
+  private lastLocalHomesteadSaveTimestampMilliseconds = 0;
   private localDucks: Duck[] = [];
   private duckRoamStateById = new Map<string, DuckRoamState>();
 
@@ -200,7 +207,7 @@ class HomesteadInteractionController implements HomesteadInteraction {
         ducks: mergedDucks
       }
     };
-    this.localDucks = mergedDucks;
+    this.setLocalDucks(mergedDucks);
     this.duckRoamStateById = pruneDuckRoamStates(this.localDucks, this.duckRoamStateById);
 
     return this.gameResponse;
@@ -618,6 +625,35 @@ class HomesteadInteractionController implements HomesteadInteraction {
     return true;
   }
 
+  catchUpAfterAway(nowTimestampMilliseconds: number, random: () => number): boolean {
+    if (this.gameResponse === null) {
+      return false;
+    }
+
+    const lastHomesteadSimulationTimestampMilliseconds = Math.max(
+      this.gameResponse.gameState.lastHomesteadSimulationTimestampMilliseconds,
+      this.lastLocalHomesteadSaveTimestampMilliseconds
+    );
+    const elapsedMilliseconds = nowTimestampMilliseconds - lastHomesteadSimulationTimestampMilliseconds;
+
+    if (elapsedMilliseconds <= 0) {
+      return false;
+    }
+
+    const simulationResult = simulateDuckMovementCatchUp({
+      ducks: this.localDucks,
+      roamStateById: this.duckRoamStateById,
+      elapsedMilliseconds,
+      nowTimestampMilliseconds,
+      random
+    });
+
+    this.setLocalDucks(simulationResult.ducks, nowTimestampMilliseconds);
+    this.duckRoamStateById = simulationResult.roamStateById;
+
+    return simulationResult.appliedElapsedMilliseconds > 0;
+  }
+
   advanceAnimationFrame(input: {
     timestampMilliseconds: number;
     isHomesteadActive: boolean;
@@ -631,7 +667,13 @@ class HomesteadInteractionController implements HomesteadInteraction {
         : input.timestampMilliseconds - this.previousAnimationTimestampMilliseconds;
     this.previousAnimationTimestampMilliseconds = input.timestampMilliseconds;
 
-    this.simulateDuckMovement(deltaMilliseconds, input.isHomesteadActive, input.nowTimestampMilliseconds, input.random, input.canvasSize);
+    this.simulateDuckMovement(
+      deltaMilliseconds,
+      input.isHomesteadActive,
+      input.nowTimestampMilliseconds,
+      input.random,
+      input.canvasSize
+    );
     const shouldSaveCamera = this.updateCameraFocusAnimation(input.timestampMilliseconds, input.canvasSize);
     const shouldSaveHomestead =
       input.isHomesteadActive &&
@@ -658,9 +700,14 @@ class HomesteadInteractionController implements HomesteadInteraction {
   createHomesteadSaveSnapshot(): HomesteadSaveSnapshot | null {
     const camera = this.createCameraSaveState();
 
-    if (camera === null) {
+    if (camera === null || this.gameResponse === null) {
       return null;
     }
+
+    const nowTimestampMilliseconds = Date.now();
+    this.lastLocalHomesteadSaveTimestampMilliseconds = nowTimestampMilliseconds;
+    this.normalizeLocalDucksForSimulationSave(nowTimestampMilliseconds);
+    this.setLocalDucks(this.localDucks, nowTimestampMilliseconds);
 
     return {
       camera,
@@ -678,6 +725,7 @@ class HomesteadInteractionController implements HomesteadInteraction {
     }
 
     const liveDuckById = new Map(this.localDucks.map((duck) => [duck.id, duck]));
+    const nowTimestampMilliseconds = Date.now();
 
     return ducks.map((duck) => {
       const liveDuck = liveDuckById.get(duck.id);
@@ -689,7 +737,9 @@ class HomesteadInteractionController implements HomesteadInteraction {
         duck.position !== null
       ) {
         const shouldKeepServerEatingAnimation =
-          duck.activity === "eat" && duck.lastUpdatedAtTimestampMilliseconds >= liveDuck.lastUpdatedAtTimestampMilliseconds;
+          duck.activity === "eat" &&
+          isDuckEatingAnimationActive(duck.lastUpdatedAtTimestampMilliseconds, nowTimestampMilliseconds) &&
+          duck.lastUpdatedAtTimestampMilliseconds >= liveDuck.lastUpdatedAtTimestampMilliseconds;
 
         return {
           ...duck,
@@ -744,7 +794,7 @@ class HomesteadInteractionController implements HomesteadInteraction {
       random
     });
 
-    this.localDucks = simulationResult.ducks;
+    this.setLocalDucks(simulationResult.ducks, nowTimestampMilliseconds);
     this.duckRoamStateById = simulationResult.roamStateById;
     this.followSelectedDuckIfNeeded(canvasSize, nowTimestampMilliseconds);
   }
@@ -874,6 +924,49 @@ class HomesteadInteractionController implements HomesteadInteraction {
         homesteadCamera: camera
       }
     };
+  }
+
+  private setLocalDucks(ducks: Duck[], lastHomesteadSimulationTimestampMilliseconds: number | null = null): void {
+    this.localDucks = ducks;
+
+    if (this.gameResponse === null) {
+      return;
+    }
+
+    this.gameResponse = {
+      ...this.gameResponse,
+      gameState: {
+        ...this.gameResponse.gameState,
+        ducks,
+        lastHomesteadSimulationTimestampMilliseconds:
+          lastHomesteadSimulationTimestampMilliseconds ??
+          this.gameResponse.gameState.lastHomesteadSimulationTimestampMilliseconds
+      }
+    };
+  }
+
+  private getPersistableDuckActivity(duck: Duck, nowTimestampMilliseconds: number): DuckActivity {
+    if (duck.activity !== "eat") {
+      return duck.activity;
+    }
+
+    if (isDuckEatingAnimationActive(duck.lastUpdatedAtTimestampMilliseconds, nowTimestampMilliseconds)) {
+      return "eat";
+    }
+
+    if (duck.position === null) {
+      return "idle";
+    }
+
+    const tilePosition = getTilePositionFromWorldPosition(duck.position);
+    return getTileTerrainKindAt(tilePosition.column, tilePosition.row) === "water" ? "swim" : "idle";
+  }
+
+  private normalizeLocalDucksForSimulationSave(nowTimestampMilliseconds: number): void {
+    this.localDucks = this.localDucks.map((duck) => ({
+      ...duck,
+      activity: this.getPersistableDuckActivity(duck, nowTimestampMilliseconds)
+    }));
   }
 
   private createDuckSimulationUpdates(): DuckSimulationStateUpdate[] {

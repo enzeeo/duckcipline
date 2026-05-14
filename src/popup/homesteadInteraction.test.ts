@@ -47,7 +47,8 @@ function createGameResponse(overrides: {
       seedCount: 0,
       totalCompletedSessions: 0,
       totalCompletedFocusSeconds: 0,
-      homesteadCamera: overrides.homesteadCamera ?? { x: 0, y: 0, zoom: 1 }
+      homesteadCamera: overrides.homesteadCamera ?? { x: 0, y: 0, zoom: 1 },
+      lastHomesteadSimulationTimestampMilliseconds: 0
     },
     projectDefinitions: [],
     maxDuckCount: 12,

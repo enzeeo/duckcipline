@@ -1,5 +1,5 @@
 import { getDuckVariantFamily } from "../shared/duckDefinitions.js";
-import { DUCK_EATING_ANIMATION_DURATION_MILLISECONDS } from "../shared/duckAnimation.js";
+import { isDuckEatingAnimationActive } from "../shared/duckAnimation.js";
 import {
   HOMESTEAD_COLUMNS,
   HOMESTEAD_ROWS,
@@ -17,6 +17,8 @@ export const DUCK_HOME_RADIUS_TILES = 10;
 const DUCK_WALK_SPEED_PIXELS_PER_SECOND = 38;
 const DUCK_SWIM_SPEED_PIXELS_PER_SECOND = 30;
 const DUCK_WAYPOINT_REACHED_DISTANCE_PIXELS = 2;
+const HOMESTEAD_CATCH_UP_STEP_MILLISECONDS = 100;
+const HOMESTEAD_CATCH_UP_MAXIMUM_MILLISECONDS = 120_000;
 const MINIMUM_IDLE_MILLISECONDS = 2_000;
 const MAXIMUM_IDLE_MILLISECONDS = 6_000;
 const MINIMUM_SWIM_SESSION_MILLISECONDS = 8_000;
@@ -57,6 +59,18 @@ export interface SimulateDuckMovementInput {
 export interface SimulateDuckMovementResult {
   ducks: Duck[];
   roamStateById: Map<string, DuckRoamState>;
+}
+
+export interface SimulateDuckMovementCatchUpInput {
+  ducks: Duck[];
+  roamStateById: ReadonlyMap<string, DuckRoamState>;
+  elapsedMilliseconds: number;
+  nowTimestampMilliseconds: number;
+  random: () => number;
+}
+
+export interface SimulateDuckMovementCatchUpResult extends SimulateDuckMovementResult {
+  appliedElapsedMilliseconds: number;
 }
 
 interface WeightedBehavior {
@@ -660,7 +674,7 @@ export function simulateDuckMovement(input: SimulateDuckMovementInput): Simulate
 
     if (
       duck.activity === "eat" &&
-      input.nowTimestampMilliseconds - duck.lastUpdatedAtTimestampMilliseconds < DUCK_EATING_ANIMATION_DURATION_MILLISECONDS
+      isDuckEatingAnimationActive(duck.lastUpdatedAtTimestampMilliseconds, input.nowTimestampMilliseconds)
     ) {
       return duck;
     }
@@ -777,5 +791,39 @@ export function simulateDuckMovement(input: SimulateDuckMovementInput): Simulate
   return {
     ducks,
     roamStateById: nextRoamStateById
+  };
+}
+
+export function simulateDuckMovementCatchUp(
+  input: SimulateDuckMovementCatchUpInput
+): SimulateDuckMovementCatchUpResult {
+  const appliedElapsedMilliseconds = Math.min(
+    HOMESTEAD_CATCH_UP_MAXIMUM_MILLISECONDS,
+    Math.max(0, Math.floor(input.elapsedMilliseconds))
+  );
+  let remainingElapsedMilliseconds = appliedElapsedMilliseconds;
+  let simulatedTimestampMilliseconds = input.nowTimestampMilliseconds - appliedElapsedMilliseconds;
+  let simulationResult: SimulateDuckMovementResult = {
+    ducks: input.ducks,
+    roamStateById: new Map(input.roamStateById)
+  };
+
+  while (remainingElapsedMilliseconds > 0) {
+    const stepMilliseconds = Math.min(HOMESTEAD_CATCH_UP_STEP_MILLISECONDS, remainingElapsedMilliseconds);
+    simulatedTimestampMilliseconds += stepMilliseconds;
+    simulationResult = simulateDuckMovement({
+      ducks: simulationResult.ducks,
+      roamStateById: simulationResult.roamStateById,
+      draggedDuckId: null,
+      deltaMilliseconds: stepMilliseconds,
+      nowTimestampMilliseconds: simulatedTimestampMilliseconds,
+      random: input.random
+    });
+    remainingElapsedMilliseconds -= stepMilliseconds;
+  }
+
+  return {
+    ...simulationResult,
+    appliedElapsedMilliseconds
   };
 }
