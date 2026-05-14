@@ -276,6 +276,57 @@ export function findPathBetweenTiles(
   return path.slice(1);
 }
 
+export function findEscapePathFromBlockedTile(
+  startTile: HomesteadTileCoordinate,
+  homeTile: HomesteadTileCoordinate | null = null,
+  random: () => number = Math.random
+): HomesteadTileCoordinate[] {
+  const startKey = createTileKey(startTile);
+  const frontier = [startTile];
+  const previousTileKeyByKey = new Map<string, string | null>([[startKey, null]]);
+
+  for (let frontierIndex = 0; frontierIndex < frontier.length; frontierIndex += 1) {
+    const currentTile = frontier[frontierIndex];
+
+    for (const neighborTile of getNeighborTileCoordinates(currentTile, random)) {
+      if (
+        neighborTile.column < 0 ||
+        neighborTile.row < 0 ||
+        neighborTile.column >= HOMESTEAD_COLUMNS ||
+        neighborTile.row >= HOMESTEAD_ROWS ||
+        (homeTile !== null && !isInsideHomeRadius(neighborTile, homeTile))
+      ) {
+        continue;
+      }
+
+      const neighborKey = createTileKey(neighborTile);
+
+      if (previousTileKeyByKey.has(neighborKey)) {
+        continue;
+      }
+
+      previousTileKeyByKey.set(neighborKey, createTileKey(currentTile));
+
+      if (isDuckTileValid(neighborTile)) {
+        const path: HomesteadTileCoordinate[] = [];
+        let currentKey: string | null = neighborKey;
+
+        while (currentKey !== null) {
+          path.push(parseTileKey(currentKey));
+          currentKey = previousTileKeyByKey.get(currentKey) ?? null;
+        }
+
+        path.reverse();
+        return path.slice(1);
+      }
+
+      frontier.push(neighborTile);
+    }
+  }
+
+  return [];
+}
+
 function hasReachableWaterTile(duck: Duck, startTile: HomesteadTileCoordinate, random: () => number): boolean {
   const homeTile = getHomeTileForDuck(duck);
 
@@ -548,6 +599,32 @@ function createMovementState(
   };
 }
 
+function createEscapeMovementState(duck: Duck, random: () => number): DuckRoamState {
+  if (duck.position === null) {
+    return {
+      path: [],
+      waypointIndex: 0,
+      behavior: "wander",
+      behaviorUntilTimestampMilliseconds: 0,
+      idleUntilTimestampMilliseconds: 0
+    };
+  }
+
+  const startTile = getTilePositionFromWorldPosition(duck.position);
+  const homeTile = getHomeTileForDuck(duck);
+  const path = findEscapePathFromBlockedTile(startTile, homeTile, random).map((tileCoordinate) =>
+    getCenteredTileWorldPosition(tileCoordinate.column, tileCoordinate.row)
+  );
+
+  return {
+    path,
+    waypointIndex: 0,
+    behavior: "wander",
+    behaviorUntilTimestampMilliseconds: 0,
+    idleUntilTimestampMilliseconds: 0
+  };
+}
+
 function chooseNextRoamState(duck: Duck, nowTimestampMilliseconds: number, random: () => number): DuckRoamState {
   if (duck.position === null) {
     return createIdleState(nowTimestampMilliseconds, random);
@@ -589,9 +666,24 @@ export function simulateDuckMovement(input: SimulateDuckMovementInput): Simulate
     }
 
     let roamState = nextRoamStateById.get(duck.id);
+    const isCurrentPositionValid = isDuckAiPositionValid(duck.position, true);
+
+    if (!isCurrentPositionValid) {
+      roamState = createEscapeMovementState(duck, input.random);
+      nextRoamStateById.set(duck.id, roamState);
+    }
 
     if (roamState === undefined) {
       roamState = chooseNextRoamState(duck, input.nowTimestampMilliseconds, input.random);
+      nextRoamStateById.set(duck.id, roamState);
+    }
+
+    const currentWaypoint = roamState.path[roamState.waypointIndex];
+
+    if (currentWaypoint !== undefined && !isDuckAiPositionValid(currentWaypoint, true)) {
+      roamState = isCurrentPositionValid
+        ? chooseNextRoamState(duck, input.nowTimestampMilliseconds, input.random)
+        : createEscapeMovementState(duck, input.random);
       nextRoamStateById.set(duck.id, roamState);
     }
 

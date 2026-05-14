@@ -14,6 +14,7 @@ import {
   chooseDuckRoamBehavior,
   createRoamPathForDuck,
   DUCK_HOME_RADIUS_TILES,
+  findEscapePathFromBlockedTile,
   findPathBetweenTiles,
   getDuckBehaviorProfile,
   getDuckMovementActivity,
@@ -70,6 +71,20 @@ describe("homesteadSimulation", () => {
     const path = findPathBetweenTiles({ column: 1, row: 1 }, { column: 20, row: 20 }, false);
 
     expect(path.every((tile) => getTileTerrainKindAt(tile.column, tile.row) !== "water")).toBe(true);
+  });
+
+  it("does not route through lily pad object tiles", () => {
+    const path = findPathBetweenTiles({ column: 21, row: 14 }, { column: 23, row: 14 }, true);
+
+    expect(path.length).toBeGreaterThan(0);
+    expect(path).not.toContainEqual({ column: 22, row: 14 });
+  });
+
+  it("finds an escape path when a duck starts on a blocked object tile", () => {
+    const path = findEscapePathFromBlockedTile({ column: 22, row: 14 }, { column: 22, row: 14 }, () => 0);
+
+    expect(path.length).toBeGreaterThan(0);
+    expect(path.every((tile) => isDuckAiPositionValid(getCenteredTileWorldPosition(tile.column, tile.row), true))).toBe(true);
   });
 
   it("allows all ducks to swim on water", () => {
@@ -284,5 +299,25 @@ describe("homesteadSimulation", () => {
 
     expect(position?.x).toBeGreaterThan(duck.position?.x ?? 0);
     expect(getTilePositionFromWorldPosition(position ?? getCenteredTileWorldPosition(2, 1)).row).toBe(1);
+  });
+
+  it("discards stale roam waypoints on blocked object tiles before movement", () => {
+    const duck = createDuck({
+      position: getCenteredTileWorldPosition(21, 14),
+      homePosition: getCenteredTileWorldPosition(21, 14)
+    });
+    const blockedWaypoint = getCenteredTileWorldPosition(22, 14);
+    const result = simulateDuckMovement({
+      ducks: [duck],
+      roamStateById: new Map([["duck-1", { path: [blockedWaypoint], waypointIndex: 0, behavior: "wander", behaviorUntilTimestampMilliseconds: 0, idleUntilTimestampMilliseconds: 0 }]]),
+      draggedDuckId: null,
+      deltaMilliseconds: 1000,
+      nowTimestampMilliseconds: 2_000,
+      random: () => 0
+    });
+    const position = result.ducks[0].position ?? getCenteredTileWorldPosition(21, 14);
+
+    expect(getTilePositionFromWorldPosition(position)).not.toEqual({ column: 22, row: 14 });
+    expect(result.roamStateById.get("duck-1")?.path[0]).not.toEqual(blockedWaypoint);
   });
 });

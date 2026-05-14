@@ -222,7 +222,7 @@ export function isObjectBlockingTile(column: number, row: number): boolean {
   return HOMESTEAD_OBJECTS.some((object) => {
     const isInsideObjectColumns = column >= object.column && column < object.column + object.widthTiles;
     const isInsideObjectRows = row >= object.row && row < object.row + object.heightTiles;
-    return isInsideObjectColumns && isInsideObjectRows && (object.type === "tree" || object.type === "rock");
+    return isInsideObjectColumns && isInsideObjectRows;
   });
 }
 

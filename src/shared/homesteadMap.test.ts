@@ -7,7 +7,7 @@ import {
   clampCamera,
   getCenteredTileWorldPosition,
   getTileTerrainKindAt,
-  getTileTypeAt,
+  isDuckAiPositionValid,
   isManualDuckPlacementValid,
   isObjectBlockingTile
 } from "./homesteadMap.js";
@@ -25,6 +25,22 @@ describe("homesteadMap", () => {
 
     expect(isObjectBlockingTile(0, 1)).toBe(true);
     expect(isManualDuckPlacementValid(treePosition)).toBe(false);
+  });
+
+  it("treats all homestead objects as blocking tiles", () => {
+    expect(isObjectBlockingTile(20, 12)).toBe(true);
+    expect(isObjectBlockingTile(22, 14)).toBe(true);
+    expect(isObjectBlockingTile(14, 11)).toBe(true);
+  });
+
+  it("rejects manual placement on land object tiles", () => {
+    expect(getTileTerrainKindAt(14, 11)).not.toBe("water");
+    expect(isManualDuckPlacementValid(getCenteredTileWorldPosition(14, 11))).toBe(false);
+  });
+
+  it("rejects object tiles for AI movement even when water entry is allowed", () => {
+    expect(isDuckAiPositionValid(getCenteredTileWorldPosition(22, 14), true)).toBe(false);
+    expect(isDuckAiPositionValid(getCenteredTileWorldPosition(20, 12), true)).toBe(false);
   });
 
   it("uses the cropped homestead dimensions and keeps the pond centered", () => {
