@@ -152,8 +152,18 @@ function drawSpriteOrFallback(
   y: number,
   width: number,
   height: number,
-  duck: Duck | null = null
+  duck: Duck | null = null,
+  isMirrored: boolean = false
 ): void {
+  if (isMirrored) {
+    context.save();
+    context.translate(x + width, y);
+    context.scale(-1, 1);
+    drawSpriteOrFallback(context, spriteMap, spriteKey, 0, 0, width, height, duck, false);
+    context.restore();
+    return;
+  }
+
   const image = spriteMap[spriteKey];
 
   if (image) {
@@ -176,8 +186,8 @@ function drawSpriteOrFallback(
   }
 }
 
-function getPixelAlignedScreenCoordinate(worldCoordinate: number, cameraCoordinate: number): number {
-  return Math.floor(worldCoordinate - cameraCoordinate);
+function getPixelAlignedScreenCoordinate(worldCoordinate: number, cameraCoordinate: number, zoom: number): number {
+  return Math.floor((worldCoordinate - cameraCoordinate) * zoom);
 }
 
 export function renderHomesteadCanvas(options: RenderOptions): void {
@@ -190,15 +200,19 @@ export function renderHomesteadCanvas(options: RenderOptions): void {
   context.imageSmoothingEnabled = false;
   context.clearRect(0, 0, options.canvas.width, options.canvas.height);
 
+  const zoom = options.camera.zoom;
+  const viewportWorldWidth = options.canvas.width / zoom;
+  const viewportWorldHeight = options.canvas.height / zoom;
+  const renderedTileSize = Math.ceil(HOMESTEAD_TILE_SIZE * zoom);
   const startColumn = Math.max(0, Math.floor(options.camera.x / HOMESTEAD_TILE_SIZE) - 1);
   const endColumn = Math.min(
     HOMESTEAD_COLUMNS,
-    Math.ceil((options.camera.x + options.canvas.width) / HOMESTEAD_TILE_SIZE) + 1
+    Math.ceil((options.camera.x + viewportWorldWidth) / HOMESTEAD_TILE_SIZE) + 1
   );
   const startRow = Math.max(0, Math.floor(options.camera.y / HOMESTEAD_TILE_SIZE) - 1);
   const endRow = Math.min(
     HOMESTEAD_ROWS,
-    Math.ceil((options.camera.y + options.canvas.height) / HOMESTEAD_TILE_SIZE) + 1
+    Math.ceil((options.camera.y + viewportWorldHeight) / HOMESTEAD_TILE_SIZE) + 1
   );
 
   for (let row = startRow; row < endRow; row += 1) {
@@ -210,10 +224,10 @@ export function renderHomesteadCanvas(options: RenderOptions): void {
         context,
         options.spriteMap,
         spriteKey,
-        getPixelAlignedScreenCoordinate(column * HOMESTEAD_TILE_SIZE, options.camera.x),
-        getPixelAlignedScreenCoordinate(row * HOMESTEAD_TILE_SIZE, options.camera.y),
-        HOMESTEAD_TILE_SIZE,
-        HOMESTEAD_TILE_SIZE
+        getPixelAlignedScreenCoordinate(column * HOMESTEAD_TILE_SIZE, options.camera.x, zoom),
+        getPixelAlignedScreenCoordinate(row * HOMESTEAD_TILE_SIZE, options.camera.y, zoom),
+        renderedTileSize,
+        renderedTileSize
       );
     }
   }
@@ -223,10 +237,10 @@ export function renderHomesteadCanvas(options: RenderOptions): void {
       context,
       options.spriteMap,
       `object:${object.type}`,
-      getPixelAlignedScreenCoordinate(object.column * HOMESTEAD_TILE_SIZE, options.camera.x),
-      getPixelAlignedScreenCoordinate(object.row * HOMESTEAD_TILE_SIZE, options.camera.y),
-      object.widthTiles * HOMESTEAD_TILE_SIZE,
-      object.heightTiles * HOMESTEAD_TILE_SIZE
+      getPixelAlignedScreenCoordinate(object.column * HOMESTEAD_TILE_SIZE, options.camera.x, zoom),
+      getPixelAlignedScreenCoordinate(object.row * HOMESTEAD_TILE_SIZE, options.camera.y, zoom),
+      object.widthTiles * HOMESTEAD_TILE_SIZE * zoom,
+      object.heightTiles * HOMESTEAD_TILE_SIZE * zoom
     );
   }
 
@@ -235,8 +249,8 @@ export function renderHomesteadCanvas(options: RenderOptions): void {
       continue;
     }
 
-    const duckX = duck.position.x - HOMESTEAD_TILE_SIZE / 2 - options.camera.x;
-    const duckY = duck.position.y - HOMESTEAD_TILE_SIZE / 2 - options.camera.y;
+    const duckX = (duck.position.x - HOMESTEAD_TILE_SIZE / 2 - options.camera.x) * zoom;
+    const duckY = (duck.position.y - HOMESTEAD_TILE_SIZE / 2 - options.camera.y) * zoom;
     const renderedActivity = duck.activity === "rest" ? "sleep" : duck.activity;
     const animatedSpriteKey: SpriteKey =
       `duck:${duck.variantId}:${duck.growthStage}:${renderedActivity}:${options.animationFrameIndex}`;
@@ -248,9 +262,10 @@ export function renderHomesteadCanvas(options: RenderOptions): void {
       options.spriteMap[animatedSpriteKey] ? animatedSpriteKey : staticSpriteKey,
       duckX,
       duckY,
-      HOMESTEAD_TILE_SIZE,
-      HOMESTEAD_TILE_SIZE,
-      duck
+      HOMESTEAD_TILE_SIZE * zoom,
+      HOMESTEAD_TILE_SIZE * zoom,
+      duck,
+      duck.facingDirection === "left"
     );
   }
 }

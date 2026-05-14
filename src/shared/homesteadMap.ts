@@ -6,8 +6,11 @@ export const HOMESTEAD_ROWS = 36;
 export const HOMESTEAD_WORLD_WIDTH = HOMESTEAD_COLUMNS * HOMESTEAD_TILE_SIZE;
 export const HOMESTEAD_WORLD_HEIGHT = HOMESTEAD_ROWS * HOMESTEAD_TILE_SIZE;
 export const HOMESTEAD_FRAME_GUTTER = 12;
+export const HOMESTEAD_MIN_ZOOM = 0.75;
+export const HOMESTEAD_MAX_ZOOM = 2;
 
 export type HomesteadTileType = "grass" | "water" | "path" | "flower" | "grassVariant" | "dirtPath" | "waterRipple";
+export type HomesteadTileTerrainKind = "ground" | "water";
 export type HomesteadObjectType = "tree" | "rock" | "reeds" | "lilyPad" | "nest";
 
 export interface HomesteadObject {
@@ -98,8 +101,12 @@ function isInsideOrganicPatch(column: number, row: number, patch: OrganicPatch, 
   return getOrganicPatchValue(column, row, patch, salt) <= 1;
 }
 
-function isWaterTileType(tileType: HomesteadTileType): boolean {
+export function isWaterTileType(tileType: HomesteadTileType): boolean {
   return tileType === "water" || tileType === "waterRipple";
+}
+
+export function getTileTerrainKind(tileType: HomesteadTileType): HomesteadTileTerrainKind {
+  return isWaterTileType(tileType) ? "water" : "ground";
 }
 
 function getPathTileTypeAt(column: number, row: number, pondPatchValue: number): HomesteadTileType | null {
@@ -157,12 +164,16 @@ export function clampCamera(
   viewportWidth: number,
   viewportHeight: number
 ): HomesteadCameraState {
-  const maxCameraX = Math.max(0, HOMESTEAD_WORLD_WIDTH - viewportWidth);
-  const maxCameraY = Math.max(0, HOMESTEAD_WORLD_HEIGHT - viewportHeight);
+  const zoom = Math.min(Math.max(camera.zoom, HOMESTEAD_MIN_ZOOM), HOMESTEAD_MAX_ZOOM);
+  const viewportWorldWidth = viewportWidth / zoom;
+  const viewportWorldHeight = viewportHeight / zoom;
+  const maxCameraX = Math.max(0, HOMESTEAD_WORLD_WIDTH - viewportWorldWidth);
+  const maxCameraY = Math.max(0, HOMESTEAD_WORLD_HEIGHT - viewportWorldHeight);
 
   return {
     x: Math.min(Math.max(0, camera.x), maxCameraX),
-    y: Math.min(Math.max(0, camera.y), maxCameraY)
+    y: Math.min(Math.max(0, camera.y), maxCameraY),
+    zoom
   };
 }
 
@@ -183,6 +194,10 @@ export function getTileTypeAt(column: number, row: number): HomesteadTileType {
   }
 
   return isGrassVariantTileAt(column, row) ? "grassVariant" : "grass";
+}
+
+export function getTileTerrainKindAt(column: number, row: number): HomesteadTileTerrainKind {
+  return getTileTerrainKind(getTileTypeAt(column, row));
 }
 
 export function isInsideWorld(column: number, row: number): boolean {
@@ -218,7 +233,7 @@ export function isManualDuckPlacementValid(position: DuckPosition): boolean {
     return false;
   }
 
-  if (isWaterTileType(getTileTypeAt(tilePosition.column, tilePosition.row))) {
+  if (getTileTerrainKindAt(tilePosition.column, tilePosition.row) === "water") {
     return false;
   }
 
@@ -232,7 +247,7 @@ export function isDuckAiPositionValid(position: DuckPosition, canEnterWater: boo
     return false;
   }
 
-  if (!canEnterWater && isWaterTileType(getTileTypeAt(tilePosition.column, tilePosition.row))) {
+  if (!canEnterWater && getTileTerrainKindAt(tilePosition.column, tilePosition.row) === "water") {
     return false;
   }
 

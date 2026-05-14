@@ -1,5 +1,6 @@
 import type {
   DuckActivity,
+  DuckFacingDirection,
   DuckSimulationStateUpdate,
   FeedDuckMode,
   GameMessageResponse,
@@ -163,6 +164,10 @@ function isDuckActivity(value: unknown): value is DuckActivity {
   return value === "idle" || value === "wander" || value === "swim" || value === "rest" || value === "eat";
 }
 
+function isDuckFacingDirection(value: unknown): value is DuckFacingDirection {
+  return value === "left" || value === "right";
+}
+
 function isDuckPosition(value: unknown): value is { x: number; y: number } {
   return isObjectRecord(value) && typeof value.x === "number" && typeof value.y === "number";
 }
@@ -178,6 +183,7 @@ function isDuckSimulationStateUpdateArray(value: unknown): value is DuckSimulati
       typeof update.duckId === "string" &&
       isDuckPosition(update.position) &&
       isDuckActivity(update.activity) &&
+      isDuckFacingDirection(update.facingDirection) &&
       typeof update.lastUpdatedAtTimestampMilliseconds === "number"
     );
   });
@@ -188,7 +194,7 @@ function isHomesteadCameraState(value: unknown): value is HomesteadCameraState {
     return false;
   }
 
-  return typeof value.x === "number" && typeof value.y === "number";
+  return typeof value.x === "number" && typeof value.y === "number" && typeof value.zoom === "number";
 }
 
 export function isTimerMessageResponse(value: unknown): value is TimerMessageResponse {

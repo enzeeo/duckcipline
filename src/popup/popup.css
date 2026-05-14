@@ -366,6 +366,11 @@ button:disabled {
   min-height: 120px;
 }
 
+.follow-duck-button {
+  width: 100%;
+  margin: var(--space-2) 0;
+}
+
 .selected-duck-name,
 .selected-duck-stage {
   margin: 0;

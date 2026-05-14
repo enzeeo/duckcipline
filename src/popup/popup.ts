@@ -2,7 +2,11 @@ import { DUCK_GROWTH_SEED_REQUIREMENTS } from "../shared/balance.js";
 import { getActivityLabel } from "../shared/duckDefinitions.js";
 import {
   HOMESTEAD_FRAME_GUTTER,
+  HOMESTEAD_MAX_ZOOM,
+  HOMESTEAD_MIN_ZOOM,
   HOMESTEAD_TILE_SIZE,
+  HOMESTEAD_WORLD_HEIGHT,
+  HOMESTEAD_WORLD_WIDTH,
   clampCamera,
   getCenteredTileWorldPosition,
   isManualDuckPlacementValid
@@ -12,7 +16,6 @@ import {
   FEED_DUCK_MESSAGE_TYPE,
   GET_GAME_STATE_MESSAGE_TYPE,
   GET_TIMER_STATE_MESSAGE_TYPE,
-  MOVE_DUCK_MESSAGE_TYPE,
   PAUSE_TIMER_MESSAGE_TYPE,
   PLACE_DUCK_MESSAGE_TYPE,
   RENAME_DUCK_MESSAGE_TYPE,
@@ -28,7 +31,6 @@ import {
   type GameRequestMessage,
   type GetGameStateMessage,
   type GetTimerStateMessage,
-  type MoveDuckMessage,
   type PauseTimerMessage,
   type PlaceDuckMessage,
   type RenameDuckMessage,
@@ -48,13 +50,13 @@ import type {
   GameStatusResponse,
   ProjectDefinitionResponse,
   ProjectId,
+  HomesteadCameraState,
   TimerMessageResponse,
   TimerStatusResponse
 } from "../shared/types.js";
 import { loadPixelSprites, type SpriteMap } from "./assetLoader.js";
 import { renderHomesteadCanvas } from "./canvasRenderer.js";
 import {
-  getDuckMovementActivity,
   pruneDuckRoamStates,
   simulateDuckMovement as simulateHomesteadDuckMovement,
   type DuckRoamState
@@ -77,10 +79,15 @@ interface PointerDragState {
   startClientY: number;
   lastClientX: number;
   lastClientY: number;
-  mode: "camera" | "duck";
-  duckId: string | null;
-  duckStartPosition: DuckPosition | null;
+  startCamera: HomesteadCameraState;
   hasMoved: boolean;
+}
+
+interface PinchZoomState {
+  pointerIdA: number;
+  pointerIdB: number;
+  startDistance: number;
+  startCamera: HomesteadCameraState;
 }
 
 function getRequiredElement<T extends HTMLElement>(elementId: string, constructor: { new (): T }): T {
@@ -132,6 +139,7 @@ const duckNameInputElement = getRequiredElement("duckNameInput", HTMLInputElemen
 const renameDuckButtonElement = getRequiredElement("renameDuckButton", HTMLButtonElement);
 const feedOneSeedButtonElement = getRequiredElement("feedOneSeedButton", HTMLButtonElement);
 const feedToNextStageButtonElement = getRequiredElement("feedToNextStageButton", HTMLButtonElement);
+const followDuckButtonElement = getRequiredElement("followDuckButton", HTMLButtonElement);
 
 let selectedDurationSelectionMode: DurationSelectionMode = "twentyFive";
 let activeTab: ActiveTab = "focus";
@@ -142,6 +150,9 @@ let spriteMap: SpriteMap = {};
 let selectedDuckId: string | null = null;
 let selectedUnplacedDuckId: string | null = null;
 let pointerDragState: PointerDragState | null = null;
+let activeCanvasPointerById = new Map<number, PointerEvent>();
+let pinchZoomState: PinchZoomState | null = null;
+let isFollowingSelectedDuck = false;
 let animationFrameId: number | null = null;
 let previousAnimationTimestampMilliseconds = 0;
 let lastSimulationSaveTimestampMilliseconds = 0;
@@ -500,11 +511,11 @@ function getPointerWorldPosition(event: PointerEvent | DragEvent): DuckPosition 
   const scaleY = homesteadCanvasElement.height / canvasBounds.height;
   const canvasX = (clientX - canvasBounds.left) * scaleX;
   const canvasY = (clientY - canvasBounds.top) * scaleY;
-  const camera = gameStateSnapshot?.gameState.homesteadCamera ?? { x: 0, y: 0 };
+  const camera = gameStateSnapshot?.gameState.homesteadCamera ?? { x: 0, y: 0, zoom: 1 };
 
   return {
-    x: canvasX + camera.x,
-    y: canvasY + camera.y
+    x: canvasX / camera.zoom + camera.x,
+    y: canvasY / camera.zoom + camera.y
   };
 }
 
@@ -529,6 +540,58 @@ function resetDuckRoamState(duckId: string): void {
   duckRoamStateById.delete(duckId);
 }
 
+function setFollowSelectedDuck(isFollowing: boolean): void {
+  isFollowingSelectedDuck = isFollowing && selectedDuckId !== null;
+  followDuckButtonElement.textContent = isFollowingSelectedDuck ? "Unfollow" : "Follow";
+}
+
+function stopFollowingForManualCameraInput(): void {
+  if (isFollowingSelectedDuck) {
+    setFollowSelectedDuck(false);
+  }
+}
+
+function getCenteredCameraForPosition(position: DuckPosition, camera: HomesteadCameraState): HomesteadCameraState {
+  return clampCamera(
+    {
+      ...camera,
+      x: position.x - homesteadCanvasElement.width / camera.zoom / 2,
+      y: position.y - homesteadCanvasElement.height / camera.zoom / 2
+    },
+    homesteadCanvasElement.width,
+    homesteadCanvasElement.height
+  );
+}
+
+function centerCameraOnDuck(duck: Duck): void {
+  if (gameStateSnapshot === null || duck.position === null) {
+    return;
+  }
+
+  gameStateSnapshot = {
+    ...gameStateSnapshot,
+    gameState: {
+      ...gameStateSnapshot.gameState,
+      homesteadCamera: getCenteredCameraForPosition(duck.position, gameStateSnapshot.gameState.homesteadCamera)
+    }
+  };
+}
+
+function followSelectedDuckIfNeeded(): void {
+  if (!isFollowingSelectedDuck) {
+    return;
+  }
+
+  const selectedDuck = getSelectedDuck();
+
+  if (selectedDuck === null) {
+    setFollowSelectedDuck(false);
+    return;
+  }
+
+  centerCameraOnDuck(selectedDuck);
+}
+
 function mergeLiveDuckSimulationState(ducks: Duck[]): Duck[] {
   if (activeTab !== "homestead") {
     return ducks;
@@ -549,6 +612,7 @@ function mergeLiveDuckSimulationState(ducks: Duck[]): Duck[] {
         ...duck,
         position: liveDuck.position,
         activity: liveDuck.activity,
+        facingDirection: liveDuck.facingDirection,
         lastUpdatedAtTimestampMilliseconds: liveDuck.lastUpdatedAtTimestampMilliseconds
       };
     }
@@ -682,6 +746,7 @@ function renderDuckDetails(): void {
     `${selectedDuck.favoriteActivity} · Age ${ageSeconds}s` +
     (seedsNeeded === null ? " · fully grown" : ` · ${selectedDuck.seedsFedForCurrentStage} fed, ${seedsNeeded} to grow`);
   duckNameInputElement.value = selectedDuck.name;
+  followDuckButtonElement.textContent = isFollowingSelectedDuck ? "Unfollow" : "Follow";
   feedOneSeedButtonElement.disabled = seedsNeeded === null || seedCount < 1;
   feedToNextStageButtonElement.disabled = seedsNeeded === null || seedCount < seedsNeeded;
 }
@@ -707,52 +772,68 @@ async function placeDuckAtWorldPosition(duckId: string, worldPosition: DuckPosit
   updateGameDisplay(await sendGameRuntimeMessage(placeDuckMessage));
   selectedUnplacedDuckId = null;
   selectedDuckId = duckId;
+  setFollowSelectedDuck(true);
   resetDuckRoamState(duckId);
+  const placedDuck = localDucks.find((duck) => duck.id === duckId);
+  if (placedDuck !== undefined) {
+    centerCameraOnDuck(placedDuck);
+    saveCameraState().catch(() => {});
+  }
   placementHintTextElement.textContent = "Duck placed.";
 }
 
-async function moveDuckToWorldPosition(duckId: string, worldPosition: DuckPosition): Promise<boolean> {
-  const tileColumn = Math.floor(worldPosition.x / HOMESTEAD_TILE_SIZE);
-  const tileRow = Math.floor(worldPosition.y / HOMESTEAD_TILE_SIZE);
-  const centeredPosition = getCenteredTileWorldPosition(tileColumn, tileRow);
-
-  if (!isManualDuckPlacementValid(centeredPosition)) {
-    placementHintTextElement.textContent = "That tile is blocked.";
-    showStatus("Invalid move.", true);
-    return false;
-  }
-
-  const moveDuckMessage: MoveDuckMessage = {
-    type: MOVE_DUCK_MESSAGE_TYPE,
-    duckId,
-    x: centeredPosition.x,
-    y: centeredPosition.y
-  };
-  localDucks = localDucks.map((duck) =>
-    duck.id === duckId
-      ? {
-          ...duck,
-          position: centeredPosition,
-          activity: "idle",
-          lastUpdatedAtTimestampMilliseconds: Date.now()
-        }
-      : duck
-  );
-  resetDuckRoamState(duckId);
-  updateGameDisplay(await sendGameRuntimeMessage(moveDuckMessage));
-  return true;
-}
-
-function updateLocalCamera(deltaX: number, deltaY: number): void {
+function updateLocalCameraFromDrag(event: PointerEvent): void {
   if (gameStateSnapshot === null) {
     return;
   }
 
-  const currentCamera = gameStateSnapshot.gameState.homesteadCamera;
+  if (pointerDragState === null) {
+    return;
+  }
+
   const nextCamera = clampCamera(
     {
-      x: currentCamera.x - deltaX,
-      y: currentCamera.y - deltaY
+      ...pointerDragState.startCamera,
+      x: pointerDragState.startCamera.x - (event.clientX - pointerDragState.startClientX) / pointerDragState.startCamera.zoom,
+      y: pointerDragState.startCamera.y - (event.clientY - pointerDragState.startClientY) / pointerDragState.startCamera.zoom
+    },
+    homesteadCanvasElement.width,
+    homesteadCanvasElement.height
+  );
+
+  gameStateSnapshot = {
+    ...gameStateSnapshot,
+    gameState: {
+      ...gameStateSnapshot.gameState,
+      homesteadCamera: nextCamera
+    }
+  };
+}
+
+function updateLocalZoom(
+  requestedZoom: number,
+  clientX: number,
+  clientY: number,
+  baseCamera: HomesteadCameraState | null = null
+): void {
+  if (gameStateSnapshot === null) {
+    return;
+  }
+
+  const camera = baseCamera ?? gameStateSnapshot.gameState.homesteadCamera;
+  const canvasBounds = homesteadCanvasElement.getBoundingClientRect();
+  const scaleX = homesteadCanvasElement.width / canvasBounds.width;
+  const scaleY = homesteadCanvasElement.height / canvasBounds.height;
+  const canvasX = (clientX - canvasBounds.left) * scaleX;
+  const canvasY = (clientY - canvasBounds.top) * scaleY;
+  const nextZoom = Math.min(Math.max(requestedZoom, HOMESTEAD_MIN_ZOOM), HOMESTEAD_MAX_ZOOM);
+  const anchorWorldX = camera.x + canvasX / camera.zoom;
+  const anchorWorldY = camera.y + canvasY / camera.zoom;
+  const nextCamera = clampCamera(
+    {
+      zoom: nextZoom,
+      x: anchorWorldX - canvasX / nextZoom,
+      y: anchorWorldY - canvasY / nextZoom
     },
     homesteadCanvasElement.width,
     homesteadCanvasElement.height
@@ -772,70 +853,85 @@ function handleCanvasPointerDown(event: PointerEvent): void {
     return;
   }
 
+  activeCanvasPointerById.set(event.pointerId, event);
+  if (activeCanvasPointerById.size === 2) {
+    const activePointers = [...activeCanvasPointerById.values()];
+    pinchZoomState = {
+      pointerIdA: activePointers[0].pointerId,
+      pointerIdB: activePointers[1].pointerId,
+      startDistance: Math.hypot(activePointers[0].clientX - activePointers[1].clientX, activePointers[0].clientY - activePointers[1].clientY),
+      startCamera: gameStateSnapshot.gameState.homesteadCamera
+    };
+    pointerDragState = null;
+    stopFollowingForManualCameraInput();
+    return;
+  }
+
   const worldPosition = getPointerWorldPosition(event);
   const clickedDuck = findDuckAtWorldPosition(worldPosition);
   homesteadCanvasElement.setPointerCapture(event.pointerId);
 
   if (clickedDuck !== null) {
     selectedDuckId = clickedDuck.id;
-    pointerDragState = {
-      pointerId: event.pointerId,
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      lastClientX: event.clientX,
-      lastClientY: event.clientY,
-      mode: "duck",
-      duckId: clickedDuck.id,
-      duckStartPosition: clickedDuck.position,
-      hasMoved: false
-    };
+    selectedUnplacedDuckId = null;
+    setFollowSelectedDuck(true);
+    centerCameraOnDuck(clickedDuck);
     resetDuckRoamState(clickedDuck.id);
+    saveCameraState().catch(() => {});
     renderDuckDetails();
     renderCanvas();
     return;
   }
 
+  stopFollowingForManualCameraInput();
   pointerDragState = {
     pointerId: event.pointerId,
     startClientX: event.clientX,
     startClientY: event.clientY,
     lastClientX: event.clientX,
     lastClientY: event.clientY,
-    mode: "camera",
-    duckId: null,
-    duckStartPosition: null,
+    startCamera: gameStateSnapshot.gameState.homesteadCamera,
     hasMoved: false
   };
   homesteadCanvasElement.classList.add("is-dragging");
 }
 
 function handleCanvasPointerMove(event: PointerEvent): void {
+  if (activeCanvasPointerById.has(event.pointerId)) {
+    activeCanvasPointerById.set(event.pointerId, event);
+  }
+
+  if (pinchZoomState !== null && gameStateSnapshot !== null) {
+    const pointerA = activeCanvasPointerById.get(pinchZoomState.pointerIdA);
+    const pointerB = activeCanvasPointerById.get(pinchZoomState.pointerIdB);
+
+    if (pointerA !== undefined && pointerB !== undefined) {
+      const nextDistance = Math.hypot(pointerA.clientX - pointerB.clientX, pointerA.clientY - pointerB.clientY);
+      const centerClientX = (pointerA.clientX + pointerB.clientX) / 2;
+      const centerClientY = (pointerA.clientY + pointerB.clientY) / 2;
+      if (pinchZoomState.startDistance > 0) {
+        updateLocalZoom(
+          pinchZoomState.startCamera.zoom * (nextDistance / pinchZoomState.startDistance),
+          centerClientX,
+          centerClientY,
+          pinchZoomState.startCamera
+        );
+      }
+      renderCanvas();
+    }
+
+    return;
+  }
+
   if (pointerDragState === null || pointerDragState.pointerId !== event.pointerId) {
     return;
   }
 
-  const deltaX = event.clientX - pointerDragState.lastClientX;
-  const deltaY = event.clientY - pointerDragState.lastClientY;
   const totalDeltaX = Math.abs(event.clientX - pointerDragState.startClientX);
   const totalDeltaY = Math.abs(event.clientY - pointerDragState.startClientY);
   pointerDragState.hasMoved = pointerDragState.hasMoved || totalDeltaX + totalDeltaY > 5;
 
-  if (pointerDragState.mode === "camera") {
-    updateLocalCamera(deltaX, deltaY);
-  } else if (pointerDragState.duckId !== null) {
-    const worldPosition = getPointerWorldPosition(event);
-    localDucks = localDucks.map((duck) =>
-      duck.id === pointerDragState?.duckId && duck.placementStatus === "placed"
-        ? {
-            ...duck,
-            position: worldPosition,
-            activity: getDuckMovementActivity(duck, worldPosition),
-            lastUpdatedAtTimestampMilliseconds: Date.now()
-          }
-        : duck
-    );
-    renderDuckDetails();
-  }
+  updateLocalCameraFromDrag(event);
 
   pointerDragState.lastClientX = event.clientX;
   pointerDragState.lastClientY = event.clientY;
@@ -843,7 +939,13 @@ function handleCanvasPointerMove(event: PointerEvent): void {
 }
 
 function handleCanvasPointerUp(event: PointerEvent): void {
+  activeCanvasPointerById.delete(event.pointerId);
+  pinchZoomState = null;
+
   if (pointerDragState === null || pointerDragState.pointerId !== event.pointerId) {
+    if (activeCanvasPointerById.size === 0) {
+      saveCameraState().catch(() => {});
+    }
     return;
   }
 
@@ -851,42 +953,12 @@ function handleCanvasPointerUp(event: PointerEvent): void {
   pointerDragState = null;
   homesteadCanvasElement.classList.remove("is-dragging");
 
-  if (endedDragState.mode === "camera") {
-    if (!endedDragState.hasMoved && selectedUnplacedDuckId !== null) {
-      placeDuckAtWorldPosition(selectedUnplacedDuckId, getPointerWorldPosition(event)).catch(() => {
-        showStatus("Placement failed.", true);
-      });
-    } else {
-      saveCameraState().catch(() => {});
-    }
-    renderCanvas();
-    return;
-  }
-
-  if (endedDragState.duckId !== null && endedDragState.hasMoved) {
-    const draggedDuckId = endedDragState.duckId;
-
-    moveDuckToWorldPosition(draggedDuckId, getPointerWorldPosition(event))
-      .then((didMoveDuck) => {
-        if (!didMoveDuck && endedDragState.duckStartPosition !== null) {
-          localDucks = localDucks.map((duck) =>
-            duck.id === draggedDuckId
-              ? {
-                  ...duck,
-                  position: endedDragState.duckStartPosition,
-                  activity: "idle",
-                  lastUpdatedAtTimestampMilliseconds: Date.now()
-                }
-              : duck
-          );
-          resetDuckRoamState(draggedDuckId);
-          renderDuckDetails();
-          renderCanvas();
-        }
-      })
-      .catch(() => {
-        showStatus("Move failed.", true);
-      });
+  if (!endedDragState.hasMoved && selectedUnplacedDuckId !== null) {
+    placeDuckAtWorldPosition(selectedUnplacedDuckId, getPointerWorldPosition(event)).catch(() => {
+      showStatus("Placement failed.", true);
+    });
+  } else {
+    saveCameraState().catch(() => {});
   }
 
   renderCanvas();
@@ -901,7 +973,7 @@ function simulateDuckMovement(deltaMilliseconds: number): void {
   const simulationResult = simulateHomesteadDuckMovement({
     ducks: localDucks,
     roamStateById: duckRoamStateById,
-    draggedDuckId: pointerDragState?.mode === "duck" ? pointerDragState.duckId : null,
+    draggedDuckId: null,
     deltaMilliseconds,
     nowTimestampMilliseconds,
     random: Math.random
@@ -909,6 +981,7 @@ function simulateDuckMovement(deltaMilliseconds: number): void {
 
   localDucks = simulationResult.ducks;
   duckRoamStateById = simulationResult.roamStateById;
+  followSelectedDuckIfNeeded();
 }
 
 function animationLoop(timestampMilliseconds: number): void {
@@ -972,6 +1045,7 @@ async function saveHomesteadState(): Promise<void> {
         duckId: duck.id,
         position: duck.position ?? { x: 0, y: 0 },
         activity: duck.activity,
+        facingDirection: duck.facingDirection,
         lastUpdatedAtTimestampMilliseconds: duck.lastUpdatedAtTimestampMilliseconds
       }))
   };
@@ -1076,10 +1150,39 @@ feedToNextStageButtonElement.addEventListener("click", () => {
   });
 });
 
+followDuckButtonElement.addEventListener("click", () => {
+  const selectedDuck = getSelectedDuck();
+
+  if (selectedDuck === null) {
+    return;
+  }
+
+  setFollowSelectedDuck(!isFollowingSelectedDuck);
+
+  if (isFollowingSelectedDuck) {
+    centerCameraOnDuck(selectedDuck);
+    saveCameraState().catch(() => {});
+    renderCanvas();
+  }
+});
+
 homesteadCanvasElement.addEventListener("pointerdown", handleCanvasPointerDown);
 homesteadCanvasElement.addEventListener("pointermove", handleCanvasPointerMove);
 homesteadCanvasElement.addEventListener("pointerup", handleCanvasPointerUp);
 homesteadCanvasElement.addEventListener("pointercancel", handleCanvasPointerUp);
+homesteadCanvasElement.addEventListener("wheel", (event) => {
+  if (gameStateSnapshot === null) {
+    return;
+  }
+
+  event.preventDefault();
+  stopFollowingForManualCameraInput();
+  const zoomMultiplier = event.deltaY < 0 ? 1.1 : 0.9;
+  updateLocalZoom(gameStateSnapshot.gameState.homesteadCamera.zoom * zoomMultiplier, event.clientX, event.clientY);
+  saveCameraState().catch(() => {});
+  renderDuckDetails();
+  renderCanvas();
+}, { passive: false });
 homesteadCanvasElement.addEventListener("dragover", (event) => {
   event.preventDefault();
 });

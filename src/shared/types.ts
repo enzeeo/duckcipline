@@ -22,6 +22,7 @@ export type DuckVariantId =
 export type DuckGrowthStage = "duckling" | "youngDuck" | "adultDuck";
 export type DuckPlacementStatus = "unplaced" | "placed";
 export type DuckActivity = "idle" | "wander" | "swim" | "rest" | "eat";
+export type DuckFacingDirection = "left" | "right";
 export type FeedDuckMode = "single" | "toNextStage";
 
 export interface TimerState {
@@ -53,7 +54,9 @@ export interface Duck {
   seedsFedForCurrentStage: number;
   placementStatus: DuckPlacementStatus;
   position: DuckPosition | null;
+  homePosition: DuckPosition | null;
   activity: DuckActivity;
+  facingDirection: DuckFacingDirection;
   favoriteActivity: string;
   hatchedAtTimestampMilliseconds: number;
   lastUpdatedAtTimestampMilliseconds: number;
@@ -63,12 +66,14 @@ export interface DuckSimulationStateUpdate {
   duckId: string;
   position: DuckPosition;
   activity: DuckActivity;
+  facingDirection: DuckFacingDirection;
   lastUpdatedAtTimestampMilliseconds: number;
 }
 
 export interface HomesteadCameraState {
   x: number;
   y: number;
+  zoom: number;
 }
 
 export interface GameState {

@@ -29,6 +29,7 @@ describe("messages", () => {
             duckId: "duck-1",
             position: { x: 10, y: 20 },
             activity: "wander",
+            facingDirection: "right",
             lastUpdatedAtTimestampMilliseconds: 1_000
           }
         ]

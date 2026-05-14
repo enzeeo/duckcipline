@@ -5,6 +5,7 @@ import {
   normalizeGameState,
   selectActiveProject,
   synchronizeGameProgressStateWithTimer,
+  updateDuckPlacement,
   updateDuckSimulationState
 } from "./gameLogic.js";
 import type { Duck, GameState } from "./types.js";
@@ -20,7 +21,9 @@ function createTestDuck(overrides: Partial<Duck> = {}): Duck {
     seedsFedForCurrentStage: 0,
     placementStatus: "placed",
     position: { x: 32, y: 32 },
+    homePosition: { x: 32, y: 32 },
     activity: "idle",
+    facingDirection: "right",
     favoriteActivity: "path patrol",
     hatchedAtTimestampMilliseconds: 1_000,
     lastUpdatedAtTimestampMilliseconds: 1_000,
@@ -35,6 +38,25 @@ describe("gameLogic", () => {
     expect(gameState.seedCount).toBe(0);
     expect(gameState.ducks).toEqual([]);
     expect(gameState.activeProjectId).toBeNull();
+  });
+
+  it("normalizes legacy placed duck home, facing, and camera zoom", () => {
+    const gameState = normalizeGameState({
+      homesteadCamera: { x: 12, y: 24 },
+      ducks: [
+        {
+          id: "duck-1",
+          placementStatus: "placed",
+          position: { x: 64, y: 96 }
+        }
+      ]
+    }, 1_000);
+
+    expect(gameState.homesteadCamera).toEqual({ x: 12, y: 24, zoom: 1 });
+    expect(gameState.ducks[0]).toMatchObject({
+      homePosition: { x: 64, y: 96 },
+      facingDirection: "right"
+    });
   });
 
   it("synchronizes running timer progress into the active project", () => {
@@ -62,6 +84,7 @@ describe("gameLogic", () => {
         duckId: "duck-1",
         position: { x: 96, y: 128 },
         activity: "wander",
+        facingDirection: "left",
         lastUpdatedAtTimestampMilliseconds: 2_000
       }
     ]);
@@ -71,6 +94,7 @@ describe("gameLogic", () => {
       name: "Quill",
       position: { x: 96, y: 128 },
       activity: "wander",
+      facingDirection: "left",
       lastUpdatedAtTimestampMilliseconds: 2_000
     });
   });
@@ -86,6 +110,7 @@ describe("gameLogic", () => {
         duckId: "duck-1",
         position: { x: 96, y: 128 },
         activity: "wander",
+        facingDirection: "right",
         lastUpdatedAtTimestampMilliseconds: 2_000
       }
     ]);
@@ -110,7 +135,24 @@ describe("gameLogic", () => {
     expect(result.gameState.ducks[0]).toMatchObject({
       id: "duck-fixed",
       variantId: "yellow",
+      homePosition: null,
+      facingDirection: "right",
       hatchedAtTimestampMilliseconds: 2_000
+    });
+  });
+
+  it("sets placement position as duck home", () => {
+    const gameState: GameState = {
+      ...createDefaultGameState(),
+      ducks: [createTestDuck({ placementStatus: "unplaced", position: null, homePosition: null })]
+    };
+
+    const result = updateDuckPlacement(gameState, "duck-1", { x: 160, y: 192 }, 2_000);
+
+    expect(result.gameState.ducks[0]).toMatchObject({
+      placementStatus: "placed",
+      position: { x: 160, y: 192 },
+      homePosition: { x: 160, y: 192 }
     });
   });
 });

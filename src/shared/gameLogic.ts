@@ -4,6 +4,7 @@ import { PROJECT_DEFINITION_BY_ID, isEggProjectId, isProjectId } from "./project
 import type {
   Duck,
   DuckActivity,
+  DuckFacingDirection,
   DuckGrowthStage,
   DuckPosition,
   DuckSimulationStateUpdate,
@@ -57,7 +58,7 @@ export function createDefaultGameState(): GameState {
     seedCount: 0,
     totalCompletedSessions: 0,
     totalCompletedFocusSeconds: 0,
-    homesteadCamera: { x: 0, y: 0 }
+    homesteadCamera: { x: 0, y: 0, zoom: 1 }
   };
 }
 
@@ -98,6 +99,10 @@ function isDuckActivity(value: unknown): value is DuckActivity {
   return value === "idle" || value === "wander" || value === "swim" || value === "rest" || value === "eat";
 }
 
+function isDuckFacingDirection(value: unknown): value is DuckFacingDirection {
+  return value === "left" || value === "right";
+}
+
 function isDuckPosition(value: unknown): value is DuckPosition {
   if (!isObjectRecord(value)) {
     return false;
@@ -112,6 +117,18 @@ function isHomesteadCameraState(value: unknown): value is HomesteadCameraState {
   }
 
   return typeof value.x === "number" && typeof value.y === "number";
+}
+
+function normalizeHomesteadCameraState(value: unknown): HomesteadCameraState {
+  if (!isHomesteadCameraState(value)) {
+    return { x: 0, y: 0, zoom: 1 };
+  }
+
+  return {
+    x: value.x,
+    y: value.y,
+    zoom: typeof value.zoom === "number" ? value.zoom : 1
+  };
 }
 
 function normalizeProgressState(projectId: ProjectId, value: unknown): ProjectProgressState {
@@ -158,6 +175,13 @@ function normalizeDuck(value: unknown, duckIndex: number, nowTimestampMillisecon
       ? value.hatchedAtTimestampMilliseconds
       : nowTimestampMilliseconds;
   const fallbackName = createDefaultDuckName(duckIndex);
+  const placementStatus = value.placementStatus === "placed" ? "placed" : "unplaced";
+  const position = isDuckPosition(value.position) ? value.position : null;
+  const homePosition = isDuckPosition(value.homePosition)
+    ? value.homePosition
+    : placementStatus === "placed"
+      ? position
+      : null;
 
   return {
     id: value.id,
@@ -167,9 +191,11 @@ function normalizeDuck(value: unknown, duckIndex: number, nowTimestampMillisecon
     growthStage: isDuckGrowthStage(value.growthStage) ? value.growthStage : "duckling",
     seedsFedForCurrentStage:
       typeof value.seedsFedForCurrentStage === "number" ? Math.max(0, value.seedsFedForCurrentStage) : 0,
-    placementStatus: value.placementStatus === "placed" ? "placed" : "unplaced",
-    position: isDuckPosition(value.position) ? value.position : null,
+    placementStatus,
+    position,
+    homePosition,
     activity: isDuckActivity(value.activity) ? value.activity : "idle",
+    facingDirection: isDuckFacingDirection(value.facingDirection) ? value.facingDirection : "right",
     favoriteActivity:
       typeof value.favoriteActivity === "string" ? value.favoriteActivity : createFavoriteActivity(duckIndex),
     hatchedAtTimestampMilliseconds,
@@ -200,7 +226,9 @@ function migrateLegacyDuck(legacyDuck: LegacyDuck, duckIndex: number, nowTimesta
     seedsFedForCurrentStage: 0,
     placementStatus: "unplaced",
     position: null,
+    homePosition: null,
     activity: "idle",
+    facingDirection: "right",
     favoriteActivity: createFavoriteActivity(duckIndex),
     hatchedAtTimestampMilliseconds,
     lastUpdatedAtTimestampMilliseconds: hatchedAtTimestampMilliseconds
@@ -241,7 +269,7 @@ export function normalizeGameState(value: unknown, nowTimestampMilliseconds: num
       typeof value.totalCompletedSessions === "number" ? Math.max(0, value.totalCompletedSessions) : 0,
     totalCompletedFocusSeconds:
       typeof value.totalCompletedFocusSeconds === "number" ? Math.max(0, value.totalCompletedFocusSeconds) : 0,
-    homesteadCamera: isHomesteadCameraState(value.homesteadCamera) ? value.homesteadCamera : { x: 0, y: 0 }
+    homesteadCamera: normalizeHomesteadCameraState(value.homesteadCamera)
   };
 }
 
@@ -477,7 +505,9 @@ export function createDuckFromEggProject(
     seedsFedForCurrentStage: 0,
     placementStatus: "unplaced",
     position: null,
+    homePosition: null,
     activity: "idle",
+    facingDirection: "right",
     favoriteActivity: createFavoriteActivity(duckCountBeforeCreate),
     hatchedAtTimestampMilliseconds: nowTimestampMilliseconds,
     lastUpdatedAtTimestampMilliseconds: nowTimestampMilliseconds
@@ -645,7 +675,9 @@ export function updateDuckPlacement(
               ...duck,
               placementStatus: "placed",
               position,
+              homePosition: duck.homePosition ?? position,
               activity: "idle",
+              facingDirection: duck.facingDirection,
               lastUpdatedAtTimestampMilliseconds: nowTimestampMilliseconds
             }
           : duck
@@ -671,6 +703,7 @@ export function updateDuckSimulationState(gameState: GameState, updates: DuckSim
         ...duck,
         position: update.position,
         activity: update.activity,
+        facingDirection: update.facingDirection,
         lastUpdatedAtTimestampMilliseconds: update.lastUpdatedAtTimestampMilliseconds
       };
     })
