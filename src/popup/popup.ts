@@ -1,16 +1,6 @@
 import { DUCK_GROWTH_SEED_REQUIREMENTS } from "../shared/balance.js";
 import { getActivityLabel } from "../shared/duckDefinitions.js";
-import {
-  HOMESTEAD_FRAME_GUTTER,
-  HOMESTEAD_MAX_ZOOM,
-  HOMESTEAD_MIN_ZOOM,
-  HOMESTEAD_TILE_SIZE,
-  HOMESTEAD_WORLD_HEIGHT,
-  HOMESTEAD_WORLD_WIDTH,
-  clampCamera,
-  getCenteredTileWorldPosition,
-  isManualDuckPlacementValid
-} from "../shared/homesteadMap.js";
+import { HOMESTEAD_FRAME_GUTTER } from "../shared/homesteadMap.js";
 import {
   CLAIM_ACTIVE_PROJECT_MESSAGE_TYPE,
   FEED_DUCK_MESSAGE_TYPE,
@@ -43,73 +33,29 @@ import {
 } from "../shared/messages.js";
 import type {
   Duck,
-  DuckSimulationStateUpdate,
   DuckPosition,
   FeedDuckMode,
   GameMessageResponse,
   GameStatusResponse,
   ProjectDefinitionResponse,
   ProjectId,
-  HomesteadCameraState,
   TimerMessageResponse,
   TimerStatusResponse
 } from "../shared/types.js";
 import { createAssetUrl, loadPixelSprites, type SpriteMap } from "./assetLoader.js";
 import { renderHomesteadCanvas } from "./canvasRenderer.js";
-import {
-  pruneDuckRoamStates,
-  simulateDuckMovement as simulateHomesteadDuckMovement,
-  type DuckRoamState
-} from "./homesteadSimulation.js";
+import { createHomesteadInteraction, type HomesteadCanvasMetrics } from "./homesteadInteraction.js";
 import { getFocusRewardArt } from "./rewardArt.js";
 
 const UPDATE_INTERVAL_MILLISECONDS = 1000;
-const SIMULATION_SAVE_INTERVAL_MILLISECONDS = 5000;
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
 const PRESET_TWENTY_FIVE_MINUTES = 25;
 const PRESET_FIFTY_MINUTES = 50;
 const DEFAULT_CUSTOM_DURATION_MINUTES = PRESET_TWENTY_FIVE_MINUTES;
-const CAMERA_FOCUS_ANIMATION_MILLISECONDS = 420;
-const CAMERA_FOCUS_POSITION_EPSILON = 0.5;
-const POINTER_DRAG_THRESHOLD_PIXELS = 6;
 
 type DurationSelectionMode = "twentyFive" | "fifty" | "custom";
 type ActiveTab = "focus" | "homestead";
-
-interface PointerDragState {
-  pointerId: number;
-  startClientX: number;
-  startClientY: number;
-  lastClientX: number;
-  lastClientY: number;
-  startCamera: HomesteadCameraState;
-  hasMoved: boolean;
-}
-
-interface PinchZoomState {
-  pointerIdA: number;
-  pointerIdB: number;
-  startDistance: number;
-  startCamera: HomesteadCameraState;
-}
-
-interface CameraFocusAnimationState {
-  startedAtTimestampMilliseconds: number;
-  fromCamera: HomesteadCameraState;
-  toCamera: HomesteadCameraState;
-}
-
-interface UnplacedDuckPointerDragState {
-  duckId: string;
-  pointerId: number;
-  button: HTMLButtonElement;
-  startClientX: number;
-  startClientY: number;
-  currentClientX: number;
-  currentClientY: number;
-  hasMoved: boolean;
-}
 
 function getRequiredElement<T extends HTMLElement>(elementId: string, constructor: { new (): T }): T {
   const element = document.getElementById(elementId);
@@ -171,20 +117,8 @@ let isProjectPickerVisible = true;
 let timerStateSnapshot: TimerStatusResponse | null = null;
 let gameStateSnapshot: GameStatusResponse | null = null;
 let spriteMap: SpriteMap = {};
-let selectedDuckId: string | null = null;
-let selectedUnplacedDuckId: string | null = null;
-let pointerDragState: PointerDragState | null = null;
-let activeCanvasPointerById = new Map<number, PointerEvent>();
-let pinchZoomState: PinchZoomState | null = null;
-let cameraFocusAnimationState: CameraFocusAnimationState | null = null;
-let unplacedDuckPointerDragState: UnplacedDuckPointerDragState | null = null;
-let suppressNextThumbnailClickDuckId: string | null = null;
-let isFollowingSelectedDuck = false;
+const homesteadInteraction = createHomesteadInteraction();
 let animationFrameId: number | null = null;
-let previousAnimationTimestampMilliseconds = 0;
-let lastSimulationSaveTimestampMilliseconds = 0;
-let localDucks: Duck[] = [];
-let duckRoamStateById = new Map<string, DuckRoamState>();
 
 headerLogoImageElement.src = createAssetUrl("src/assets/pixel/ui/duck-footprint.png");
 
@@ -420,31 +354,22 @@ function updateGameDisplay(gameResponse: GameMessageResponse): void {
     return;
   }
 
-  const mergedLocalDucks = mergeLiveDuckSimulationState(gameResponse.gameState.ducks);
-  gameStateSnapshot = {
-    ...gameResponse,
-    gameState: {
-      ...gameResponse.gameState,
-      ducks: mergedLocalDucks
-    }
-  };
-  localDucks = mergedLocalDucks;
-  duckRoamStateById = pruneDuckRoamStates(localDucks, duckRoamStateById);
+  const gameResponseForDisplay = mergeGameResponseForDisplay(gameResponse);
 
-  if (gameResponse.statusMessage !== null) {
-    showStatus(gameResponse.statusMessage);
-  } else if (gameResponse.gameState.activeProjectId === null) {
+  if (gameResponseForDisplay.statusMessage !== null) {
+    showStatus(gameResponseForDisplay.statusMessage);
+  } else if (gameResponseForDisplay.gameState.activeProjectId === null) {
     showStatus("Pick a project to begin.");
   }
 
-  seedCountTextElement.textContent = `${gameResponse.gameState.seedCount} seeds`;
+  seedCountTextElement.textContent = `${gameResponseForDisplay.gameState.seedCount} seeds`;
   duckCapacityTextElement.textContent =
-    `Ducks: ${gameResponse.gameState.ducks.length} / ${gameResponse.maxDuckCount}`;
+    `Ducks: ${gameResponseForDisplay.gameState.ducks.length} / ${gameResponseForDisplay.maxDuckCount}`;
   sessionStatsTextElement.textContent =
-    `Sessions: ${gameResponse.gameState.totalCompletedSessions} · ` +
-    `Focus: ${gameResponse.gameState.totalCompletedFocusSeconds}s`;
+    `Sessions: ${gameResponseForDisplay.gameState.totalCompletedSessions} · ` +
+    `Focus: ${gameResponseForDisplay.gameState.totalCompletedFocusSeconds}s`;
 
-  const activeProjectDefinition = findProjectDefinition(gameResponse.gameState.activeProjectId);
+  const activeProjectDefinition = findProjectDefinition(gameResponseForDisplay.gameState.activeProjectId);
 
   if (activeProjectDefinition === null) {
     activeProjectTextElement.textContent = "No project selected.";
@@ -555,200 +480,45 @@ function setActiveTab(nextActiveTab: ActiveTab): void {
   }
 }
 
-function getPointerWorldPosition(event: PointerEvent | DragEvent): DuckPosition {
+function getHomesteadCanvasMetrics(): HomesteadCanvasMetrics {
   const canvasBounds = homesteadCanvasElement.getBoundingClientRect();
-  const clientX = "clientX" in event ? event.clientX : 0;
-  const clientY = "clientY" in event ? event.clientY : 0;
-  const scaleX = homesteadCanvasElement.width / canvasBounds.width;
-  const scaleY = homesteadCanvasElement.height / canvasBounds.height;
-  const canvasX = (clientX - canvasBounds.left) * scaleX;
-  const canvasY = (clientY - canvasBounds.top) * scaleY;
-  const camera = gameStateSnapshot?.gameState.homesteadCamera ?? { x: 0, y: 0, zoom: 1 };
 
   return {
-    x: canvasX / camera.zoom + camera.x,
-    y: canvasY / camera.zoom + camera.y
+    width: homesteadCanvasElement.width,
+    height: homesteadCanvasElement.height,
+    boundsLeft: canvasBounds.left,
+    boundsTop: canvasBounds.top,
+    boundsWidth: canvasBounds.width,
+    boundsHeight: canvasBounds.height
   };
 }
 
-function findDuckAtWorldPosition(position: DuckPosition): Duck | null {
-  for (const duck of localDucks) {
-    if (duck.placementStatus !== "placed" || duck.position === null) {
-      continue;
-    }
-
-    const distanceX = Math.abs(duck.position.x - position.x);
-    const distanceY = Math.abs(duck.position.y - position.y);
-
-    if (distanceX <= HOMESTEAD_TILE_SIZE / 2 && distanceY <= HOMESTEAD_TILE_SIZE / 2) {
-      return duck;
-    }
-  }
-
-  return null;
-}
-
-function resetDuckRoamState(duckId: string): void {
-  duckRoamStateById.delete(duckId);
-}
-
-function setFollowSelectedDuck(isFollowing: boolean): void {
-  isFollowingSelectedDuck = isFollowing && selectedDuckId !== null;
-  followDuckButtonElement.textContent = isFollowingSelectedDuck ? "Unfollow" : "Follow";
-}
-
-function stopFollowingForManualCameraInput(): void {
-  if (isFollowingSelectedDuck) {
-    setFollowSelectedDuck(false);
-  }
-
-  cameraFocusAnimationState = null;
-}
-
-function getCenteredCameraForPosition(position: DuckPosition, camera: HomesteadCameraState): HomesteadCameraState {
-  return clampCamera(
-    {
-      ...camera,
-      x: position.x - homesteadCanvasElement.width / camera.zoom / 2,
-      y: position.y - homesteadCanvasElement.height / camera.zoom / 2
-    },
-    homesteadCanvasElement.width,
-    homesteadCanvasElement.height
-  );
-}
-
-function startCameraFocusOnDuck(duck: Duck): void {
-  if (gameStateSnapshot === null || duck.position === null) {
-    return;
-  }
-
-  const fromCamera = gameStateSnapshot.gameState.homesteadCamera;
-  const toCamera = getCenteredCameraForPosition(duck.position, fromCamera);
-
-  if (isCameraSettledAtTarget(fromCamera, toCamera)) {
-    cameraFocusAnimationState = null;
-    return;
-  }
-
-  cameraFocusAnimationState = {
-    startedAtTimestampMilliseconds: performance.now(),
-    fromCamera,
-    toCamera
+function getHomesteadCanvasSize(): { width: number; height: number } {
+  return {
+    width: homesteadCanvasElement.width,
+    height: homesteadCanvasElement.height
   };
 }
 
-function easeCameraFocusProgress(progress: number): number {
-  const clampedProgress = Math.min(Math.max(progress, 0), 1);
-  return 1 - Math.pow(1 - clampedProgress, 3);
+function syncGameStateSnapshotFromHomestead(): void {
+  gameStateSnapshot = homesteadInteraction.getGameResponse();
 }
 
-function isCameraSettledAtTarget(camera: HomesteadCameraState, targetCamera: HomesteadCameraState): boolean {
-  return (
-    Math.abs(camera.x - targetCamera.x) <= CAMERA_FOCUS_POSITION_EPSILON &&
-    Math.abs(camera.y - targetCamera.y) <= CAMERA_FOCUS_POSITION_EPSILON &&
-    camera.zoom === targetCamera.zoom
-  );
+function updateFollowDuckButton(): void {
+  followDuckButtonElement.textContent = homesteadInteraction.getIsFollowingSelectedDuck() ? "Unfollow" : "Follow";
 }
 
-function updateCameraFocusAnimation(timestampMilliseconds: number): void {
-  if (gameStateSnapshot === null || cameraFocusAnimationState === null) {
-    return;
-  }
-
-  const progress = Math.min(
-    1,
-    (timestampMilliseconds - cameraFocusAnimationState.startedAtTimestampMilliseconds) / CAMERA_FOCUS_ANIMATION_MILLISECONDS
-  );
-  const easedProgress = easeCameraFocusProgress(progress);
-  const animatedCamera = clampCamera(
-    {
-      x:
-        cameraFocusAnimationState.fromCamera.x +
-        (cameraFocusAnimationState.toCamera.x - cameraFocusAnimationState.fromCamera.x) * easedProgress,
-      y:
-        cameraFocusAnimationState.fromCamera.y +
-        (cameraFocusAnimationState.toCamera.y - cameraFocusAnimationState.fromCamera.y) * easedProgress,
-      zoom:
-        cameraFocusAnimationState.fromCamera.zoom +
-        (cameraFocusAnimationState.toCamera.zoom - cameraFocusAnimationState.fromCamera.zoom) * easedProgress
-    },
-    homesteadCanvasElement.width,
-    homesteadCanvasElement.height
-  );
-
-  gameStateSnapshot = {
-    ...gameStateSnapshot,
-    gameState: {
-      ...gameStateSnapshot.gameState,
-      homesteadCamera: progress >= 1 ? cameraFocusAnimationState.toCamera : animatedCamera
-    }
-  };
-
-  if (progress >= 1) {
-    cameraFocusAnimationState = null;
-    saveCameraState().catch(() => {});
-  }
+function getPointerWorldPosition(event: PointerEvent | DragEvent): DuckPosition {
+  const clientX = "clientX" in event ? event.clientX : 0;
+  const clientY = "clientY" in event ? event.clientY : 0;
+  return homesteadInteraction.getPointerWorldPosition(clientX, clientY, getHomesteadCanvasMetrics());
 }
 
-function followSelectedDuckIfNeeded(): void {
-  if (!isFollowingSelectedDuck) {
-    return;
-  }
-
-  const selectedDuck = getSelectedDuck();
-
-  if (selectedDuck === null) {
-    setFollowSelectedDuck(false);
-    return;
-  }
-
-  if (gameStateSnapshot === null || selectedDuck.position === null) {
-    return;
-  }
-
-  if (cameraFocusAnimationState === null) {
-    startCameraFocusOnDuck(selectedDuck);
-    return;
-  }
-
-  cameraFocusAnimationState = {
-    ...cameraFocusAnimationState,
-    toCamera: getCenteredCameraForPosition(selectedDuck.position, cameraFocusAnimationState.toCamera)
-  };
-}
-
-function mergeLiveDuckSimulationState(ducks: Duck[]): Duck[] {
-  if (activeTab !== "homestead") {
-    return ducks;
-  }
-
-  const liveDuckById = new Map(localDucks.map((duck) => [duck.id, duck]));
-
-  return ducks.map((duck) => {
-    const liveDuck = liveDuckById.get(duck.id);
-
-    if (
-      liveDuck?.placementStatus === "placed" &&
-      liveDuck.position !== null &&
-      duck.placementStatus === "placed" &&
-      duck.position !== null
-    ) {
-      const shouldKeepServerEatingAnimation =
-        duck.activity === "eat" && duck.lastUpdatedAtTimestampMilliseconds >= liveDuck.lastUpdatedAtTimestampMilliseconds;
-
-      return {
-        ...duck,
-        position: liveDuck.position,
-        activity: shouldKeepServerEatingAnimation ? duck.activity : liveDuck.activity,
-        facingDirection: liveDuck.facingDirection,
-        lastUpdatedAtTimestampMilliseconds: shouldKeepServerEatingAnimation
-          ? duck.lastUpdatedAtTimestampMilliseconds
-          : liveDuck.lastUpdatedAtTimestampMilliseconds
-      };
-    }
-
-    return duck;
-  });
+function mergeGameResponseForDisplay(gameResponse: GameStatusResponse): GameStatusResponse {
+  const mergedGameResponse = homesteadInteraction.mergeGameResponse(gameResponse, activeTab === "homestead");
+  gameStateSnapshot = mergedGameResponse;
+  updateFollowDuckButton();
+  return mergedGameResponse;
 }
 
 function resizeCanvasToFrame(): void {
@@ -765,25 +535,21 @@ function resizeCanvasToFrame(): void {
     homesteadCanvasElement.height = canvasHeight;
   }
 
-  const clampedCamera = clampCamera(gameStateSnapshot.gameState.homesteadCamera, canvasWidth, canvasHeight);
-  gameStateSnapshot = {
-    ...gameStateSnapshot,
-    gameState: {
-      ...gameStateSnapshot.gameState,
-      homesteadCamera: clampedCamera
-    }
-  };
+  homesteadInteraction.resizeCanvas({ width: canvasWidth, height: canvasHeight });
+  syncGameStateSnapshotFromHomestead();
 }
 
 function renderCanvas(): void {
-  if (gameStateSnapshot === null) {
+  const renderState = homesteadInteraction.getRenderState();
+
+  if (renderState === null) {
     return;
   }
 
   renderHomesteadCanvas({
     canvas: homesteadCanvasElement,
-    camera: gameStateSnapshot.gameState.homesteadCamera,
-    ducks: localDucks,
+    camera: renderState.camera,
+    ducks: renderState.ducks,
     animationFrameIndex: Math.floor(Date.now() / 180) % 4,
     currentTimestampMilliseconds: Date.now(),
     spriteMap
@@ -791,8 +557,7 @@ function renderCanvas(): void {
 }
 
 function getIsClientPointInsideCanvas(clientX: number, clientY: number): boolean {
-  const canvasBounds = homesteadCanvasElement.getBoundingClientRect();
-  return clientX >= canvasBounds.left && clientX <= canvasBounds.right && clientY >= canvasBounds.top && clientY <= canvasBounds.bottom;
+  return homesteadInteraction.isClientPointInsideCanvas(clientX, clientY, getHomesteadCanvasMetrics());
 }
 
 function createDuckThumbnail(duck: Duck): HTMLButtonElement {
@@ -800,72 +565,64 @@ function createDuckThumbnail(duck: Duck): HTMLButtonElement {
   const sprite = document.createElement("span");
 
   button.className = "duck-thumbnail";
-  button.classList.toggle("is-selected", selectedUnplacedDuckId === duck.id);
+  button.classList.toggle("is-selected", homesteadInteraction.getSelectedUnplacedDuckId() === duck.id);
   button.type = "button";
   button.draggable = true;
   button.title = duck.name;
   sprite.className = "duck-thumbnail-sprite";
   button.append(sprite);
   button.addEventListener("click", () => {
-    if (suppressNextThumbnailClickDuckId === duck.id) {
-      suppressNextThumbnailClickDuckId = null;
+    if (homesteadInteraction.consumeSuppressedThumbnailClick(duck.id)) {
       return;
     }
 
-    selectedUnplacedDuckId = selectedUnplacedDuckId === duck.id ? null : duck.id;
+    const selectedUnplacedDuckId = homesteadInteraction.toggleUnplacedDuckSelection(duck.id);
     placementHintTextElement.textContent = selectedUnplacedDuckId ? "Click a valid grass/path tile." : "Click a duck, then click the map.";
     renderUnplacedDuckTray();
     renderCanvas();
   });
   button.addEventListener("dragstart", (event) => {
     event.dataTransfer?.setData("text/plain", duck.id);
-    selectedUnplacedDuckId = duck.id;
+    homesteadInteraction.selectUnplacedDuck(duck.id);
   });
   button.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) {
       return;
     }
 
-    selectedUnplacedDuckId = duck.id;
-    unplacedDuckPointerDragState = {
-      duckId: duck.id,
+    homesteadInteraction.startUnplacedDuckPointerDrag(duck.id, {
       pointerId: event.pointerId,
-      button,
-      startClientX: event.clientX,
-      startClientY: event.clientY,
-      currentClientX: event.clientX,
-      currentClientY: event.clientY,
-      hasMoved: false
-    };
+      clientX: event.clientX,
+      clientY: event.clientY
+    });
     button.setPointerCapture(event.pointerId);
   });
   button.addEventListener("pointermove", (event) => {
-    if (unplacedDuckPointerDragState === null || unplacedDuckPointerDragState.pointerId !== event.pointerId) {
+    const dragMoveResult = homesteadInteraction.moveUnplacedDuckPointerDrag({
+      pointerId: event.pointerId,
+      clientX: event.clientX,
+      clientY: event.clientY
+    });
+
+    if (dragMoveResult === null) {
       return;
     }
 
-    const totalDeltaX = Math.abs(event.clientX - unplacedDuckPointerDragState.startClientX);
-    const totalDeltaY = Math.abs(event.clientY - unplacedDuckPointerDragState.startClientY);
-    unplacedDuckPointerDragState.currentClientX = event.clientX;
-    unplacedDuckPointerDragState.currentClientY = event.clientY;
-    unplacedDuckPointerDragState.hasMoved =
-      unplacedDuckPointerDragState.hasMoved || totalDeltaX + totalDeltaY > POINTER_DRAG_THRESHOLD_PIXELS;
-    button.classList.toggle("is-pointer-dragging", unplacedDuckPointerDragState.hasMoved);
+    button.classList.toggle("is-pointer-dragging", dragMoveResult.hasMoved);
   });
   button.addEventListener("pointerup", (event) => {
-    if (unplacedDuckPointerDragState === null || unplacedDuckPointerDragState.pointerId !== event.pointerId) {
+    const endedDragState = homesteadInteraction.endUnplacedDuckPointerDrag(event.pointerId);
+
+    if (endedDragState === null) {
       return;
     }
 
-    const endedDragState = unplacedDuckPointerDragState;
-    unplacedDuckPointerDragState = null;
     button.classList.remove("is-pointer-dragging");
 
     if (!endedDragState.hasMoved) {
       return;
     }
 
-    suppressNextThumbnailClickDuckId = duck.id;
     if (getIsClientPointInsideCanvas(event.clientX, event.clientY)) {
       placeDuckAtWorldPosition(endedDragState.duckId, getPointerWorldPosition(event)).catch(() => {
         showStatus("Placement failed.", true);
@@ -873,8 +630,7 @@ function createDuckThumbnail(duck: Duck): HTMLButtonElement {
     }
   });
   button.addEventListener("pointercancel", () => {
-    if (unplacedDuckPointerDragState?.duckId === duck.id) {
-      unplacedDuckPointerDragState = null;
+    if (homesteadInteraction.cancelUnplacedDuckPointerDrag(duck.id)) {
       button.classList.remove("is-pointer-dragging");
     }
   });
@@ -887,7 +643,7 @@ function renderUnplacedDuckTray(): void {
     return;
   }
 
-  const unplacedDucks = gameStateSnapshot.gameState.ducks.filter((duck) => duck.placementStatus === "unplaced");
+  const unplacedDucks = homesteadInteraction.getUnplacedDucks();
   unplacedDuckTrayElement.replaceChildren();
 
   if (unplacedDucks.length === 0) {
@@ -904,11 +660,7 @@ function renderUnplacedDuckTray(): void {
 }
 
 function getSelectedDuck(): Duck | null {
-  if (selectedDuckId === null) {
-    return null;
-  }
-
-  return localDucks.find((duck) => duck.id === selectedDuckId) ?? null;
+  return homesteadInteraction.getSelectedDuck();
 }
 
 function getSeedsNeededForSelectedDuck(duck: Duck): number | null {
@@ -945,17 +697,15 @@ function renderDuckDetails(): void {
     `${selectedDuck.variantId} · ${getActivityLabel(selectedDuck.activity)} · ` +
     `${selectedDuck.favoriteActivity} · Age ${ageSeconds}s` +
     (seedsNeeded === null ? " · fully grown" : ` · ${selectedDuck.seedsFedForCurrentStage} fed, ${seedsNeeded} to grow`);
-  followDuckButtonElement.textContent = isFollowingSelectedDuck ? "Unfollow" : "Follow";
+  updateFollowDuckButton();
   feedOneSeedButtonElement.disabled = seedsNeeded === null || seedCount < 1;
   feedToNextStageButtonElement.disabled = seedsNeeded === null || seedCount < seedsNeeded;
 }
 
 async function placeDuckAtWorldPosition(duckId: string, worldPosition: DuckPosition): Promise<void> {
-  const tileColumn = Math.floor(worldPosition.x / HOMESTEAD_TILE_SIZE);
-  const tileRow = Math.floor(worldPosition.y / HOMESTEAD_TILE_SIZE);
-  const centeredPosition = getCenteredTileWorldPosition(tileColumn, tileRow);
+  const placementResult = homesteadInteraction.createPlacementResult(worldPosition);
 
-  if (!isManualDuckPlacementValid(centeredPosition)) {
+  if (!placementResult.isValid || placementResult.centeredPosition === null) {
     placementHintTextElement.textContent = "That tile is blocked.";
     showStatus("Invalid placement.", true);
     renderCanvas();
@@ -965,235 +715,98 @@ async function placeDuckAtWorldPosition(duckId: string, worldPosition: DuckPosit
   const placeDuckMessage: PlaceDuckMessage = {
     type: PLACE_DUCK_MESSAGE_TYPE,
     duckId,
-    x: centeredPosition.x,
-    y: centeredPosition.y
+    x: placementResult.centeredPosition.x,
+    y: placementResult.centeredPosition.y
   };
   updateGameDisplay(await sendGameRuntimeMessage(placeDuckMessage));
-  selectedUnplacedDuckId = null;
-  selectedDuckId = duckId;
-  setFollowSelectedDuck(false);
-  resetDuckRoamState(duckId);
-  const placedDuck = localDucks.find((duck) => duck.id === duckId);
-  if (placedDuck !== undefined) {
-    startCameraFocusOnDuck(placedDuck);
-  }
+  homesteadInteraction.finishDuckPlacement(duckId, getHomesteadCanvasSize(), performance.now());
+  syncGameStateSnapshotFromHomestead();
+  updateFollowDuckButton();
   placementHintTextElement.textContent = "Duck placed.";
 }
 
-function updateLocalCameraFromDrag(event: PointerEvent): void {
-  if (gameStateSnapshot === null) {
-    return;
-  }
-
-  if (pointerDragState === null) {
-    return;
-  }
-
-  const nextCamera = clampCamera(
-    {
-      ...pointerDragState.startCamera,
-      x: pointerDragState.startCamera.x - (event.clientX - pointerDragState.startClientX) / pointerDragState.startCamera.zoom,
-      y: pointerDragState.startCamera.y - (event.clientY - pointerDragState.startClientY) / pointerDragState.startCamera.zoom
-    },
-    homesteadCanvasElement.width,
-    homesteadCanvasElement.height
-  );
-
-  gameStateSnapshot = {
-    ...gameStateSnapshot,
-    gameState: {
-      ...gameStateSnapshot.gameState,
-      homesteadCamera: nextCamera
-    }
-  };
-}
-
-function updateLocalZoom(
-  requestedZoom: number,
-  clientX: number,
-  clientY: number,
-  baseCamera: HomesteadCameraState | null = null
-): void {
-  if (gameStateSnapshot === null) {
-    return;
-  }
-
-  const camera = baseCamera ?? gameStateSnapshot.gameState.homesteadCamera;
-  const canvasBounds = homesteadCanvasElement.getBoundingClientRect();
-  const scaleX = homesteadCanvasElement.width / canvasBounds.width;
-  const scaleY = homesteadCanvasElement.height / canvasBounds.height;
-  const canvasX = (clientX - canvasBounds.left) * scaleX;
-  const canvasY = (clientY - canvasBounds.top) * scaleY;
-  const nextZoom = Math.min(Math.max(requestedZoom, HOMESTEAD_MIN_ZOOM), HOMESTEAD_MAX_ZOOM);
-  const anchorWorldX = camera.x + canvasX / camera.zoom;
-  const anchorWorldY = camera.y + canvasY / camera.zoom;
-  const nextCamera = clampCamera(
-    {
-      zoom: nextZoom,
-      x: anchorWorldX - canvasX / nextZoom,
-      y: anchorWorldY - canvasY / nextZoom
-    },
-    homesteadCanvasElement.width,
-    homesteadCanvasElement.height
-  );
-
-  gameStateSnapshot = {
-    ...gameStateSnapshot,
-    gameState: {
-      ...gameStateSnapshot.gameState,
-      homesteadCamera: nextCamera
-    }
-  };
-}
-
 function handleCanvasPointerDown(event: PointerEvent): void {
-  if (gameStateSnapshot === null) {
-    return;
+  const pointerDownResult = homesteadInteraction.handleCanvasPointerDown(
+    { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY },
+    getHomesteadCanvasMetrics(),
+    performance.now()
+  );
+  syncGameStateSnapshotFromHomestead();
+  updateFollowDuckButton();
+
+  if (pointerDownResult.shouldCapturePointer) {
+    homesteadCanvasElement.setPointerCapture(event.pointerId);
   }
 
-  activeCanvasPointerById.set(event.pointerId, event);
-  if (activeCanvasPointerById.size === 2) {
-    const activePointers = [...activeCanvasPointerById.values()];
-    pinchZoomState = {
-      pointerIdA: activePointers[0].pointerId,
-      pointerIdB: activePointers[1].pointerId,
-      startDistance: Math.hypot(activePointers[0].clientX - activePointers[1].clientX, activePointers[0].clientY - activePointers[1].clientY),
-      startCamera: gameStateSnapshot.gameState.homesteadCamera
-    };
-    pointerDragState = null;
-    stopFollowingForManualCameraInput();
-    return;
+  if (pointerDownResult.isDraggingCamera) {
+    homesteadCanvasElement.classList.add("is-dragging");
   }
 
-  const worldPosition = getPointerWorldPosition(event);
-  const clickedDuck = findDuckAtWorldPosition(worldPosition);
-  homesteadCanvasElement.setPointerCapture(event.pointerId);
-
-  if (clickedDuck !== null) {
-    selectedDuckId = clickedDuck.id;
-    selectedUnplacedDuckId = null;
-    setFollowSelectedDuck(false);
-    startCameraFocusOnDuck(clickedDuck);
-    resetDuckRoamState(clickedDuck.id);
+  if (pointerDownResult.shouldRenderDuckDetails) {
     renderDuckDetails();
-    renderCanvas();
-    return;
   }
 
-  stopFollowingForManualCameraInput();
-  pointerDragState = {
-    pointerId: event.pointerId,
-    startClientX: event.clientX,
-    startClientY: event.clientY,
-    lastClientX: event.clientX,
-    lastClientY: event.clientY,
-    startCamera: gameStateSnapshot.gameState.homesteadCamera,
-    hasMoved: false
-  };
-  homesteadCanvasElement.classList.add("is-dragging");
+  if (pointerDownResult.shouldRenderCanvas) {
+    renderCanvas();
+  }
 }
 
 function handleCanvasPointerMove(event: PointerEvent): void {
-  if (activeCanvasPointerById.has(event.pointerId)) {
-    activeCanvasPointerById.set(event.pointerId, event);
+  const pointerMoveResult = homesteadInteraction.handleCanvasPointerMove(
+    { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY },
+    getHomesteadCanvasMetrics()
+  );
+  syncGameStateSnapshotFromHomestead();
+
+  if (pointerMoveResult.shouldRenderCanvas) {
+    renderCanvas();
   }
-
-  if (pinchZoomState !== null && gameStateSnapshot !== null) {
-    const pointerA = activeCanvasPointerById.get(pinchZoomState.pointerIdA);
-    const pointerB = activeCanvasPointerById.get(pinchZoomState.pointerIdB);
-
-    if (pointerA !== undefined && pointerB !== undefined) {
-      const nextDistance = Math.hypot(pointerA.clientX - pointerB.clientX, pointerA.clientY - pointerB.clientY);
-      const centerClientX = (pointerA.clientX + pointerB.clientX) / 2;
-      const centerClientY = (pointerA.clientY + pointerB.clientY) / 2;
-      if (pinchZoomState.startDistance > 0) {
-        updateLocalZoom(
-          pinchZoomState.startCamera.zoom * (nextDistance / pinchZoomState.startDistance),
-          centerClientX,
-          centerClientY,
-          pinchZoomState.startCamera
-        );
-      }
-      renderCanvas();
-    }
-
-    return;
-  }
-
-  if (pointerDragState === null || pointerDragState.pointerId !== event.pointerId) {
-    return;
-  }
-
-  const totalDeltaX = Math.abs(event.clientX - pointerDragState.startClientX);
-  const totalDeltaY = Math.abs(event.clientY - pointerDragState.startClientY);
-  pointerDragState.hasMoved = pointerDragState.hasMoved || totalDeltaX + totalDeltaY > 5;
-
-  updateLocalCameraFromDrag(event);
-
-  pointerDragState.lastClientX = event.clientX;
-  pointerDragState.lastClientY = event.clientY;
-  renderCanvas();
 }
 
 function handleCanvasPointerUp(event: PointerEvent): void {
-  activeCanvasPointerById.delete(event.pointerId);
-  pinchZoomState = null;
+  const pointerUpResult = homesteadInteraction.handleCanvasPointerUp(
+    { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY },
+    getHomesteadCanvasMetrics()
+  );
+  syncGameStateSnapshotFromHomestead();
 
-  if (pointerDragState === null || pointerDragState.pointerId !== event.pointerId) {
-    if (activeCanvasPointerById.size === 0) {
-      saveCameraState().catch(() => {});
-    }
-    return;
+  if (pointerUpResult.stoppedCameraDrag) {
+    homesteadCanvasElement.classList.remove("is-dragging");
   }
 
-  const endedDragState = pointerDragState;
-  pointerDragState = null;
-  homesteadCanvasElement.classList.remove("is-dragging");
-
-  if (!endedDragState.hasMoved && selectedUnplacedDuckId !== null) {
-    placeDuckAtWorldPosition(selectedUnplacedDuckId, getPointerWorldPosition(event)).catch(() => {
+  if (pointerUpResult.duckPlacementRequest !== null) {
+    placeDuckAtWorldPosition(
+      pointerUpResult.duckPlacementRequest.duckId,
+      pointerUpResult.duckPlacementRequest.worldPosition
+    ).catch(() => {
       showStatus("Placement failed.", true);
     });
-  } else {
+  } else if (pointerUpResult.shouldSaveCamera) {
     saveCameraState().catch(() => {});
   }
 
-  renderCanvas();
-}
-
-function simulateDuckMovement(deltaMilliseconds: number): void {
-  if (activeTab !== "homestead" || gameStateSnapshot === null) {
-    return;
+  if (pointerUpResult.shouldRenderCanvas) {
+    renderCanvas();
   }
-
-  const nowTimestampMilliseconds = Date.now();
-  const simulationResult = simulateHomesteadDuckMovement({
-    ducks: localDucks,
-    roamStateById: duckRoamStateById,
-    draggedDuckId: null,
-    deltaMilliseconds,
-    nowTimestampMilliseconds,
-    random: Math.random
-  });
-
-  localDucks = simulationResult.ducks;
-  duckRoamStateById = simulationResult.roamStateById;
-  followSelectedDuckIfNeeded();
 }
 
 function animationLoop(timestampMilliseconds: number): void {
-  const deltaMilliseconds =
-    previousAnimationTimestampMilliseconds === 0
-      ? 16
-      : timestampMilliseconds - previousAnimationTimestampMilliseconds;
-  previousAnimationTimestampMilliseconds = timestampMilliseconds;
-
-  simulateDuckMovement(deltaMilliseconds);
-  updateCameraFocusAnimation(timestampMilliseconds);
+  const frameResult = homesteadInteraction.advanceAnimationFrame({
+    timestampMilliseconds,
+    isHomesteadActive: activeTab === "homestead",
+    canvasSize: getHomesteadCanvasSize(),
+    nowTimestampMilliseconds: Date.now(),
+    random: Math.random
+  });
+  syncGameStateSnapshotFromHomestead();
+  updateFollowDuckButton();
   renderCanvas();
 
-  if (timestampMilliseconds - lastSimulationSaveTimestampMilliseconds > SIMULATION_SAVE_INTERVAL_MILLISECONDS) {
-    lastSimulationSaveTimestampMilliseconds = timestampMilliseconds;
+  if (frameResult.shouldSaveCamera) {
+    saveCameraState().catch(() => {});
+  }
+
+  if (frameResult.shouldSaveHomestead) {
     saveHomesteadState().catch(() => {});
   }
 
@@ -1205,7 +818,7 @@ function startAnimationLoop(): void {
     return;
   }
 
-  previousAnimationTimestampMilliseconds = 0;
+  homesteadInteraction.resetAnimationClock();
   animationFrameId = window.requestAnimationFrame(animationLoop);
 }
 
@@ -1219,36 +832,36 @@ function stopAnimationLoop(): void {
 }
 
 async function saveCameraState(): Promise<void> {
-  if (gameStateSnapshot === null) {
+  const cameraState = homesteadInteraction.createCameraSaveState();
+
+  if (cameraState === null) {
     return;
   }
 
   const saveCameraMessage: SaveHomesteadCameraMessage = {
     type: SAVE_HOMESTEAD_CAMERA_MESSAGE_TYPE,
-    homesteadCamera: gameStateSnapshot.gameState.homesteadCamera
+    homesteadCamera: cameraState
   };
   await sendGameRuntimeMessage(saveCameraMessage);
 }
 
 async function saveHomesteadState(): Promise<void> {
-  if (gameStateSnapshot === null) {
+  const saveSnapshot = homesteadInteraction.createHomesteadSaveSnapshot();
+
+  if (saveSnapshot === null) {
     return;
   }
 
   const updateDuckSimulationStateMessage: UpdateDuckSimulationStateMessage = {
     type: UPDATE_DUCK_SIMULATION_STATE_MESSAGE_TYPE,
-    updates: localDucks
-      .filter((duck) => duck.placementStatus === "placed" && duck.position !== null)
-      .map((duck): DuckSimulationStateUpdate => ({
-        duckId: duck.id,
-        position: duck.position ?? { x: 0, y: 0 },
-        activity: duck.activity,
-        facingDirection: duck.facingDirection,
-        lastUpdatedAtTimestampMilliseconds: duck.lastUpdatedAtTimestampMilliseconds
-      }))
+    updates: saveSnapshot.duckSimulationUpdates
   };
   await sendGameRuntimeMessage(updateDuckSimulationStateMessage);
-  await saveCameraState();
+  const saveCameraMessage: SaveHomesteadCameraMessage = {
+    type: SAVE_HOMESTEAD_CAMERA_MESSAGE_TYPE,
+    homesteadCamera: saveSnapshot.camera
+  };
+  await sendGameRuntimeMessage(saveCameraMessage);
 }
 
 async function handleRenameDuck(): Promise<void> {
@@ -1355,16 +968,11 @@ feedToNextStageButtonElement.addEventListener("click", () => {
 });
 
 followDuckButtonElement.addEventListener("click", () => {
-  const selectedDuck = getSelectedDuck();
-
-  if (selectedDuck === null) {
-    return;
-  }
-
-  setFollowSelectedDuck(!isFollowingSelectedDuck);
+  const isFollowingSelectedDuck = homesteadInteraction.toggleFollowSelectedDuck(getHomesteadCanvasSize(), performance.now());
+  syncGameStateSnapshotFromHomestead();
+  updateFollowDuckButton();
 
   if (isFollowingSelectedDuck) {
-    startCameraFocusOnDuck(selectedDuck);
     renderCanvas();
   }
 });
@@ -1379,9 +987,15 @@ homesteadCanvasElement.addEventListener("wheel", (event) => {
   }
 
   event.preventDefault();
-  stopFollowingForManualCameraInput();
   const zoomMultiplier = event.deltaY < 0 ? 1.1 : 0.9;
-  updateLocalZoom(gameStateSnapshot.gameState.homesteadCamera.zoom * zoomMultiplier, event.clientX, event.clientY);
+  homesteadInteraction.handleWheelZoom(
+    gameStateSnapshot.gameState.homesteadCamera.zoom * zoomMultiplier,
+    event.clientX,
+    event.clientY,
+    getHomesteadCanvasMetrics()
+  );
+  syncGameStateSnapshotFromHomestead();
+  updateFollowDuckButton();
   saveCameraState().catch(() => {});
   renderDuckDetails();
   renderCanvas();
@@ -1391,7 +1005,7 @@ homesteadCanvasElement.addEventListener("dragover", (event) => {
 });
 homesteadCanvasElement.addEventListener("drop", (event) => {
   event.preventDefault();
-  const duckId = event.dataTransfer?.getData("text/plain") ?? selectedUnplacedDuckId;
+  const duckId = event.dataTransfer?.getData("text/plain") ?? homesteadInteraction.getSelectedUnplacedDuckId();
 
   if (!duckId) {
     return;
