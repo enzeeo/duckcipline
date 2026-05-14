@@ -1,5 +1,18 @@
 # Duckcipline Homestead V1 Manual Testing
 
+## Clean State Setup
+
+- Run `npm ci`.
+- Run `npm run build`.
+- Open `chrome://extensions`.
+- Remove any existing Duckcipline development extension.
+- Load this repo's `dist/` directory as an unpacked extension.
+- Open DevTools for the extension service worker.
+- Clear extension storage:
+  - `chrome.storage.session.clear()`
+  - `chrome.storage.local.clear()`
+- Reload the extension from `chrome://extensions`.
+
 ## Timer and Project Progress
 
 - Select an egg project and start a timer.
@@ -38,3 +51,11 @@
 
 - Run without PNG assets under `src/assets/pixel`.
 - Verify canvas tiles, objects, and ducks still draw with placeholders.
+
+## Release Package Smoke Test
+
+- Run `npm run package`.
+- Verify `release/duckcipline-0.1.0.zip` exists.
+- Unzip to a temporary folder.
+- Verify `manifest.json` is at the unzipped folder root.
+- Load the unzipped folder in Chrome as an unpacked extension.

@@ -3,11 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "dev": "vite",
     "build": "npm run typecheck && vite build",
     "build:watch": "vite build --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "package": "npm run build && python3 scripts/package_extension.py",
     "assets:prompts": "python3 scripts/generate_sprite_sheet_prompts.py",
     "assets:extract": "python3 scripts/extract_selected_sprite_sheets.py",
     "assets:verify": "python3 scripts/verify_pixel_assets.py"
@@ -16,6 +22,7 @@
     "@crxjs/vite-plugin": "^2.3.0",
     "@types/chrome": "^0.1.36",
     "typescript": "^5.9.3",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vitest": "^4.1.6"
   }
 }

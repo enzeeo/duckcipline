@@ -59,6 +59,13 @@ export interface Duck {
   lastUpdatedAtTimestampMilliseconds: number;
 }
 
+export interface DuckSimulationStateUpdate {
+  duckId: string;
+  position: DuckPosition;
+  activity: DuckActivity;
+  lastUpdatedAtTimestampMilliseconds: number;
+}
+
 export interface HomesteadCameraState {
   x: number;
   y: number;

@@ -1,5 +1,6 @@
 import type {
-  Duck,
+  DuckActivity,
+  DuckSimulationStateUpdate,
   FeedDuckMode,
   GameMessageResponse,
   GameStatusResponse,
@@ -89,7 +90,7 @@ export interface MoveDuckMessage {
 
 export interface UpdateDuckSimulationStateMessage {
   type: typeof UPDATE_DUCK_SIMULATION_STATE_MESSAGE_TYPE;
-  ducks: Duck[];
+  updates: DuckSimulationStateUpdate[];
 }
 
 export interface SaveHomesteadCameraMessage {
@@ -158,12 +159,28 @@ function isFeedDuckMode(value: unknown): value is FeedDuckMode {
   return value === "single" || value === "toNextStage";
 }
 
-function isDuckArray(value: unknown): value is Duck[] {
+function isDuckActivity(value: unknown): value is DuckActivity {
+  return value === "idle" || value === "wander" || value === "swim" || value === "rest" || value === "eat";
+}
+
+function isDuckPosition(value: unknown): value is { x: number; y: number } {
+  return isObjectRecord(value) && typeof value.x === "number" && typeof value.y === "number";
+}
+
+function isDuckSimulationStateUpdateArray(value: unknown): value is DuckSimulationStateUpdate[] {
   if (!Array.isArray(value)) {
     return false;
   }
 
-  return value.every((duck) => isObjectRecord(duck) && typeof duck.id === "string");
+  return value.every((update) => {
+    return (
+      isObjectRecord(update) &&
+      typeof update.duckId === "string" &&
+      isDuckPosition(update.position) &&
+      isDuckActivity(update.activity) &&
+      typeof update.lastUpdatedAtTimestampMilliseconds === "number"
+    );
+  });
 }
 
 function isHomesteadCameraState(value: unknown): value is HomesteadCameraState {
@@ -228,7 +245,7 @@ export function isExtensionRequestMessage(value: unknown): value is ExtensionReq
   }
 
   if (value.type === UPDATE_DUCK_SIMULATION_STATE_MESSAGE_TYPE) {
-    return isDuckArray(value.ducks);
+    return isDuckSimulationStateUpdateArray(value.updates);
   }
 
   if (value.type === SAVE_HOMESTEAD_CAMERA_MESSAGE_TYPE) {

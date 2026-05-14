@@ -6,6 +6,7 @@ import type {
   DuckActivity,
   DuckGrowthStage,
   DuckPosition,
+  DuckSimulationStateUpdate,
   DuckVariantId,
   EggProjectId,
   FeedDuckMode,
@@ -37,6 +38,16 @@ export interface GameLogicResult {
   gameState: GameState;
   statusMessage: string | null;
 }
+
+export interface ClaimActiveProjectDependencies {
+  random: () => number;
+  createId: () => string;
+}
+
+const DEFAULT_CLAIM_ACTIVE_PROJECT_DEPENDENCIES: ClaimActiveProjectDependencies = {
+  random: () => Math.random(),
+  createId: () => crypto.randomUUID()
+};
 
 export function createDefaultGameState(): GameState {
   return {
@@ -431,9 +442,12 @@ export function clearClaimedActiveProject(gameState: GameState, projectId: Proje
   };
 }
 
-export function rollDuckVariant(hatchTable: ReadonlyArray<{ variantId: DuckVariantId; chanceWeight: number }>): DuckVariantId {
+export function rollDuckVariant(
+  hatchTable: ReadonlyArray<{ variantId: DuckVariantId; chanceWeight: number }>,
+  random: () => number = Math.random
+): DuckVariantId {
   const totalWeight = hatchTable.reduce((sum, entry) => sum + entry.chanceWeight, 0);
-  const selectedWeight = Math.random() * totalWeight;
+  const selectedWeight = random() * totalWeight;
   let cumulativeWeight = 0;
 
   for (const entry of hatchTable) {
@@ -451,10 +465,11 @@ export function createDuckFromEggProject(
   projectId: EggProjectId,
   variantId: DuckVariantId,
   duckCountBeforeCreate: number,
-  nowTimestampMilliseconds: number
+  nowTimestampMilliseconds: number,
+  duckId: string = crypto.randomUUID()
 ): Duck {
   return {
-    id: crypto.randomUUID(),
+    id: duckId,
     name: createDefaultDuckName(duckCountBeforeCreate),
     variantId,
     sourceEggProjectId: projectId,
@@ -469,7 +484,11 @@ export function createDuckFromEggProject(
   };
 }
 
-export function claimActiveProject(gameState: GameState, nowTimestampMilliseconds: number): GameLogicResult {
+export function claimActiveProject(
+  gameState: GameState,
+  nowTimestampMilliseconds: number,
+  dependencies: ClaimActiveProjectDependencies = DEFAULT_CLAIM_ACTIVE_PROJECT_DEPENDENCIES
+): GameLogicResult {
   if (gameState.activeProjectId === null) {
     return { gameState, statusMessage: "Pick a project first." };
   }
@@ -497,12 +516,13 @@ export function claimActiveProject(gameState: GameState, nowTimestampMillisecond
     return { gameState, statusMessage: "Duck cap reached. Grow seeds or place ducks first." };
   }
 
-  const variantId = rollDuckVariant(projectDefinition.hatchTable);
+  const variantId = rollDuckVariant(projectDefinition.hatchTable, dependencies.random);
   const duck = createDuckFromEggProject(
     projectDefinition.id,
     variantId,
     gameState.ducks.length,
-    nowTimestampMilliseconds
+    nowTimestampMilliseconds,
+    dependencies.createId()
   );
 
   return {
@@ -635,12 +655,25 @@ export function updateDuckPlacement(
   };
 }
 
-export function updateDuckSimulationState(gameState: GameState, ducks: Duck[]): GameState {
-  const duckById = new Map(ducks.map((duck) => [duck.id, duck]));
+export function updateDuckSimulationState(gameState: GameState, updates: DuckSimulationStateUpdate[]): GameState {
+  const updateByDuckId = new Map(updates.map((update) => [update.duckId, update]));
 
   return {
     ...gameState,
-    ducks: gameState.ducks.map((duck) => duckById.get(duck.id) ?? duck)
+    ducks: gameState.ducks.map((duck) => {
+      const update = updateByDuckId.get(duck.id);
+
+      if (update === undefined || duck.placementStatus !== "placed") {
+        return duck;
+      }
+
+      return {
+        ...duck,
+        position: update.position,
+        activity: update.activity,
+        lastUpdatedAtTimestampMilliseconds: update.lastUpdatedAtTimestampMilliseconds
+      };
+    })
   };
 }
 

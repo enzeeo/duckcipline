@@ -14,8 +14,14 @@ Duckcipline runs entirely in Chrome. Timer state is owned by the Manifest V3 bac
 
 ## Quick Start
 
+Use Node 20.19.0 or newer. With `nvm`:
+
 ```bash
-npm install
+nvm use
+```
+
+```bash
+npm ci
 npm run build
 ```
 
@@ -36,8 +42,11 @@ npm run dev
 
 ```text
 npm run typecheck       TypeScript only
+npm test                Run unit tests once
+npm run test:watch      Run unit tests in watch mode
 npm run build           Typecheck and build extension
 npm run build:watch     Rebuild extension on file changes
+npm run package         Build release/duckcipline-0.1.0.zip
 npm run assets:prompts  Generate sprite-sheet prompt batches
 npm run assets:extract  Extract selected sprites into runtime assets
 npm run assets:verify   Verify generated pixel assets
@@ -47,8 +56,8 @@ npm run assets:verify   Verify generated pixel assets
 
 ```text
 src/
-  background/   Chrome service worker and canonical extension state
-  popup/        Side panel UI, DOM wiring, sprite loading, canvas rendering
+  background/   Chrome service worker adapter, app orchestration, storage adapters
+  popup/        Side panel UI, DOM wiring, sprite loading, canvas rendering, simulation
   shared/       Cross-runtime types, message contracts, game logic, definitions
   timer/        Pure timestamp-based timer utilities
   assets/       Local pixel assets bundled into the extension
@@ -73,9 +82,11 @@ Chrome runtime
    | message passing
    v
 src/background/background.ts
-   |-- owns canonical timer state
-   |-- persists timer data to chrome.storage.session
-   |-- persists homestead data to chrome.storage.local
+   |-- Chrome service worker adapter
+   +--> src/background/backgroundApplication.ts
+   |      owns canonical timer/game state flow
+   +--> src/background/stateStore.ts
+   |      chrome.storage and memory-backed storage adapters
    |
    +--> src/timer/timerState.ts
    |      pure timestamp math, no Chrome APIs
@@ -88,6 +99,7 @@ src/popup/popup.ts
    |-- renders timer, project controls, and homestead state
    +--> src/popup/canvasRenderer.ts
    +--> src/popup/assetLoader.ts
+   +--> src/popup/homesteadSimulation.ts
 ```
 
 Rules that matter:
@@ -107,12 +119,14 @@ Rules that matter:
 
 ## Testing
 
-Automated tests are not configured yet. Use the smallest available checks:
+Use the smallest relevant check while editing:
 
 ```bash
+npm test
 npm run typecheck
 npm run build
 npm run assets:verify
+npm run package
 ```
 
 Manual QA lives in [docs/MANUAL_TESTING.md](docs/MANUAL_TESTING.md).
