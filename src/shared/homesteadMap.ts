@@ -1,8 +1,8 @@
 import type { DuckPosition, HomesteadCameraState } from "./types.js";
 
 export const HOMESTEAD_TILE_SIZE = 32;
-export const HOMESTEAD_COLUMNS = 48;
-export const HOMESTEAD_ROWS = 36;
+export const HOMESTEAD_COLUMNS = 40;
+export const HOMESTEAD_ROWS = 30;
 export const HOMESTEAD_WORLD_WIDTH = HOMESTEAD_COLUMNS * HOMESTEAD_TILE_SIZE;
 export const HOMESTEAD_WORLD_HEIGHT = HOMESTEAD_ROWS * HOMESTEAD_TILE_SIZE;
 export const HOMESTEAD_FRAME_GUTTER = 12;
@@ -36,41 +36,41 @@ interface OrganicPatch {
 }
 
 const MAIN_POND: OrganicPatch = {
-  centerColumn: 28,
-  centerRow: 17,
+  centerColumn: 24,
+  centerRow: 14,
   radiusColumns: 7.2,
   radiusRows: 5.2
 };
 
 const GRASS_VARIANT_PATCHES: ReadonlyArray<OrganicPatch> = [
-  { centerColumn: 7, centerRow: 7, radiusColumns: 5.8, radiusRows: 4.2 },
-  { centerColumn: 17, centerRow: 9, radiusColumns: 5.2, radiusRows: 3.4 },
-  { centerColumn: 39, centerRow: 8, radiusColumns: 6.2, radiusRows: 4.8 },
-  { centerColumn: 10, centerRow: 29, radiusColumns: 6.6, radiusRows: 4.2 },
-  { centerColumn: 30, centerRow: 27, radiusColumns: 7.4, radiusRows: 4.6 },
-  { centerColumn: 43, centerRow: 29, radiusColumns: 4.8, radiusRows: 4.0 }
+  { centerColumn: 3, centerRow: 4, radiusColumns: 5.8, radiusRows: 4.2 },
+  { centerColumn: 13, centerRow: 6, radiusColumns: 5.2, radiusRows: 3.4 },
+  { centerColumn: 35, centerRow: 5, radiusColumns: 6.2, radiusRows: 4.8 },
+  { centerColumn: 6, centerRow: 26, radiusColumns: 6.6, radiusRows: 4.2 },
+  { centerColumn: 26, centerRow: 24, radiusColumns: 7.4, radiusRows: 4.6 },
+  { centerColumn: 39, centerRow: 26, radiusColumns: 4.8, radiusRows: 4.0 }
 ];
 
 const FLOWER_CLUSTERS: ReadonlyArray<OrganicPatch> = [
-  { centerColumn: 5, centerRow: 14, radiusColumns: 2.8, radiusRows: 2.0 },
-  { centerColumn: 15, centerRow: 5, radiusColumns: 3.0, radiusRows: 1.8 },
-  { centerColumn: 36, centerRow: 13, radiusColumns: 3.2, radiusRows: 2.2 },
-  { centerColumn: 23, centerRow: 28, radiusColumns: 3.4, radiusRows: 2.0 },
-  { centerColumn: 41, centerRow: 24, radiusColumns: 3.0, radiusRows: 2.4 }
+  { centerColumn: 1, centerRow: 11, radiusColumns: 2.8, radiusRows: 2.0 },
+  { centerColumn: 11, centerRow: 2, radiusColumns: 3.0, radiusRows: 1.8 },
+  { centerColumn: 32, centerRow: 10, radiusColumns: 3.2, radiusRows: 2.2 },
+  { centerColumn: 19, centerRow: 25, radiusColumns: 3.4, radiusRows: 2.0 },
+  { centerColumn: 37, centerRow: 21, radiusColumns: 3.0, radiusRows: 2.4 }
 ];
 
 export const HOMESTEAD_OBJECTS: ReadonlyArray<HomesteadObject> = [
-  { type: "tree", column: 4, row: 4, widthTiles: 2, heightTiles: 2 },
-  { type: "tree", column: 41, row: 5, widthTiles: 2, heightTiles: 2 },
-  { type: "tree", column: 7, row: 28, widthTiles: 2, heightTiles: 2 },
-  { type: "rock", column: 13, row: 9, widthTiles: 1, heightTiles: 1 },
-  { type: "rock", column: 34, row: 26, widthTiles: 1, heightTiles: 1 },
-  { type: "reeds", column: 24, row: 15, widthTiles: 1, heightTiles: 1 },
-  { type: "reeds", column: 30, row: 20, widthTiles: 1, heightTiles: 1 },
-  { type: "lilyPad", column: 26, row: 17, widthTiles: 1, heightTiles: 1 },
-  { type: "lilyPad", column: 30, row: 16, widthTiles: 1, heightTiles: 1 },
-  { type: "lilyPad", column: 31, row: 19, widthTiles: 1, heightTiles: 1 },
-  { type: "nest", column: 18, row: 14, widthTiles: 1, heightTiles: 1 }
+  { type: "tree", column: 0, row: 1, widthTiles: 2, heightTiles: 2 },
+  { type: "tree", column: 37, row: 2, widthTiles: 2, heightTiles: 2 },
+  { type: "tree", column: 3, row: 25, widthTiles: 2, heightTiles: 2 },
+  { type: "rock", column: 9, row: 6, widthTiles: 1, heightTiles: 1 },
+  { type: "rock", column: 30, row: 23, widthTiles: 1, heightTiles: 1 },
+  { type: "reeds", column: 20, row: 12, widthTiles: 1, heightTiles: 1 },
+  { type: "reeds", column: 26, row: 17, widthTiles: 1, heightTiles: 1 },
+  { type: "lilyPad", column: 22, row: 14, widthTiles: 1, heightTiles: 1 },
+  { type: "lilyPad", column: 26, row: 13, widthTiles: 1, heightTiles: 1 },
+  { type: "lilyPad", column: 27, row: 16, widthTiles: 1, heightTiles: 1 },
+  { type: "nest", column: 14, row: 11, widthTiles: 1, heightTiles: 1 }
 ];
 
 export const HOMESTEAD_MAP: HomesteadMap = {
@@ -110,13 +110,13 @@ export function getTileTerrainKind(tileType: HomesteadTileType): HomesteadTileTe
 }
 
 function getPathTileTypeAt(column: number, row: number, pondPatchValue: number): HomesteadTileType | null {
-  const lowerPathCenterRow = 20 + Math.sin(column * 0.48) * 1.2;
+  const lowerPathCenterRow = 17 + Math.sin(column * 0.48) * 1.2;
   const lowerPathDistance = Math.abs(row - lowerPathCenterRow);
-  const isLowerPath = column >= 3 && column <= 24 && lowerPathDistance <= 1.15;
+  const isLowerPath = column >= 0 && column <= 20 && lowerPathDistance <= 1.15;
 
-  const verticalPathCenterColumn = 21 + Math.sin(row * 0.52) * 1.1;
+  const verticalPathCenterColumn = 17 + Math.sin(row * 0.52) * 1.1;
   const verticalPathDistance = Math.abs(column - verticalPathCenterColumn);
-  const isVerticalPath = row >= 9 && row <= 26 && verticalPathDistance <= 1.15;
+  const isVerticalPath = row >= 6 && row <= 23 && verticalPathDistance <= 1.15;
 
   const isPondBankPath =
     pondPatchValue > 1 &&

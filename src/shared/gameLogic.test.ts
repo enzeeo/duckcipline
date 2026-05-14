@@ -6,8 +6,10 @@ import {
   selectActiveProject,
   synchronizeGameProgressStateWithTimer,
   updateDuckPlacement,
+  feedDuck,
   updateDuckSimulationState
 } from "./gameLogic.js";
+import { DUCK_EATING_ANIMATION_DURATION_MILLISECONDS } from "./duckAnimation.js";
 import type { Duck, GameState } from "./types.js";
 import { createDefaultTimerState } from "../timer/timerState.js";
 
@@ -154,5 +156,33 @@ describe("gameLogic", () => {
       position: { x: 160, y: 192 },
       homePosition: { x: 160, y: 192 }
     });
+  });
+
+  it("keeps repeated single-seed feeds in the same eating animation window", () => {
+    const gameState: GameState = {
+      ...createDefaultGameState(),
+      seedCount: 2,
+      ducks: [createTestDuck({ activity: "eat", lastUpdatedAtTimestampMilliseconds: 1_000 })]
+    };
+
+    const result = feedDuck(gameState, "duck-1", "single", 1_000 + DUCK_EATING_ANIMATION_DURATION_MILLISECONDS - 1);
+
+    expect(result.gameState.ducks[0]).toMatchObject({
+      activity: "eat",
+      lastUpdatedAtTimestampMilliseconds: 1_000
+    });
+  });
+
+  it("starts a new eating animation after the previous cycle ends", () => {
+    const gameState: GameState = {
+      ...createDefaultGameState(),
+      seedCount: 2,
+      ducks: [createTestDuck({ activity: "eat", lastUpdatedAtTimestampMilliseconds: 1_000 })]
+    };
+    const nextTimestampMilliseconds = 1_000 + DUCK_EATING_ANIMATION_DURATION_MILLISECONDS;
+
+    const result = feedDuck(gameState, "duck-1", "single", nextTimestampMilliseconds);
+
+    expect(result.gameState.ducks[0].lastUpdatedAtTimestampMilliseconds).toBe(nextTimestampMilliseconds);
   });
 });

@@ -1,6 +1,7 @@
 import { DUCK_GROWTH_SEED_REQUIREMENTS, MAX_DUCK_COUNT, getProjectDurationSeconds } from "./balance.js";
 import { DUCK_VARIANT_IDS, createDefaultDuckName, createFavoriteActivity } from "./duckDefinitions.js";
 import { PROJECT_DEFINITION_BY_ID, isEggProjectId, isProjectId } from "./projectDefinitions.js";
+import { DUCK_EATING_ANIMATION_DURATION_MILLISECONDS } from "./duckAnimation.js";
 import type {
   Duck,
   DuckActivity,
@@ -611,10 +612,20 @@ export function feedDuck(
 
   let updatedGrowthStage = duck.growthStage;
   let updatedSeedsFedForCurrentStage = duck.seedsFedForCurrentStage + seedSpendCount;
+  let updatedLastUpdatedAtTimestampMilliseconds = nowTimestampMilliseconds;
 
   if (updatedSeedsFedForCurrentStage >= seedsNeededForNextStage) {
     updatedGrowthStage = getNextGrowthStage(duck.growthStage);
     updatedSeedsFedForCurrentStage = 0;
+  }
+
+  if (
+    feedMode === "single" &&
+    updatedGrowthStage === duck.growthStage &&
+    duck.activity === "eat" &&
+    nowTimestampMilliseconds - duck.lastUpdatedAtTimestampMilliseconds < DUCK_EATING_ANIMATION_DURATION_MILLISECONDS
+  ) {
+    updatedLastUpdatedAtTimestampMilliseconds = duck.lastUpdatedAtTimestampMilliseconds;
   }
 
   return {
@@ -628,7 +639,7 @@ export function feedDuck(
               growthStage: updatedGrowthStage,
               seedsFedForCurrentStage: updatedSeedsFedForCurrentStage,
               activity: "eat",
-              lastUpdatedAtTimestampMilliseconds: nowTimestampMilliseconds
+              lastUpdatedAtTimestampMilliseconds: updatedLastUpdatedAtTimestampMilliseconds
             }
           : possibleDuck
       )

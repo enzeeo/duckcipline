@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   HOMESTEAD_MAX_ZOOM,
   HOMESTEAD_MIN_ZOOM,
+  HOMESTEAD_COLUMNS,
+  HOMESTEAD_ROWS,
   clampCamera,
   getCenteredTileWorldPosition,
   getTileTerrainKindAt,
@@ -12,21 +14,27 @@ import {
 
 describe("homesteadMap", () => {
   it("rejects manual placement on water", () => {
-    const waterPosition = getCenteredTileWorldPosition(28, 17);
+    const waterPosition = getCenteredTileWorldPosition(24, 14);
 
-    expect(getTileTerrainKindAt(28, 17)).toBe("water");
+    expect(getTileTerrainKindAt(24, 14)).toBe("water");
     expect(isManualDuckPlacementValid(waterPosition)).toBe(false);
   });
 
   it("rejects manual placement on blocking objects", () => {
-    const treePosition = getCenteredTileWorldPosition(4, 4);
+    const treePosition = getCenteredTileWorldPosition(0, 1);
 
-    expect(isObjectBlockingTile(4, 4)).toBe(true);
+    expect(isObjectBlockingTile(0, 1)).toBe(true);
     expect(isManualDuckPlacementValid(treePosition)).toBe(false);
   });
 
+  it("uses the cropped homestead dimensions and keeps the pond centered", () => {
+    expect(HOMESTEAD_COLUMNS).toBe(40);
+    expect(HOMESTEAD_ROWS).toBe(30);
+    expect(getTileTerrainKindAt(24, 14)).toBe("water");
+  });
+
   it("accepts manual placement on an open land tile", () => {
-    expect(isManualDuckPlacementValid(getCenteredTileWorldPosition(1, 1))).toBe(true);
+    expect(isManualDuckPlacementValid(getCenteredTileWorldPosition(2, 1))).toBe(true);
   });
 
   it("clamps camera zoom and world edges", () => {

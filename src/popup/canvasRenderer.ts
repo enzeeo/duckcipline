@@ -3,8 +3,11 @@ import {
   HOMESTEAD_OBJECTS,
   HOMESTEAD_ROWS,
   HOMESTEAD_TILE_SIZE,
+  getTilePositionFromWorldPosition,
+  getTileTerrainKindAt,
   getTileTypeAt
 } from "../shared/homesteadMap.js";
+import { DUCK_ANIMATION_FRAME_MILLISECONDS } from "../shared/duckAnimation.js";
 import type { Duck, HomesteadCameraState } from "../shared/types.js";
 import type { SpriteKey, SpriteMap } from "./assetLoader.js";
 
@@ -13,6 +16,7 @@ interface RenderOptions {
   camera: HomesteadCameraState;
   ducks: Duck[];
   animationFrameIndex: number;
+  currentTimestampMilliseconds: number;
   spriteMap: SpriteMap;
 }
 
@@ -155,18 +159,18 @@ function drawSpriteOrFallback(
   duck: Duck | null = null,
   isMirrored: boolean = false
 ): void {
-  if (isMirrored) {
-    context.save();
-    context.translate(x + width, y);
-    context.scale(-1, 1);
-    drawSpriteOrFallback(context, spriteMap, spriteKey, 0, 0, width, height, duck, false);
-    context.restore();
-    return;
-  }
-
   const image = spriteMap[spriteKey];
 
   if (image) {
+    if (isMirrored) {
+      context.save();
+      context.translate(x + width, y);
+      context.scale(-1, 1);
+      context.drawImage(image, 0, 0, width, height);
+      context.restore();
+      return;
+    }
+
     context.drawImage(image, x, y, width, height);
     return;
   }
@@ -188,6 +192,28 @@ function drawSpriteOrFallback(
 
 function getPixelAlignedScreenCoordinate(worldCoordinate: number, cameraCoordinate: number, zoom: number): number {
   return Math.floor((worldCoordinate - cameraCoordinate) * zoom);
+}
+
+function getRenderedDuckActivity(duck: Duck): Duck["activity"] | "sleep" {
+  if (duck.activity === "rest") {
+    return "sleep";
+  }
+
+  if (duck.activity === "idle" && duck.position !== null) {
+    const tilePosition = getTilePositionFromWorldPosition(duck.position);
+    return getTileTerrainKindAt(tilePosition.column, tilePosition.row) === "water" ? "swim" : "idle";
+  }
+
+  return duck.activity;
+}
+
+function getDuckAnimationFrameIndex(duck: Duck, sharedAnimationFrameIndex: number, currentTimestampMilliseconds: number): number {
+  if (duck.activity !== "eat") {
+    return sharedAnimationFrameIndex;
+  }
+
+  const elapsedAnimationMilliseconds = Math.max(0, currentTimestampMilliseconds - duck.lastUpdatedAtTimestampMilliseconds);
+  return Math.floor(elapsedAnimationMilliseconds / DUCK_ANIMATION_FRAME_MILLISECONDS) % 4;
 }
 
 export function renderHomesteadCanvas(options: RenderOptions): void {
@@ -251,9 +277,14 @@ export function renderHomesteadCanvas(options: RenderOptions): void {
 
     const duckX = (duck.position.x - HOMESTEAD_TILE_SIZE / 2 - options.camera.x) * zoom;
     const duckY = (duck.position.y - HOMESTEAD_TILE_SIZE / 2 - options.camera.y) * zoom;
-    const renderedActivity = duck.activity === "rest" ? "sleep" : duck.activity;
+    const renderedActivity = getRenderedDuckActivity(duck);
+    const animationFrameIndex = getDuckAnimationFrameIndex(
+      duck,
+      options.animationFrameIndex,
+      options.currentTimestampMilliseconds
+    );
     const animatedSpriteKey: SpriteKey =
-      `duck:${duck.variantId}:${duck.growthStage}:${renderedActivity}:${options.animationFrameIndex}`;
+      `duck:${duck.variantId}:${duck.growthStage}:${renderedActivity}:${animationFrameIndex}`;
     const staticSpriteKey: SpriteKey = `duck:${duck.variantId}:${duck.growthStage}`;
 
     drawSpriteOrFallback(
@@ -265,7 +296,7 @@ export function renderHomesteadCanvas(options: RenderOptions): void {
       HOMESTEAD_TILE_SIZE * zoom,
       HOMESTEAD_TILE_SIZE * zoom,
       duck,
-      duck.facingDirection === "left"
+      duck.facingDirection === "right"
     );
   }
 }

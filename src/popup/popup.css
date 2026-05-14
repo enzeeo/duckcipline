@@ -205,7 +205,6 @@ button:disabled {
 }
 
 .timer-panel,
-.duration-panel,
 .active-project-panel,
 .project-picker,
 .stats-panel,
@@ -218,6 +217,11 @@ button:disabled {
     linear-gradient(135deg, rgba(255, 248, 223, 0.76), rgba(244, 229, 184, 0.86)),
     repeating-linear-gradient(28deg, rgba(220, 166, 74, 0.26) 0 2px, transparent 2px 9px),
     var(--surface-straw);
+}
+
+.timer-panel {
+  display: grid;
+  gap: var(--space-3);
 }
 
 .timer-display {
@@ -292,6 +296,11 @@ button:disabled {
   opacity: 0.34;
 }
 
+.duration-controls {
+  display: grid;
+  gap: var(--space-2);
+}
+
 .active-reward-name {
   margin: 0;
   font-family: "Pixelify Duck", "Arial Black", sans-serif;
@@ -332,8 +341,7 @@ button:disabled {
   margin-top: var(--space-3);
 }
 
-.button-row.two-up,
-.rename-row {
+.button-row.two-up {
   grid-template-columns: 1fr 1fr;
 }
 
@@ -459,6 +467,10 @@ button:disabled {
   background: var(--duck-gold);
 }
 
+.duck-thumbnail.is-pointer-dragging {
+  opacity: 0.72;
+}
+
 .duck-thumbnail-sprite {
   width: 28px;
   height: 24px;
@@ -481,14 +493,19 @@ button:disabled {
   margin: 0;
 }
 
-.rename-row {
-  display: grid;
-  gap: var(--space-2);
+.editable-duck-name {
+  width: min(100%, 180px);
+  min-height: 34px;
+  padding: 4px 8px;
+  border: var(--pixel-border);
+  border-radius: var(--radius);
+  background: #fffdf1;
+  color: var(--ink);
 }
 
 @media (min-width: 520px) {
   .focus-hero-panel {
-    grid-template-columns: minmax(0, 1.2fr) minmax(168px, 0.8fr);
+    grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
   }
 

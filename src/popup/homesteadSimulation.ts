@@ -1,4 +1,5 @@
 import { getDuckVariantFamily } from "../shared/duckDefinitions.js";
+import { DUCK_EATING_ANIMATION_DURATION_MILLISECONDS } from "../shared/duckAnimation.js";
 import {
   HOMESTEAD_COLUMNS,
   HOMESTEAD_ROWS,
@@ -580,6 +581,13 @@ export function simulateDuckMovement(input: SimulateDuckMovementInput): Simulate
       return duck;
     }
 
+    if (
+      duck.activity === "eat" &&
+      input.nowTimestampMilliseconds - duck.lastUpdatedAtTimestampMilliseconds < DUCK_EATING_ANIMATION_DURATION_MILLISECONDS
+    ) {
+      return duck;
+    }
+
     let roamState = nextRoamStateById.get(duck.id);
 
     if (roamState === undefined) {
@@ -591,7 +599,8 @@ export function simulateDuckMovement(input: SimulateDuckMovementInput): Simulate
       (roamState.behavior === "idle" || roamState.behavior === "rest") &&
       roamState.idleUntilTimestampMilliseconds > input.nowTimestampMilliseconds
     ) {
-      const activity: DuckActivity = roamState.behavior === "rest" ? "rest" : "idle";
+      const activity: DuckActivity =
+        roamState.behavior === "rest" ? "rest" : isWaterWorldPosition(duck.position) ? "swim" : "idle";
       return { ...duck, activity };
     }
 

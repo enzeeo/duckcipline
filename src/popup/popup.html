@@ -33,6 +33,14 @@
           <div class="timer-panel">
             <p id="timerDisplay" class="timer-display">00:25:00</p>
             <p id="timerStateText" class="timer-state">Ready</p>
+            <aside id="activeRewardStage" class="active-reward-stage is-empty" aria-live="polite">
+              <p class="section-label">Nest</p>
+              <div class="reward-nest-scene">
+                <img id="activeRewardImage" class="active-reward-image" alt="" hidden />
+              </div>
+              <p id="activeRewardNameText" class="active-reward-name">Pick a project</p>
+              <p id="activeRewardPromptText" class="active-reward-prompt">Your reward will wait in the nest.</p>
+            </aside>
             <div class="focus-progress-shell" aria-label="Timer progress">
               <div id="timerProgressBar" class="focus-progress-bar"></div>
             </div>
@@ -41,27 +49,17 @@
               <button id="pauseButton" type="button">Pause</button>
               <button id="resetButton" type="button">Reset</button>
             </div>
-          </div>
-
-          <aside id="activeRewardStage" class="active-reward-stage is-empty" aria-live="polite">
-            <p class="section-label">Nest</p>
-            <div class="reward-nest-scene">
-              <img id="activeRewardImage" class="active-reward-image" alt="" hidden />
+            <div class="duration-controls" aria-labelledby="durationLabel">
+              <p id="durationLabel" class="section-label">Focus duration</p>
+              <div class="duration-preset-row">
+                <button id="presetTwentyFiveMinutesButton" class="duration-preset-button is-selected" type="button">25m</button>
+                <button id="presetFiftyMinutesButton" class="duration-preset-button" type="button">50m</button>
+                <button id="presetCustomDurationButton" class="duration-preset-button" type="button">Custom</button>
+              </div>
+              <label class="field-label" for="durationMinutesInput">Custom minutes</label>
+              <input id="durationMinutesInput" class="duration-input" type="number" min="1" step="1" value="25" disabled />
             </div>
-            <p id="activeRewardNameText" class="active-reward-name">Pick a project</p>
-            <p id="activeRewardPromptText" class="active-reward-prompt">Your reward will wait in the nest.</p>
-          </aside>
-        </section>
-
-        <section class="duration-panel" aria-labelledby="durationLabel">
-          <p id="durationLabel" class="section-label">Focus duration</p>
-          <div class="duration-preset-row">
-            <button id="presetTwentyFiveMinutesButton" class="duration-preset-button is-selected" type="button">25m</button>
-            <button id="presetFiftyMinutesButton" class="duration-preset-button" type="button">50m</button>
-            <button id="presetCustomDurationButton" class="duration-preset-button" type="button">Custom</button>
           </div>
-          <label class="field-label" for="durationMinutesInput">Custom minutes</label>
-          <input id="durationMinutesInput" class="duration-input" type="number" min="1" step="1" value="25" disabled />
         </section>
 
         <section class="active-project-panel">
@@ -108,16 +106,11 @@
             <p id="duckDetailsEmptyText" class="drawer-empty">Select a duck to inspect it.</p>
             <div id="duckDetailsContent" hidden>
               <div class="section-heading-row">
-                <p id="selectedDuckNameText" class="selected-duck-name">Duck</p>
+                <input id="selectedDuckNameText" class="selected-duck-name editable-duck-name" type="text" maxlength="18" value="Duck" aria-label="Duck name" />
                 <p id="selectedDuckStageText" class="selected-duck-stage">Duckling</p>
               </div>
               <p id="selectedDuckMetaText" class="duck-meta"></p>
               <button id="followDuckButton" class="small-action follow-duck-button" type="button">Follow</button>
-              <label class="field-label" for="duckNameInput">Name</label>
-              <div class="rename-row">
-                <input id="duckNameInput" class="duration-input" type="text" maxlength="18" />
-                <button id="renameDuckButton" type="button">Rename</button>
-              </div>
               <div class="button-row two-up">
                 <button id="feedOneSeedButton" type="button">Feed 1 seed</button>
                 <button id="feedToNextStageButton" type="button">Feed to next</button>
