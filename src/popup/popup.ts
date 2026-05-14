@@ -71,7 +71,7 @@ const PRESET_TWENTY_FIVE_MINUTES = 25;
 const PRESET_FIFTY_MINUTES = 50;
 const DEFAULT_CUSTOM_DURATION_MINUTES = PRESET_TWENTY_FIVE_MINUTES;
 const CAMERA_FOCUS_ANIMATION_MILLISECONDS = 420;
-const CAMERA_FOCUS_ZOOM_PULSE = 0.08;
+const CAMERA_FOCUS_POSITION_EPSILON = 0.5;
 const POINTER_DRAG_THRESHOLD_PIXELS = 6;
 
 type DurationSelectionMode = "twentyFive" | "fifty" | "custom";
@@ -98,7 +98,6 @@ interface CameraFocusAnimationState {
   startedAtTimestampMilliseconds: number;
   fromCamera: HomesteadCameraState;
   toCamera: HomesteadCameraState;
-  settleZoom: number;
 }
 
 interface UnplacedDuckPointerDragState {
@@ -625,17 +624,30 @@ function startCameraFocusOnDuck(duck: Duck): void {
 
   const fromCamera = gameStateSnapshot.gameState.homesteadCamera;
   const toCamera = getCenteredCameraForPosition(duck.position, fromCamera);
+
+  if (isCameraSettledAtTarget(fromCamera, toCamera)) {
+    cameraFocusAnimationState = null;
+    return;
+  }
+
   cameraFocusAnimationState = {
     startedAtTimestampMilliseconds: performance.now(),
     fromCamera,
-    toCamera,
-    settleZoom: fromCamera.zoom
+    toCamera
   };
 }
 
 function easeCameraFocusProgress(progress: number): number {
   const clampedProgress = Math.min(Math.max(progress, 0), 1);
   return 1 - Math.pow(1 - clampedProgress, 3);
+}
+
+function isCameraSettledAtTarget(camera: HomesteadCameraState, targetCamera: HomesteadCameraState): boolean {
+  return (
+    Math.abs(camera.x - targetCamera.x) <= CAMERA_FOCUS_POSITION_EPSILON &&
+    Math.abs(camera.y - targetCamera.y) <= CAMERA_FOCUS_POSITION_EPSILON &&
+    camera.zoom === targetCamera.zoom
+  );
 }
 
 function updateCameraFocusAnimation(timestampMilliseconds: number): void {
@@ -648,8 +660,6 @@ function updateCameraFocusAnimation(timestampMilliseconds: number): void {
     (timestampMilliseconds - cameraFocusAnimationState.startedAtTimestampMilliseconds) / CAMERA_FOCUS_ANIMATION_MILLISECONDS
   );
   const easedProgress = easeCameraFocusProgress(progress);
-  const pulseProgress = Math.sin(progress * Math.PI);
-  const zoom = cameraFocusAnimationState.settleZoom + pulseProgress * CAMERA_FOCUS_ZOOM_PULSE;
   const animatedCamera = clampCamera(
     {
       x:
@@ -658,7 +668,9 @@ function updateCameraFocusAnimation(timestampMilliseconds: number): void {
       y:
         cameraFocusAnimationState.fromCamera.y +
         (cameraFocusAnimationState.toCamera.y - cameraFocusAnimationState.fromCamera.y) * easedProgress,
-      zoom
+      zoom:
+        cameraFocusAnimationState.fromCamera.zoom +
+        (cameraFocusAnimationState.toCamera.zoom - cameraFocusAnimationState.fromCamera.zoom) * easedProgress
     },
     homesteadCanvasElement.width,
     homesteadCanvasElement.height
@@ -959,7 +971,7 @@ async function placeDuckAtWorldPosition(duckId: string, worldPosition: DuckPosit
   updateGameDisplay(await sendGameRuntimeMessage(placeDuckMessage));
   selectedUnplacedDuckId = null;
   selectedDuckId = duckId;
-  setFollowSelectedDuck(true);
+  setFollowSelectedDuck(false);
   resetDuckRoamState(duckId);
   const placedDuck = localDucks.find((duck) => duck.id === duckId);
   if (placedDuck !== undefined) {
@@ -1060,7 +1072,7 @@ function handleCanvasPointerDown(event: PointerEvent): void {
   if (clickedDuck !== null) {
     selectedDuckId = clickedDuck.id;
     selectedUnplacedDuckId = null;
-    setFollowSelectedDuck(true);
+    setFollowSelectedDuck(false);
     startCameraFocusOnDuck(clickedDuck);
     resetDuckRoamState(clickedDuck.id);
     renderDuckDetails();
