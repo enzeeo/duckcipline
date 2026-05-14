@@ -9,8 +9,11 @@ import {
   HOMESTEAD_WORLD_WIDTH,
   clampCamera,
   getCenteredTileWorldPosition,
+  getTilePositionFromWorldPosition,
+  getTileTerrainKindAt,
   isManualDuckPlacementValid
 } from "../shared/homesteadMap.js";
+import { isDuckEatingAnimationActive } from "../shared/duckAnimation.js";
 import {
   CLAIM_ACTIVE_PROJECT_MESSAGE_TYPE,
   FEED_DUCK_MESSAGE_TYPE,
@@ -43,6 +46,7 @@ import {
 } from "../shared/messages.js";
 import type {
   Duck,
+  DuckActivity,
   DuckSimulationStateUpdate,
   DuckPosition,
   FeedDuckMode,
@@ -58,6 +62,7 @@ import { createAssetUrl, loadPixelSprites, type SpriteMap } from "./assetLoader.
 import { renderHomesteadCanvas } from "./canvasRenderer.js";
 import {
   pruneDuckRoamStates,
+  simulateDuckMovementCatchUp,
   simulateDuckMovement as simulateHomesteadDuckMovement,
   type DuckRoamState
 } from "./homesteadSimulation.js";
@@ -71,7 +76,6 @@ const PRESET_TWENTY_FIVE_MINUTES = 25;
 const PRESET_FIFTY_MINUTES = 50;
 const DEFAULT_CUSTOM_DURATION_MINUTES = PRESET_TWENTY_FIVE_MINUTES;
 const CAMERA_FOCUS_ANIMATION_MILLISECONDS = 420;
-const CAMERA_FOCUS_ZOOM_PULSE = 0.08;
 const POINTER_DRAG_THRESHOLD_PIXELS = 6;
 
 type DurationSelectionMode = "twentyFive" | "fifty" | "custom";
@@ -98,7 +102,6 @@ interface CameraFocusAnimationState {
   startedAtTimestampMilliseconds: number;
   fromCamera: HomesteadCameraState;
   toCamera: HomesteadCameraState;
-  settleZoom: number;
 }
 
 interface UnplacedDuckPointerDragState {
@@ -184,6 +187,7 @@ let isFollowingSelectedDuck = false;
 let animationFrameId: number | null = null;
 let previousAnimationTimestampMilliseconds = 0;
 let lastSimulationSaveTimestampMilliseconds = 0;
+let lastLocalHomesteadSaveTimestampMilliseconds = 0;
 let localDucks: Duck[] = [];
 let duckRoamStateById = new Map<string, DuckRoamState>();
 
@@ -491,6 +495,59 @@ async function refreshAllDisplays(): Promise<void> {
   await refreshGameDisplay();
 }
 
+function applyHomesteadCatchUpIfNeeded(): boolean {
+  if (gameStateSnapshot === null) {
+    return false;
+  }
+
+  const nowTimestampMilliseconds = Date.now();
+  const lastHomesteadSimulationTimestampMilliseconds = Math.max(
+    gameStateSnapshot.gameState.lastHomesteadSimulationTimestampMilliseconds,
+    lastLocalHomesteadSaveTimestampMilliseconds
+  );
+  const elapsedMilliseconds =
+    nowTimestampMilliseconds - lastHomesteadSimulationTimestampMilliseconds;
+
+  if (elapsedMilliseconds <= 0) {
+    return false;
+  }
+
+  const simulationResult = simulateDuckMovementCatchUp({
+    ducks: localDucks,
+    roamStateById: duckRoamStateById,
+    elapsedMilliseconds,
+    nowTimestampMilliseconds,
+    random: Math.random
+  });
+
+  localDucks = simulationResult.ducks;
+  duckRoamStateById = simulationResult.roamStateById;
+  gameStateSnapshot = {
+    ...gameStateSnapshot,
+    gameState: {
+      ...gameStateSnapshot.gameState,
+      ducks: localDucks,
+      lastHomesteadSimulationTimestampMilliseconds: nowTimestampMilliseconds
+    }
+  };
+
+  return simulationResult.appliedElapsedMilliseconds > 0;
+}
+
+async function catchUpHomesteadAfterAway(): Promise<void> {
+  await refreshGameDisplay();
+
+  if (activeTab !== "homestead") {
+    return;
+  }
+
+  if (applyHomesteadCatchUpIfNeeded()) {
+    renderDuckDetails();
+    renderCanvas();
+    await saveHomesteadState();
+  }
+}
+
 async function handleStartButtonClick(): Promise<void> {
   const startTimerMessage: StartTimerMessage = {
     type: START_TIMER_MESSAGE_TYPE,
@@ -550,6 +607,9 @@ function setActiveTab(nextActiveTab: ActiveTab): void {
   if (nextActiveTab === "homestead") {
     resizeCanvasToFrame();
     startAnimationLoop();
+    catchUpHomesteadAfterAway().catch(() => {
+      showStatus("Homestead unavailable.", true);
+    });
   } else {
     saveHomesteadState().catch(() => {});
     stopAnimationLoop();
@@ -628,8 +688,7 @@ function startCameraFocusOnDuck(duck: Duck): void {
   cameraFocusAnimationState = {
     startedAtTimestampMilliseconds: performance.now(),
     fromCamera,
-    toCamera,
-    settleZoom: fromCamera.zoom
+    toCamera
   };
 }
 
@@ -648,8 +707,6 @@ function updateCameraFocusAnimation(timestampMilliseconds: number): void {
     (timestampMilliseconds - cameraFocusAnimationState.startedAtTimestampMilliseconds) / CAMERA_FOCUS_ANIMATION_MILLISECONDS
   );
   const easedProgress = easeCameraFocusProgress(progress);
-  const pulseProgress = Math.sin(progress * Math.PI);
-  const zoom = cameraFocusAnimationState.settleZoom + pulseProgress * CAMERA_FOCUS_ZOOM_PULSE;
   const animatedCamera = clampCamera(
     {
       x:
@@ -658,7 +715,9 @@ function updateCameraFocusAnimation(timestampMilliseconds: number): void {
       y:
         cameraFocusAnimationState.fromCamera.y +
         (cameraFocusAnimationState.toCamera.y - cameraFocusAnimationState.fromCamera.y) * easedProgress,
-      zoom
+      zoom:
+        cameraFocusAnimationState.fromCamera.zoom +
+        (cameraFocusAnimationState.toCamera.zoom - cameraFocusAnimationState.fromCamera.zoom) * easedProgress
     },
     homesteadCanvasElement.width,
     homesteadCanvasElement.height
@@ -695,14 +754,15 @@ function followSelectedDuckIfNeeded(): void {
   }
 
   if (cameraFocusAnimationState === null) {
-    startCameraFocusOnDuck(selectedDuck);
+    gameStateSnapshot = {
+      ...gameStateSnapshot,
+      gameState: {
+        ...gameStateSnapshot.gameState,
+        homesteadCamera: getCenteredCameraForPosition(selectedDuck.position, gameStateSnapshot.gameState.homesteadCamera)
+      }
+    };
     return;
   }
-
-  cameraFocusAnimationState = {
-    ...cameraFocusAnimationState,
-    toCamera: getCenteredCameraForPosition(selectedDuck.position, cameraFocusAnimationState.toCamera)
-  };
 }
 
 function mergeLiveDuckSimulationState(ducks: Duck[]): Duck[] {
@@ -710,6 +770,7 @@ function mergeLiveDuckSimulationState(ducks: Duck[]): Duck[] {
     return ducks;
   }
 
+  const nowTimestampMilliseconds = Date.now();
   const liveDuckById = new Map(localDucks.map((duck) => [duck.id, duck]));
 
   return ducks.map((duck) => {
@@ -722,7 +783,9 @@ function mergeLiveDuckSimulationState(ducks: Duck[]): Duck[] {
       duck.position !== null
     ) {
       const shouldKeepServerEatingAnimation =
-        duck.activity === "eat" && duck.lastUpdatedAtTimestampMilliseconds >= liveDuck.lastUpdatedAtTimestampMilliseconds;
+        duck.activity === "eat" &&
+        isDuckEatingAnimationActive(duck.lastUpdatedAtTimestampMilliseconds, nowTimestampMilliseconds) &&
+        duck.lastUpdatedAtTimestampMilliseconds >= liveDuck.lastUpdatedAtTimestampMilliseconds;
 
       return {
         ...duck,
@@ -1218,10 +1281,56 @@ async function saveCameraState(): Promise<void> {
   await sendGameRuntimeMessage(saveCameraMessage);
 }
 
+function getPersistableDuckActivity(duck: Duck, nowTimestampMilliseconds: number): DuckActivity {
+  if (duck.activity !== "eat") {
+    return duck.activity;
+  }
+
+  if (isDuckEatingAnimationActive(duck.lastUpdatedAtTimestampMilliseconds, nowTimestampMilliseconds)) {
+    return "eat";
+  }
+
+  if (duck.position === null) {
+    return "idle";
+  }
+
+  const tilePosition = getTilePositionFromWorldPosition(duck.position);
+  return getTileTerrainKindAt(tilePosition.column, tilePosition.row) === "water" ? "swim" : "idle";
+}
+
+function normalizeLocalDucksForSimulationSave(nowTimestampMilliseconds: number): void {
+  localDucks = localDucks.map((duck) => ({
+    ...duck,
+    activity: getPersistableDuckActivity(duck, nowTimestampMilliseconds)
+  }));
+
+  if (gameStateSnapshot !== null) {
+    gameStateSnapshot = {
+      ...gameStateSnapshot,
+      gameState: {
+        ...gameStateSnapshot.gameState,
+        ducks: localDucks
+      }
+    };
+  }
+}
+
 async function saveHomesteadState(): Promise<void> {
   if (gameStateSnapshot === null) {
     return;
   }
+
+  const nowTimestampMilliseconds = Date.now();
+  lastLocalHomesteadSaveTimestampMilliseconds = nowTimestampMilliseconds;
+  normalizeLocalDucksForSimulationSave(nowTimestampMilliseconds);
+
+  gameStateSnapshot = {
+    ...gameStateSnapshot,
+    gameState: {
+      ...gameStateSnapshot.gameState,
+      lastHomesteadSimulationTimestampMilliseconds: nowTimestampMilliseconds
+    }
+  };
 
   const updateDuckSimulationStateMessage: UpdateDuckSimulationStateMessage = {
     type: UPDATE_DUCK_SIMULATION_STATE_MESSAGE_TYPE,

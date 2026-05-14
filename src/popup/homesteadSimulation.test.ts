@@ -20,6 +20,7 @@ import {
   getDuckMovementActivity,
   normalizeDuckFavoriteActivity,
   scoreDuckDestinationTile,
+  simulateDuckMovementCatchUp,
   simulateDuckMovement
 } from "./homesteadSimulation.js";
 
@@ -254,6 +255,51 @@ describe("homesteadSimulation", () => {
     });
 
     expect(result.ducks[0]).toEqual(duck);
+  });
+
+  it("lets ducks resume roaming after the eating animation cycle completes", () => {
+    const duck = createDuck({
+      activity: "eat",
+      lastUpdatedAtTimestampMilliseconds: 1_000
+    });
+    const result = simulateDuckMovement({
+      ducks: [duck],
+      roamStateById: new Map([["duck-1", { path: [getCenteredTileWorldPosition(3, 1)], waypointIndex: 0, behavior: "wander", behaviorUntilTimestampMilliseconds: 0, idleUntilTimestampMilliseconds: 0 }]]),
+      draggedDuckId: null,
+      deltaMilliseconds: 100,
+      nowTimestampMilliseconds: 1_000 + DUCK_EATING_ANIMATION_DURATION_MILLISECONDS,
+      random: () => 0.5
+    });
+
+    expect(result.ducks[0].activity).not.toBe("eat");
+    expect(result.ducks[0].position?.x).toBeGreaterThan(duck.position?.x ?? 0);
+  });
+
+  it("advances away-from-homestead catch-up in fixed steps", () => {
+    const duck = createDuck();
+    const result = simulateDuckMovementCatchUp({
+      ducks: [duck],
+      roamStateById: new Map([["duck-1", { path: [getCenteredTileWorldPosition(4, 1)], waypointIndex: 0, behavior: "wander", behaviorUntilTimestampMilliseconds: 0, idleUntilTimestampMilliseconds: 0 }]]),
+      elapsedMilliseconds: 300,
+      nowTimestampMilliseconds: 2_000,
+      random: () => 0.5
+    });
+
+    expect(result.appliedElapsedMilliseconds).toBe(300);
+    expect(result.ducks[0].position?.x).toBeCloseTo((duck.position?.x ?? 0) + 11.4, 5);
+  });
+
+  it("caps away-from-homestead catch-up elapsed time", () => {
+    const duck = createDuck();
+    const result = simulateDuckMovementCatchUp({
+      ducks: [duck],
+      roamStateById: new Map([["duck-1", { path: [getCenteredTileWorldPosition(20, 1)], waypointIndex: 0, behavior: "wander", behaviorUntilTimestampMilliseconds: 0, idleUntilTimestampMilliseconds: 0 }]]),
+      elapsedMilliseconds: 180_000,
+      nowTimestampMilliseconds: 200_000,
+      random: () => 0.5
+    });
+
+    expect(result.appliedElapsedMilliseconds).toBe(120_000);
   });
 
   it("removes roam state for unplaced ducks", () => {
