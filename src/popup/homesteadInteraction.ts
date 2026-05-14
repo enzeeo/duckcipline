@@ -672,7 +672,8 @@ class HomesteadInteractionController implements HomesteadInteraction {
       input.isHomesteadActive,
       input.nowTimestampMilliseconds,
       input.random,
-      input.canvasSize
+      input.canvasSize,
+      input.timestampMilliseconds
     );
     const shouldSaveCamera = this.updateCameraFocusAnimation(input.timestampMilliseconds, input.canvasSize);
     const shouldSaveHomestead =
@@ -779,7 +780,8 @@ class HomesteadInteractionController implements HomesteadInteraction {
     isHomesteadActive: boolean,
     nowTimestampMilliseconds: number,
     random: () => number,
-    canvasSize: HomesteadCanvasSize
+    canvasSize: HomesteadCanvasSize,
+    animationTimestampMilliseconds: number
   ): void {
     if (!isHomesteadActive || this.gameResponse === null) {
       return;
@@ -796,7 +798,7 @@ class HomesteadInteractionController implements HomesteadInteraction {
 
     this.setLocalDucks(simulationResult.ducks, nowTimestampMilliseconds);
     this.duckRoamStateById = simulationResult.roamStateById;
-    this.followSelectedDuckIfNeeded(canvasSize, nowTimestampMilliseconds);
+    this.followSelectedDuckIfNeeded(canvasSize, animationTimestampMilliseconds);
   }
 
   private followSelectedDuckIfNeeded(canvasSize: HomesteadCanvasSize, timestampMilliseconds: number): void {

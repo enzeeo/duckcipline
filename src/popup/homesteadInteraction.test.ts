@@ -81,6 +81,59 @@ describe("homesteadInteraction", () => {
     expect(interaction.getIsFollowingSelectedDuck()).toBe(false);
   });
 
+  it("keeps following the selected duck after the initial camera centering finishes", () => {
+    const interaction = createHomesteadInteraction();
+    const initialDuck = createDuck({
+      position: getCenteredTileWorldPosition(22, 14),
+      homePosition: getCenteredTileWorldPosition(22, 14)
+    });
+    interaction.mergeGameResponse(createGameResponse({ ducks: [initialDuck] }), true);
+
+    interaction.handleCanvasPointerDown(
+      {
+        pointerId: 1,
+        clientX: initialDuck.position?.x ?? 0,
+        clientY: initialDuck.position?.y ?? 0
+      },
+      TEST_CANVAS_METRICS,
+      100
+    );
+    expect(interaction.toggleFollowSelectedDuck(TEST_CANVAS_METRICS, 120)).toBe(true);
+    interaction.advanceAnimationFrame({
+      timestampMilliseconds: 540,
+      isHomesteadActive: false,
+      canvasSize: TEST_CANVAS_METRICS,
+      nowTimestampMilliseconds: 1_000_000,
+      random: () => 0
+    });
+    const centeredCamera = interaction.getGameResponse()?.gameState.homesteadCamera;
+    if (centeredCamera === undefined) {
+      throw new Error("Expected camera after initial centering.");
+    }
+
+    const movedDuck = createDuck({
+      position: getCenteredTileWorldPosition(35, 22),
+      homePosition: getCenteredTileWorldPosition(35, 22)
+    });
+    interaction.mergeGameResponse(createGameResponse({ ducks: [movedDuck], homesteadCamera: centeredCamera }), false);
+    interaction.advanceAnimationFrame({
+      timestampMilliseconds: 560,
+      isHomesteadActive: true,
+      canvasSize: TEST_CANVAS_METRICS,
+      nowTimestampMilliseconds: 1_000_000,
+      random: () => 0
+    });
+    interaction.advanceAnimationFrame({
+      timestampMilliseconds: 660,
+      isHomesteadActive: true,
+      canvasSize: TEST_CANVAS_METRICS,
+      nowTimestampMilliseconds: 1_000_100,
+      random: () => 0
+    });
+
+    expect(interaction.getGameResponse()?.gameState.homesteadCamera.x).toBeGreaterThan(centeredCamera.x);
+  });
+
   it("clamps zoom and updates camera during drag", () => {
     const interaction = createHomesteadInteraction();
     interaction.mergeGameResponse(createGameResponse(), true);
