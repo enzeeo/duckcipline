@@ -32,7 +32,7 @@ const bundledAssetUrlByPath = import.meta.glob(["../assets/pixel/**/*.png", "!..
   query: "?url"
 }) as Record<string, string>;
 
-function createAssetUrl(relativePath: string): string {
+export function createAssetUrl(relativePath: string): string {
   const sourceAssetPath = relativePath.replace("src/assets/pixel", "../assets/pixel");
   const bundledAssetUrl = bundledAssetUrlByPath[sourceAssetPath];
 

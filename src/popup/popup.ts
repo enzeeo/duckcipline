@@ -54,13 +54,14 @@ import type {
   TimerMessageResponse,
   TimerStatusResponse
 } from "../shared/types.js";
-import { loadPixelSprites, type SpriteMap } from "./assetLoader.js";
+import { createAssetUrl, loadPixelSprites, type SpriteMap } from "./assetLoader.js";
 import { renderHomesteadCanvas } from "./canvasRenderer.js";
 import {
   pruneDuckRoamStates,
   simulateDuckMovement as simulateHomesteadDuckMovement,
   type DuckRoamState
 } from "./homesteadSimulation.js";
+import { getFocusRewardArt } from "./rewardArt.js";
 
 const UPDATE_INTERVAL_MILLISECONDS = 1000;
 const SIMULATION_SAVE_INTERVAL_MILLISECONDS = 5000;
@@ -101,6 +102,7 @@ function getRequiredElement<T extends HTMLElement>(elementId: string, constructo
 }
 
 const statusMessageElement = getRequiredElement("statusMessage", HTMLParagraphElement);
+const headerLogoImageElement = getRequiredElement("headerLogoImage", HTMLImageElement);
 const seedCountTextElement = getRequiredElement("seedCountText", HTMLParagraphElement);
 const focusTabButtonElement = getRequiredElement("focusTabButton", HTMLButtonElement);
 const homesteadTabButtonElement = getRequiredElement("homesteadTabButton", HTMLButtonElement);
@@ -109,6 +111,10 @@ const homesteadTabElement = getRequiredElement("homesteadTab", HTMLElement);
 const timerDisplayElement = getRequiredElement("timerDisplay", HTMLParagraphElement);
 const timerStateTextElement = getRequiredElement("timerStateText", HTMLParagraphElement);
 const timerProgressBarElement = getRequiredElement("timerProgressBar", HTMLDivElement);
+const activeRewardStageElement = getRequiredElement("activeRewardStage", HTMLElement);
+const activeRewardImageElement = getRequiredElement("activeRewardImage", HTMLImageElement);
+const activeRewardNameTextElement = getRequiredElement("activeRewardNameText", HTMLParagraphElement);
+const activeRewardPromptTextElement = getRequiredElement("activeRewardPromptText", HTMLParagraphElement);
 const projectProgressBarElement = getRequiredElement("projectProgressBar", HTMLDivElement);
 const startButtonElement = getRequiredElement("startButton", HTMLButtonElement);
 const pauseButtonElement = getRequiredElement("pauseButton", HTMLButtonElement);
@@ -158,6 +164,8 @@ let previousAnimationTimestampMilliseconds = 0;
 let lastSimulationSaveTimestampMilliseconds = 0;
 let localDucks: Duck[] = [];
 let duckRoamStateById = new Map<string, DuckRoamState>();
+
+headerLogoImageElement.src = createAssetUrl("src/assets/pixel/ui/duck-footprint.png");
 
 function createErrorResponse(message: string): { error: string } {
   return { error: message };
@@ -280,6 +288,28 @@ function isActiveProjectReady(): boolean {
   }
 
   return gameStateSnapshot.gameState.projectProgressById[gameStateSnapshot.gameState.activeProjectId]?.isReadyToClaim === true;
+}
+
+function updateActiveRewardStage(projectDefinition: ProjectDefinitionResponse | null): void {
+  const rewardArt = getFocusRewardArt(projectDefinition);
+  const isEmpty = rewardArt === null || projectDefinition === null;
+
+  activeRewardStageElement.classList.toggle("is-empty", isEmpty);
+
+  if (isEmpty) {
+    activeRewardImageElement.hidden = true;
+    activeRewardImageElement.removeAttribute("src");
+    activeRewardImageElement.alt = "";
+    activeRewardNameTextElement.textContent = "Pick a project";
+    activeRewardPromptTextElement.textContent = "Your reward will wait in the nest.";
+    return;
+  }
+
+  activeRewardImageElement.hidden = false;
+  activeRewardImageElement.src = createAssetUrl(rewardArt.relativePath);
+  activeRewardImageElement.alt = rewardArt.altText;
+  activeRewardNameTextElement.textContent = projectDefinition.displayName;
+  activeRewardPromptTextElement.textContent = projectDefinition.rewardDescription;
 }
 
 function updateTimerDisplay(timerState: TimerMessageResponse): void {
@@ -414,6 +444,7 @@ function updateGameDisplay(gameResponse: GameMessageResponse): void {
     claimProjectButtonElement.textContent = activeProjectDefinition.type === "egg" ? "Claim duck" : "Claim seeds";
   }
 
+  updateActiveRewardStage(activeProjectDefinition);
   renderProjectPicker();
   renderUnplacedDuckTray();
   renderDuckDetails();

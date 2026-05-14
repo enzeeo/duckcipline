@@ -33,7 +33,7 @@ export const PIXEL_ASSET_PATHS = {
     "flower.png"
   ],
   objects: ["tree.png", "rock.png", "reeds.png", "lily-pad.png", "nest.png"],
-  ui: ["panel-frame.png", "egg-meadow.png", "egg-pond.png", "egg-fancy.png", "seed.png"]
+  ui: ["panel-frame.png", "egg-meadow.png", "egg-pond.png", "egg-fancy.png", "seed.png", "seed-bag.png", "duck-footprint.png"]
 } as const;
 
 export const PIXEL_ASSET_BASE_PATH = "../assets/pixel";

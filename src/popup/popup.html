@@ -9,9 +9,12 @@
   <body>
     <main class="app-shell">
       <header class="app-header">
-        <div>
-          <h1 class="title">Duckcipline</h1>
-          <p id="statusMessage" class="status-message">Pick a project to begin.</p>
+        <div class="brand-lockup">
+          <img id="headerLogoImage" class="header-logo" alt="" />
+          <div>
+            <h1 class="title">Duckcipline</h1>
+            <p id="statusMessage" class="status-message">Pick a project to begin.</p>
+          </div>
         </div>
         <p id="seedCountText" class="seed-count">0 seeds</p>
       </header>
@@ -26,17 +29,28 @@
       </nav>
 
       <section id="focusTab" class="tab-panel focus-panel">
-        <section class="timer-panel">
-          <p id="timerDisplay" class="timer-display">00:25:00</p>
-          <p id="timerStateText" class="timer-state">Ready</p>
-          <div class="focus-progress-shell" aria-label="Timer progress">
-            <div id="timerProgressBar" class="focus-progress-bar"></div>
+        <section class="focus-hero-panel">
+          <div class="timer-panel">
+            <p id="timerDisplay" class="timer-display">00:25:00</p>
+            <p id="timerStateText" class="timer-state">Ready</p>
+            <div class="focus-progress-shell" aria-label="Timer progress">
+              <div id="timerProgressBar" class="focus-progress-bar"></div>
+            </div>
+            <div class="button-row">
+              <button id="startButton" class="primary-action" type="button">Start</button>
+              <button id="pauseButton" type="button">Pause</button>
+              <button id="resetButton" type="button">Reset</button>
+            </div>
           </div>
-          <div class="button-row">
-            <button id="startButton" class="primary-action" type="button">Start</button>
-            <button id="pauseButton" type="button">Pause</button>
-            <button id="resetButton" type="button">Reset</button>
-          </div>
+
+          <aside id="activeRewardStage" class="active-reward-stage is-empty" aria-live="polite">
+            <p class="section-label">Nest</p>
+            <div class="reward-nest-scene">
+              <img id="activeRewardImage" class="active-reward-image" alt="" hidden />
+            </div>
+            <p id="activeRewardNameText" class="active-reward-name">Pick a project</p>
+            <p id="activeRewardPromptText" class="active-reward-prompt">Your reward will wait in the nest.</p>
+          </aside>
         </section>
 
         <section class="duration-panel" aria-labelledby="durationLabel">
