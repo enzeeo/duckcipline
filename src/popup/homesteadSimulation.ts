@@ -5,6 +5,7 @@ import {
   getCenteredTileWorldPosition,
   getTilePositionFromWorldPosition,
   getTileTerrainKindAt,
+  getTileTypeAt,
   isDuckAiPositionValid
 } from "../shared/homesteadMap.js";
 import type { Duck, DuckActivity, DuckPosition } from "../shared/types.js";
@@ -19,13 +20,21 @@ const MINIMUM_IDLE_MILLISECONDS = 2_000;
 const MAXIMUM_IDLE_MILLISECONDS = 6_000;
 const MINIMUM_SWIM_SESSION_MILLISECONDS = 8_000;
 const MAXIMUM_SWIM_SESSION_MILLISECONDS = 15_000;
+const DEFAULT_FAVORITE_ACTIVITY = "path patrol";
 
 export interface HomesteadTileCoordinate {
   column: number;
   row: number;
 }
 
-type DuckRoamBehavior = "idle" | "wander" | "swim";
+type DuckRoamBehavior = "idle" | "wander" | "swim" | "rest";
+type DuckFavoriteActivity =
+  | "pond watching"
+  | "seed sorting"
+  | "path patrol"
+  | "flower naps"
+  | "muddy walks"
+  | "sun patches";
 
 export interface DuckRoamState {
   path: DuckPosition[];
@@ -54,6 +63,59 @@ interface WeightedBehavior {
   weight: number;
 }
 
+interface DuckBehaviorProfile {
+  favoriteActivity: DuckFavoriteActivity;
+  behaviorWeights: Record<DuckRoamBehavior, number>;
+  preferredTileTypes: ReadonlyArray<ReturnType<typeof getTileTypeAt>>;
+  swimDestinationScore: number;
+  nearWaterDestinationScore: number;
+}
+
+const DUCK_BEHAVIOR_PROFILES: Record<DuckFavoriteActivity, DuckBehaviorProfile> = {
+  "pond watching": {
+    favoriteActivity: "pond watching",
+    behaviorWeights: { idle: 12, wander: 18, swim: 46, rest: 24 },
+    preferredTileTypes: ["water", "waterRipple"],
+    swimDestinationScore: 24,
+    nearWaterDestinationScore: 16
+  },
+  "seed sorting": {
+    favoriteActivity: "seed sorting",
+    behaviorWeights: { idle: 34, wander: 26, swim: 14, rest: 26 },
+    preferredTileTypes: ["grass", "grassVariant"],
+    swimDestinationScore: 4,
+    nearWaterDestinationScore: 2
+  },
+  "path patrol": {
+    favoriteActivity: "path patrol",
+    behaviorWeights: { idle: 16, wander: 56, swim: 14, rest: 14 },
+    preferredTileTypes: ["path", "dirtPath"],
+    swimDestinationScore: 0,
+    nearWaterDestinationScore: 0
+  },
+  "flower naps": {
+    favoriteActivity: "flower naps",
+    behaviorWeights: { idle: 18, wander: 22, swim: 12, rest: 48 },
+    preferredTileTypes: ["flower"],
+    swimDestinationScore: 0,
+    nearWaterDestinationScore: 3
+  },
+  "muddy walks": {
+    favoriteActivity: "muddy walks",
+    behaviorWeights: { idle: 8, wander: 66, swim: 18, rest: 8 },
+    preferredTileTypes: ["dirtPath", "grassVariant"],
+    swimDestinationScore: 2,
+    nearWaterDestinationScore: 5
+  },
+  "sun patches": {
+    favoriteActivity: "sun patches",
+    behaviorWeights: { idle: 38, wander: 18, swim: 10, rest: 34 },
+    preferredTileTypes: ["grass", "grassVariant", "flower"],
+    swimDestinationScore: 0,
+    nearWaterDestinationScore: 0
+  }
+};
+
 function isPondDuck(duck: Duck): boolean {
   return getDuckVariantFamily(duck.variantId) === "pond";
 }
@@ -65,6 +127,16 @@ function isWaterWorldPosition(position: DuckPosition): boolean {
 
 function isDuckTileValid(tileCoordinate: HomesteadTileCoordinate): boolean {
   return isDuckAiPositionValid(getCenteredTileWorldPosition(tileCoordinate.column, tileCoordinate.row), true);
+}
+
+export function normalizeDuckFavoriteActivity(favoriteActivity: string): DuckFavoriteActivity {
+  return favoriteActivity in DUCK_BEHAVIOR_PROFILES
+    ? (favoriteActivity as DuckFavoriteActivity)
+    : DEFAULT_FAVORITE_ACTIVITY;
+}
+
+export function getDuckBehaviorProfile(duck: Duck): DuckBehaviorProfile {
+  return DUCK_BEHAVIOR_PROFILES[normalizeDuckFavoriteActivity(duck.favoriteActivity)];
 }
 
 export function getDuckMovementActivity(_duck: Duck, position: DuckPosition): DuckActivity {
@@ -227,18 +299,40 @@ function hasReachableWaterTile(duck: Duck, startTile: HomesteadTileCoordinate, r
   return false;
 }
 
-function chooseBehavior(duck: Duck, startTile: HomesteadTileCoordinate, random: () => number): DuckRoamBehavior {
+function getCurrentTileBehaviorWeights(duck: Duck, startTile: HomesteadTileCoordinate): Record<DuckRoamBehavior, number> {
+  const profile = getDuckBehaviorProfile(duck);
+  const behaviorWeights = { ...profile.behaviorWeights };
+  const currentTerrainKind = getTileTerrainKindAt(startTile.column, startTile.row);
+
+  if (isPondDuck(duck)) {
+    behaviorWeights.swim += 12;
+    behaviorWeights.wander -= 4;
+  }
+
+  if (currentTerrainKind === "water") {
+    behaviorWeights.swim += 12;
+    behaviorWeights.rest += 6;
+  }
+
+  if (duck.activity === "eat" && profile.favoriteActivity === "seed sorting") {
+    behaviorWeights.idle += 18;
+    behaviorWeights.rest += 10;
+    behaviorWeights.wander -= 8;
+  }
+
+  return behaviorWeights;
+}
+
+export function chooseDuckRoamBehavior(duck: Duck, startTile: HomesteadTileCoordinate, random: () => number): DuckRoamBehavior {
   const canSwim = hasReachableWaterTile(duck, startTile, random);
-  const weightedBehaviors: WeightedBehavior[] = canSwim
-    ? [
-        { behavior: "wander", weight: isPondDuck(duck) ? 35 : 45 },
-        { behavior: "idle", weight: isPondDuck(duck) ? 25 : 30 },
-        { behavior: "swim", weight: isPondDuck(duck) ? 40 : 25 }
-      ]
-    : [
-        { behavior: "wander", weight: 65 },
-        { behavior: "idle", weight: 35 }
-      ];
+  const behaviorWeights = getCurrentTileBehaviorWeights(duck, startTile);
+  const weightedBehaviorCandidates: WeightedBehavior[] = [
+    { behavior: "wander", weight: behaviorWeights.wander },
+    { behavior: "idle", weight: behaviorWeights.idle },
+    { behavior: "rest", weight: behaviorWeights.rest },
+    { behavior: "swim", weight: canSwim ? behaviorWeights.swim : 0 }
+  ];
+  const weightedBehaviors = weightedBehaviorCandidates.filter((entry) => entry.weight > 0);
   const totalWeight = weightedBehaviors.reduce((sum, entry) => sum + entry.weight, 0);
   let selectedWeight = random() * totalWeight;
 
@@ -251,6 +345,60 @@ function chooseBehavior(duck: Duck, startTile: HomesteadTileCoordinate, random: 
   }
 
   return weightedBehaviors[0].behavior;
+}
+
+function isNearWaterTile(tileCoordinate: HomesteadTileCoordinate): boolean {
+  const neighborTiles = [
+    tileCoordinate,
+    { column: tileCoordinate.column + 1, row: tileCoordinate.row },
+    { column: tileCoordinate.column - 1, row: tileCoordinate.row },
+    { column: tileCoordinate.column, row: tileCoordinate.row + 1 },
+    { column: tileCoordinate.column, row: tileCoordinate.row - 1 }
+  ];
+
+  return neighborTiles.some((neighborTile) => {
+    return (
+      neighborTile.column >= 0 &&
+      neighborTile.row >= 0 &&
+      neighborTile.column < HOMESTEAD_COLUMNS &&
+      neighborTile.row < HOMESTEAD_ROWS &&
+      getTileTerrainKindAt(neighborTile.column, neighborTile.row) === "water"
+    );
+  });
+}
+
+export function scoreDuckDestinationTile(
+  duck: Duck,
+  destinationTile: HomesteadTileCoordinate,
+  startTile: HomesteadTileCoordinate,
+  behavior: DuckRoamBehavior
+): number {
+  const profile = getDuckBehaviorProfile(duck);
+  const tileType = getTileTypeAt(destinationTile.column, destinationTile.row);
+  const distanceScore = Math.min(8, getManhattanTileDistance(destinationTile, startTile));
+  let score = distanceScore;
+
+  if (profile.preferredTileTypes.includes(tileType)) {
+    score += 20;
+  }
+
+  if (behavior === "swim" && getTileTerrainKindAt(destinationTile.column, destinationTile.row) === "water") {
+    score += profile.swimDestinationScore;
+  }
+
+  if (isNearWaterTile(destinationTile)) {
+    score += profile.nearWaterDestinationScore;
+  }
+
+  if (behavior === "rest" && tileType === "flower") {
+    score += 10;
+  }
+
+  if (behavior === "wander" && (tileType === "path" || tileType === "dirtPath")) {
+    score += 6;
+  }
+
+  return score;
 }
 
 function getRandomValidDestinationTile(
@@ -266,6 +414,8 @@ function getRandomValidDestinationTile(
   }
 
   let fallbackTile: HomesteadTileCoordinate | null = null;
+  let bestTile: HomesteadTileCoordinate | null = null;
+  let bestScore = Number.NEGATIVE_INFINITY;
 
   for (let attemptIndex = 0; attemptIndex < DUCK_RANDOM_DESTINATION_ATTEMPTS; attemptIndex += 1) {
     const destinationTile = {
@@ -294,11 +444,16 @@ function getRandomValidDestinationTile(
     fallbackTile = destinationTile;
 
     if (getManhattanTileDistance(destinationTile, startTile) >= DUCK_MINIMUM_DESTINATION_TILE_DISTANCE) {
-      return destinationTile;
+      const score = scoreDuckDestinationTile(duck, destinationTile, startTile, behavior) + random();
+
+      if (score > bestScore) {
+        bestTile = destinationTile;
+        bestScore = score;
+      }
     }
   }
 
-  return fallbackTile;
+  return bestTile ?? fallbackTile;
 }
 
 export function createRoamPathForDuck(
@@ -357,6 +512,19 @@ function createIdleState(nowTimestampMilliseconds: number, random: () => number)
   };
 }
 
+function createRestState(nowTimestampMilliseconds: number, random: () => number): DuckRoamState {
+  const restUntilTimestampMilliseconds =
+    nowTimestampMilliseconds + getDurationMilliseconds(MINIMUM_IDLE_MILLISECONDS, MAXIMUM_IDLE_MILLISECONDS, random);
+
+  return {
+    path: [],
+    waypointIndex: 0,
+    behavior: "rest",
+    behaviorUntilTimestampMilliseconds: restUntilTimestampMilliseconds,
+    idleUntilTimestampMilliseconds: restUntilTimestampMilliseconds
+  };
+}
+
 function createMovementState(
   duck: Duck,
   behavior: "wander" | "swim",
@@ -384,10 +552,14 @@ function chooseNextRoamState(duck: Duck, nowTimestampMilliseconds: number, rando
     return createIdleState(nowTimestampMilliseconds, random);
   }
 
-  const behavior = chooseBehavior(duck, getTilePositionFromWorldPosition(duck.position), random);
+  const behavior = chooseDuckRoamBehavior(duck, getTilePositionFromWorldPosition(duck.position), random);
 
   if (behavior === "idle") {
     return createIdleState(nowTimestampMilliseconds, random);
+  }
+
+  if (behavior === "rest") {
+    return createRestState(nowTimestampMilliseconds, random);
   }
 
   const movementState = createMovementState(duck, behavior, nowTimestampMilliseconds, random);
@@ -415,8 +587,12 @@ export function simulateDuckMovement(input: SimulateDuckMovementInput): Simulate
       nextRoamStateById.set(duck.id, roamState);
     }
 
-    if (roamState.behavior === "idle" && roamState.idleUntilTimestampMilliseconds > input.nowTimestampMilliseconds) {
-      return { ...duck, activity: "idle" as const };
+    if (
+      (roamState.behavior === "idle" || roamState.behavior === "rest") &&
+      roamState.idleUntilTimestampMilliseconds > input.nowTimestampMilliseconds
+    ) {
+      const activity: DuckActivity = roamState.behavior === "rest" ? "rest" : "idle";
+      return { ...duck, activity };
     }
 
     if (roamState.waypointIndex >= roamState.path.length) {
@@ -436,7 +612,11 @@ export function simulateDuckMovement(input: SimulateDuckMovementInput): Simulate
 
       if (roamState.path.length === 0) {
         const activity: DuckActivity =
-          roamState.behavior === "swim" && isWaterWorldPosition(duck.position) ? "swim" : "idle";
+          roamState.behavior === "swim" && isWaterWorldPosition(duck.position)
+            ? "swim"
+            : roamState.behavior === "rest"
+              ? "rest"
+              : "idle";
 
         return {
           ...duck,

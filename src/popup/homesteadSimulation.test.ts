@@ -1,16 +1,23 @@
 import { describe, expect, it } from "vitest";
 import {
+  HOMESTEAD_COLUMNS,
+  HOMESTEAD_ROWS,
   getCenteredTileWorldPosition,
   getTileTerrainKindAt,
+  getTileTypeAt,
   getTilePositionFromWorldPosition,
   isDuckAiPositionValid
 } from "../shared/homesteadMap.js";
 import type { Duck } from "../shared/types.js";
 import {
+  chooseDuckRoamBehavior,
   createRoamPathForDuck,
   DUCK_HOME_RADIUS_TILES,
   findPathBetweenTiles,
+  getDuckBehaviorProfile,
   getDuckMovementActivity,
+  normalizeDuckFavoriteActivity,
+  scoreDuckDestinationTile,
   simulateDuckMovement
 } from "./homesteadSimulation.js";
 
@@ -32,6 +39,18 @@ function createDuck(overrides: Partial<Duck> = {}): Duck {
     lastUpdatedAtTimestampMilliseconds: 1_000,
     ...overrides
   };
+}
+
+function findTileByType(tileType: ReturnType<typeof getTileTypeAt>): { column: number; row: number } {
+  for (let column = 0; column < HOMESTEAD_COLUMNS; column += 1) {
+    for (let row = 0; row < HOMESTEAD_ROWS; row += 1) {
+      if (getTileTypeAt(column, row) === tileType && isDuckAiPositionValid(getCenteredTileWorldPosition(column, row), true)) {
+        return { column, row };
+      }
+    }
+  }
+
+  throw new Error(`Missing ${tileType} tile.`);
 }
 
 describe("homesteadSimulation", () => {
@@ -58,6 +77,55 @@ describe("homesteadSimulation", () => {
 
     expect(getDuckMovementActivity(pondDuck, waterPosition)).toBe("swim");
     expect(getDuckMovementActivity(createDuck(), waterPosition)).toBe("swim");
+  });
+
+  it("normalizes legacy favorite activities to the default behavior profile", () => {
+    const duck = createDuck({ favoriteActivity: "legacy breadcrumb catalog" });
+
+    expect(normalizeDuckFavoriteActivity(duck.favoriteActivity)).toBe("path patrol");
+    expect(getDuckBehaviorProfile(duck).favoriteActivity).toBe("path patrol");
+  });
+
+  it("lets pond-watching ducks choose swim when water is reachable", () => {
+    const duck = createDuck({
+      variantId: "pond-a",
+      sourceEggProjectId: "pondEgg",
+      favoriteActivity: "pond watching",
+      position: getCenteredTileWorldPosition(20, 17),
+      homePosition: getCenteredTileWorldPosition(20, 17)
+    });
+
+    expect(chooseDuckRoamBehavior(duck, { column: 20, row: 17 }, () => 0.99)).toBe("swim");
+  });
+
+  it("removes swim from weighted choices when water is unreachable", () => {
+    const duck = createDuck({
+      favoriteActivity: "pond watching",
+      position: getCenteredTileWorldPosition(1, 1),
+      homePosition: getCenteredTileWorldPosition(1, 1)
+    });
+
+    expect(chooseDuckRoamBehavior(duck, { column: 1, row: 1 }, () => 0.99)).not.toBe("swim");
+  });
+
+  it("scores path patrol destinations above plain grass pathing", () => {
+    const duck = createDuck({ favoriteActivity: "path patrol" });
+    const pathTile = findTileByType("path");
+    const grassTile = findTileByType("grass");
+
+    expect(scoreDuckDestinationTile(duck, pathTile, grassTile, "wander")).toBeGreaterThan(
+      scoreDuckDestinationTile(duck, grassTile, pathTile, "wander")
+    );
+  });
+
+  it("scores flower nap destinations above plain grass resting", () => {
+    const duck = createDuck({ favoriteActivity: "flower naps" });
+    const flowerTile = findTileByType("flower");
+    const grassTile = findTileByType("grass");
+
+    expect(scoreDuckDestinationTile(duck, flowerTile, grassTile, "rest")).toBeGreaterThan(
+      scoreDuckDestinationTile(duck, grassTile, flowerTile, "rest")
+    );
   });
 
   it("creates deterministic roam paths with injected random", () => {
@@ -139,6 +207,20 @@ describe("homesteadSimulation", () => {
     });
 
     expect(result.ducks[0].activity).toBe("idle");
+  });
+
+  it("allows rest sessions to use the sleep-rendered activity", () => {
+    const duck = createDuck({ favoriteActivity: "flower naps" });
+    const result = simulateDuckMovement({
+      ducks: [duck],
+      roamStateById: new Map([["duck-1", { path: [], waypointIndex: 0, behavior: "rest", behaviorUntilTimestampMilliseconds: 5_000, idleUntilTimestampMilliseconds: 5_000 }]]),
+      draggedDuckId: null,
+      deltaMilliseconds: 100,
+      nowTimestampMilliseconds: 2_000,
+      random: () => 0.5
+    });
+
+    expect(result.ducks[0].activity).toBe("rest");
   });
 
   it("removes roam state for unplaced ducks", () => {
