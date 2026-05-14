@@ -7,7 +7,7 @@ import {
   getTileTerrainKindAt,
   getTileTypeAt
 } from "../shared/homesteadMap.js";
-import { DUCK_ANIMATION_FRAME_MILLISECONDS } from "../shared/duckAnimation.js";
+import { DUCK_ANIMATION_FRAME_MILLISECONDS, isDuckEatingAnimationActive } from "../shared/duckAnimation.js";
 import type { Duck, HomesteadCameraState } from "../shared/types.js";
 import type { SpriteKey, SpriteMap } from "./assetLoader.js";
 
@@ -194,21 +194,38 @@ function getPixelAlignedScreenCoordinate(worldCoordinate: number, cameraCoordina
   return Math.floor((worldCoordinate - cameraCoordinate) * zoom);
 }
 
-function getRenderedDuckActivity(duck: Duck): Duck["activity"] | "sleep" {
+function getIdleRenderedDuckActivity(duck: Duck): Duck["activity"] {
+  if (duck.position !== null) {
+    const tilePosition = getTilePositionFromWorldPosition(duck.position);
+    return getTileTerrainKindAt(tilePosition.column, tilePosition.row) === "water" ? "swim" : "idle";
+  }
+
+  return "idle";
+}
+
+function getRenderedDuckActivity(duck: Duck, currentTimestampMilliseconds: number): Duck["activity"] | "sleep" {
   if (duck.activity === "rest") {
     return "sleep";
   }
 
-  if (duck.activity === "idle" && duck.position !== null) {
-    const tilePosition = getTilePositionFromWorldPosition(duck.position);
-    return getTileTerrainKindAt(tilePosition.column, tilePosition.row) === "water" ? "swim" : "idle";
+  if (duck.activity === "eat") {
+    return isDuckEatingAnimationActive(duck.lastUpdatedAtTimestampMilliseconds, currentTimestampMilliseconds)
+      ? "eat"
+      : getIdleRenderedDuckActivity(duck);
+  }
+
+  if (duck.activity === "idle") {
+    return getIdleRenderedDuckActivity(duck);
   }
 
   return duck.activity;
 }
 
 function getDuckAnimationFrameIndex(duck: Duck, sharedAnimationFrameIndex: number, currentTimestampMilliseconds: number): number {
-  if (duck.activity !== "eat") {
+  if (
+    duck.activity !== "eat" ||
+    !isDuckEatingAnimationActive(duck.lastUpdatedAtTimestampMilliseconds, currentTimestampMilliseconds)
+  ) {
     return sharedAnimationFrameIndex;
   }
 
@@ -277,7 +294,7 @@ export function renderHomesteadCanvas(options: RenderOptions): void {
 
     const duckX = (duck.position.x - HOMESTEAD_TILE_SIZE / 2 - options.camera.x) * zoom;
     const duckY = (duck.position.y - HOMESTEAD_TILE_SIZE / 2 - options.camera.y) * zoom;
-    const renderedActivity = getRenderedDuckActivity(duck);
+    const renderedActivity = getRenderedDuckActivity(duck, options.currentTimestampMilliseconds);
     const animationFrameIndex = getDuckAnimationFrameIndex(
       duck,
       options.animationFrameIndex,

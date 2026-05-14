@@ -55,6 +55,7 @@ describe("gameLogic", () => {
     }, 1_000);
 
     expect(gameState.homesteadCamera).toEqual({ x: 12, y: 24, zoom: 1 });
+    expect(gameState.lastHomesteadSimulationTimestampMilliseconds).toBe(1_000);
     expect(gameState.ducks[0]).toMatchObject({
       homePosition: { x: 64, y: 96 },
       facingDirection: "right"
@@ -81,15 +82,19 @@ describe("gameLogic", () => {
       ducks: [createTestDuck()]
     };
 
-    const updatedGameState = updateDuckSimulationState(gameState, [
-      {
-        duckId: "duck-1",
-        position: { x: 96, y: 128 },
-        activity: "wander",
-        facingDirection: "left",
-        lastUpdatedAtTimestampMilliseconds: 2_000
-      }
-    ]);
+    const updatedGameState = updateDuckSimulationState(
+      gameState,
+      [
+        {
+          duckId: "duck-1",
+          position: { x: 96, y: 128 },
+          activity: "wander",
+          facingDirection: "left",
+          lastUpdatedAtTimestampMilliseconds: 2_000
+        }
+      ],
+      3_000
+    );
 
     expect(updatedGameState.ducks[0]).toMatchObject({
       id: "duck-1",
@@ -99,6 +104,7 @@ describe("gameLogic", () => {
       facingDirection: "left",
       lastUpdatedAtTimestampMilliseconds: 2_000
     });
+    expect(updatedGameState.lastHomesteadSimulationTimestampMilliseconds).toBe(3_000);
   });
 
   it("ignores simulation updates for unplaced ducks", () => {
@@ -107,15 +113,19 @@ describe("gameLogic", () => {
       ducks: [createTestDuck({ placementStatus: "unplaced", position: null })]
     };
 
-    const updatedGameState = updateDuckSimulationState(gameState, [
-      {
-        duckId: "duck-1",
-        position: { x: 96, y: 128 },
-        activity: "wander",
-        facingDirection: "right",
-        lastUpdatedAtTimestampMilliseconds: 2_000
-      }
-    ]);
+    const updatedGameState = updateDuckSimulationState(
+      gameState,
+      [
+        {
+          duckId: "duck-1",
+          position: { x: 96, y: 128 },
+          activity: "wander",
+          facingDirection: "right",
+          lastUpdatedAtTimestampMilliseconds: 2_000
+        }
+      ],
+      3_000
+    );
 
     expect(updatedGameState.ducks[0].position).toBeNull();
   });

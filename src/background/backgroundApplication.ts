@@ -402,7 +402,7 @@ export function createBackgroundApplication(options: BackgroundApplicationOption
   ): Promise<GameMessageResponse> {
     const nowTimestampMilliseconds = options.clock.now();
     const canonicalStateResult = await getCanonicalTimerAndGameState(nowTimestampMilliseconds);
-    const updatedGameState = updateDuckSimulationState(canonicalStateResult.gameState, updates);
+    const updatedGameState = updateDuckSimulationState(canonicalStateResult.gameState, updates, nowTimestampMilliseconds);
     return updateGameWithResult(updatedGameState, null);
   }
 

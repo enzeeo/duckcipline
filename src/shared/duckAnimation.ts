@@ -2,3 +2,10 @@ export const DUCK_ANIMATION_FRAME_MILLISECONDS = 180;
 export const DUCK_ANIMATION_FRAME_COUNT = 4;
 export const DUCK_EATING_ANIMATION_DURATION_MILLISECONDS =
   DUCK_ANIMATION_FRAME_MILLISECONDS * DUCK_ANIMATION_FRAME_COUNT;
+
+export function isDuckEatingAnimationActive(
+  startedAtTimestampMilliseconds: number,
+  nowTimestampMilliseconds: number
+): boolean {
+  return nowTimestampMilliseconds - startedAtTimestampMilliseconds < DUCK_EATING_ANIMATION_DURATION_MILLISECONDS;
+}
