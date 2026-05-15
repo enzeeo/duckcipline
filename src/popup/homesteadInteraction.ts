@@ -26,6 +26,7 @@ import {
 
 const CAMERA_FOCUS_ANIMATION_MILLISECONDS = 420;
 const CAMERA_FOCUS_POSITION_EPSILON = 0.5;
+const DUCK_CLICK_FOCUS_ZOOM = 1.25;
 const CANVAS_POINTER_DRAG_THRESHOLD_PIXELS = 5;
 const UNPLACED_DUCK_DRAG_THRESHOLD_PIXELS = 6;
 const SIMULATION_SAVE_INTERVAL_MILLISECONDS = 5000;
@@ -834,7 +835,7 @@ class HomesteadInteractionController implements HomesteadInteraction {
     }
 
     const fromCamera = this.gameResponse.gameState.homesteadCamera;
-    const toCamera = this.getCenteredCameraForPosition(duck.position, fromCamera, canvasSize);
+    const toCamera = this.getCenteredCameraForPosition(duck.position, { ...fromCamera, zoom: DUCK_CLICK_FOCUS_ZOOM }, canvasSize);
 
     if (this.isCameraSettledAtTarget(fromCamera, toCamera)) {
       this.cameraFocusAnimationState = null;

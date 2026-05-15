@@ -151,6 +151,31 @@ describe("homesteadInteraction", () => {
     expect(interaction.getGameResponse()?.gameState.homesteadCamera.x).toBeGreaterThan(0);
   });
 
+  it("focuses a clicked duck at fixed zoom", () => {
+    const interaction = createHomesteadInteraction();
+    const duck = createDuck();
+    interaction.mergeGameResponse(createGameResponse({ ducks: [duck], homesteadCamera: { x: 0, y: 0, zoom: 2 } }), true);
+
+    interaction.handleCanvasPointerDown(
+      {
+        pointerId: 1,
+        clientX: (duck.position?.x ?? 0) * 2,
+        clientY: (duck.position?.y ?? 0) * 2
+      },
+      TEST_CANVAS_METRICS,
+      100
+    );
+    interaction.advanceAnimationFrame({
+      timestampMilliseconds: 600,
+      isHomesteadActive: false,
+      canvasSize: TEST_CANVAS_METRICS,
+      nowTimestampMilliseconds: 1_000_000,
+      random: () => 0
+    });
+
+    expect(interaction.getGameResponse()?.gameState.homesteadCamera.zoom).toBe(1.25);
+  });
+
   it("tracks drag and pinch pointer transitions", () => {
     const interaction = createHomesteadInteraction();
     interaction.mergeGameResponse(createGameResponse({ homesteadCamera: { x: 100, y: 100, zoom: 1 } }), true);
