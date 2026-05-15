@@ -618,7 +618,10 @@ export function feedDuck(
 
   let updatedGrowthStage = duck.growthStage;
   let updatedSeedsFedForCurrentStage = duck.seedsFedForCurrentStage + seedSpendCount;
-  let updatedLastUpdatedAtTimestampMilliseconds = nowTimestampMilliseconds;
+  const shouldKeepSwimAnimation = duck.activity === "swim";
+  let updatedLastUpdatedAtTimestampMilliseconds = shouldKeepSwimAnimation
+    ? duck.lastUpdatedAtTimestampMilliseconds
+    : nowTimestampMilliseconds;
 
   if (updatedSeedsFedForCurrentStage >= seedsNeededForNextStage) {
     updatedGrowthStage = getNextGrowthStage(duck.growthStage);
@@ -626,6 +629,7 @@ export function feedDuck(
   }
 
   if (
+    !shouldKeepSwimAnimation &&
     feedMode === "single" &&
     updatedGrowthStage === duck.growthStage &&
     duck.activity === "eat" &&
@@ -644,7 +648,7 @@ export function feedDuck(
               ...possibleDuck,
               growthStage: updatedGrowthStage,
               seedsFedForCurrentStage: updatedSeedsFedForCurrentStage,
-              activity: "eat",
+              activity: shouldKeepSwimAnimation ? "swim" : "eat",
               lastUpdatedAtTimestampMilliseconds: updatedLastUpdatedAtTimestampMilliseconds
             }
           : possibleDuck

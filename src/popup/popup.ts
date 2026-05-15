@@ -50,11 +50,10 @@ import { getFocusRewardArt } from "./rewardArt.js";
 const UPDATE_INTERVAL_MILLISECONDS = 1000;
 const SECONDS_PER_MINUTE = 60;
 const MINUTES_PER_HOUR = 60;
-const PRESET_TWENTY_FIVE_MINUTES = 25;
-const PRESET_FIFTY_MINUTES = 50;
-const DEFAULT_CUSTOM_DURATION_MINUTES = PRESET_TWENTY_FIVE_MINUTES;
+const DEFAULT_DURATION_SECONDS = 25 * SECONDS_PER_MINUTE;
+const MAXIMUM_DURATION_HOURS = 99;
+const MAXIMUM_DURATION_MINUTES_OR_SECONDS = 59;
 
-type DurationSelectionMode = "twentyFive" | "fifty" | "custom";
 type ActiveTab = "focus" | "homestead";
 
 function getRequiredElement<T extends HTMLElement>(elementId: string, constructor: { new (): T }): T {
@@ -78,6 +77,7 @@ const timerDisplayElement = getRequiredElement("timerDisplay", HTMLParagraphElem
 const timerStateTextElement = getRequiredElement("timerStateText", HTMLParagraphElement);
 const timerProgressBarElement = getRequiredElement("timerProgressBar", HTMLDivElement);
 const activeRewardStageElement = getRequiredElement("activeRewardStage", HTMLElement);
+const rewardNestImageElement = getRequiredElement("rewardNestImage", HTMLImageElement);
 const activeRewardImageElement = getRequiredElement("activeRewardImage", HTMLImageElement);
 const activeRewardNameTextElement = getRequiredElement("activeRewardNameText", HTMLParagraphElement);
 const activeRewardPromptTextElement = getRequiredElement("activeRewardPromptText", HTMLParagraphElement);
@@ -85,15 +85,13 @@ const projectProgressBarElement = getRequiredElement("projectProgressBar", HTMLD
 const startButtonElement = getRequiredElement("startButton", HTMLButtonElement);
 const pauseButtonElement = getRequiredElement("pauseButton", HTMLButtonElement);
 const resetButtonElement = getRequiredElement("resetButton", HTMLButtonElement);
-const presetTwentyFiveMinutesButtonElement = getRequiredElement("presetTwentyFiveMinutesButton", HTMLButtonElement);
-const presetFiftyMinutesButtonElement = getRequiredElement("presetFiftyMinutesButton", HTMLButtonElement);
-const presetCustomDurationButtonElement = getRequiredElement("presetCustomDurationButton", HTMLButtonElement);
+const durationHoursInputElement = getRequiredElement("durationHoursInput", HTMLInputElement);
 const durationMinutesInputElement = getRequiredElement("durationMinutesInput", HTMLInputElement);
-const changeProjectButtonElement = getRequiredElement("changeProjectButton", HTMLButtonElement);
+const durationSecondsInputElement = getRequiredElement("durationSecondsInput", HTMLInputElement);
+const clearDurationButtonElement = getRequiredElement("clearDurationButton", HTMLButtonElement);
 const activeProjectTextElement = getRequiredElement("activeProjectText", HTMLParagraphElement);
 const projectProgressTextElement = getRequiredElement("projectProgressText", HTMLParagraphElement);
 const claimProjectButtonElement = getRequiredElement("claimProjectButton", HTMLButtonElement);
-const projectPickerElement = getRequiredElement("projectPicker", HTMLElement);
 const eggProjectListElement = getRequiredElement("eggProjectList", HTMLDivElement);
 const seedProjectListElement = getRequiredElement("seedProjectList", HTMLDivElement);
 const duckCapacityTextElement = getRequiredElement("duckCapacityText", HTMLParagraphElement);
@@ -111,9 +109,7 @@ const feedOneSeedButtonElement = getRequiredElement("feedOneSeedButton", HTMLBut
 const feedToNextStageButtonElement = getRequiredElement("feedToNextStageButton", HTMLButtonElement);
 const followDuckButtonElement = getRequiredElement("followDuckButton", HTMLButtonElement);
 
-let selectedDurationSelectionMode: DurationSelectionMode = "twentyFive";
 let activeTab: ActiveTab = "focus";
-let isProjectPickerVisible = true;
 let timerStateSnapshot: TimerStatusResponse | null = null;
 let gameStateSnapshot: GameStatusResponse | null = null;
 let spriteMap: SpriteMap = {};
@@ -121,6 +117,8 @@ const homesteadInteraction = createHomesteadInteraction();
 let animationFrameId: number | null = null;
 
 headerLogoImageElement.src = createAssetUrl("src/assets/pixel/ui/duck-footprint.png");
+rewardNestImageElement.src = createAssetUrl("src/assets/pixel/objects/nest.png");
+setDurationInputsFromSeconds(DEFAULT_DURATION_SECONDS);
 
 function createErrorResponse(message: string): { error: string } {
   return { error: message };
@@ -147,49 +145,93 @@ function formatProjectSeconds(totalSeconds: number): string {
   return `${Math.floor(totalSeconds / SECONDS_PER_MINUTE)}m`;
 }
 
-function readCustomDurationMinutesFromInput(): number {
-  const parsedDurationMinutes = Number.parseFloat(durationMinutesInputElement.value);
+function getDurationInputElements(): HTMLInputElement[] {
+  return [durationHoursInputElement, durationMinutesInputElement, durationSecondsInputElement];
+}
 
-  if (!Number.isFinite(parsedDurationMinutes) || parsedDurationMinutes <= 0) {
-    return DEFAULT_CUSTOM_DURATION_MINUTES;
+function clampDurationSegment(segmentValue: number, maximumValue: number): number {
+  if (!Number.isFinite(segmentValue) || segmentValue < 0) {
+    return 0;
   }
 
-  return parsedDurationMinutes;
+  return Math.min(maximumValue, Math.floor(segmentValue));
+}
+
+function readDurationSegment(inputElement: HTMLInputElement, maximumValue: number): number {
+  const parsedValue = Number.parseInt(inputElement.value, 10);
+  return clampDurationSegment(parsedValue, maximumValue);
 }
 
 function getSelectedDurationSeconds(): number {
-  if (selectedDurationSelectionMode === "twentyFive") {
-    return PRESET_TWENTY_FIVE_MINUTES * SECONDS_PER_MINUTE;
-  }
+  const hours = readDurationSegment(durationHoursInputElement, MAXIMUM_DURATION_HOURS);
+  const minutes = readDurationSegment(durationMinutesInputElement, MAXIMUM_DURATION_MINUTES_OR_SECONDS);
+  const seconds = readDurationSegment(durationSecondsInputElement, MAXIMUM_DURATION_MINUTES_OR_SECONDS);
 
-  if (selectedDurationSelectionMode === "fifty") {
-    return PRESET_FIFTY_MINUTES * SECONDS_PER_MINUTE;
-  }
-
-  return Math.max(1, Math.round(readCustomDurationMinutesFromInput() * SECONDS_PER_MINUTE));
+  return hours * MINUTES_PER_HOUR * SECONDS_PER_MINUTE + minutes * SECONDS_PER_MINUTE + seconds;
 }
 
-function setDurationSelectionMode(durationSelectionMode: DurationSelectionMode): void {
-  selectedDurationSelectionMode = durationSelectionMode;
+function writeDurationSegment(inputElement: HTMLInputElement, segmentValue: number): void {
+  inputElement.value = padTimeSegment(segmentValue);
+}
 
-  presetTwentyFiveMinutesButtonElement.classList.toggle("is-selected", durationSelectionMode === "twentyFive");
-  presetFiftyMinutesButtonElement.classList.toggle("is-selected", durationSelectionMode === "fifty");
-  presetCustomDurationButtonElement.classList.toggle("is-selected", durationSelectionMode === "custom");
+function setDurationInputsFromSeconds(totalSeconds: number): void {
+  const normalizedSeconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.min(MAXIMUM_DURATION_HOURS, Math.floor(normalizedSeconds / (MINUTES_PER_HOUR * SECONDS_PER_MINUTE)));
+  const remainingSecondsAfterHours = normalizedSeconds - hours * MINUTES_PER_HOUR * SECONDS_PER_MINUTE;
+  const minutes = Math.floor(remainingSecondsAfterHours / SECONDS_PER_MINUTE);
+  const seconds = remainingSecondsAfterHours % SECONDS_PER_MINUTE;
 
-  if (durationSelectionMode === "twentyFive") {
-    durationMinutesInputElement.value = String(PRESET_TWENTY_FIVE_MINUTES);
-    durationMinutesInputElement.disabled = true;
+  writeDurationSegment(durationHoursInputElement, hours);
+  writeDurationSegment(durationMinutesInputElement, minutes);
+  writeDurationSegment(durationSecondsInputElement, seconds);
+}
+
+function normalizeDurationInput(inputElement: HTMLInputElement, maximumValue: number): void {
+  writeDurationSegment(inputElement, readDurationSegment(inputElement, maximumValue));
+}
+
+function getDurationInputMaximum(inputElement: HTMLInputElement): number {
+  return inputElement === durationHoursInputElement ? MAXIMUM_DURATION_HOURS : MAXIMUM_DURATION_MINUTES_OR_SECONDS;
+}
+
+function getNextDurationInput(inputElement: HTMLInputElement): HTMLInputElement | null {
+  if (inputElement === durationHoursInputElement) {
+    return durationMinutesInputElement;
+  }
+
+  if (inputElement === durationMinutesInputElement) {
+    return durationSecondsInputElement;
+  }
+
+  return null;
+}
+
+function handleDurationInput(inputElement: HTMLInputElement): void {
+  inputElement.value = inputElement.value.replace(/\D/g, "").slice(0, 2);
+  updateActionButtons();
+
+  if (inputElement.value.length < 2) {
     return;
   }
 
-  if (durationSelectionMode === "fifty") {
-    durationMinutesInputElement.value = String(PRESET_FIFTY_MINUTES);
-    durationMinutesInputElement.disabled = true;
-    return;
-  }
+  const nextInputElement = getNextDurationInput(inputElement);
 
-  durationMinutesInputElement.disabled = false;
-  durationMinutesInputElement.focus();
+  if (nextInputElement !== null) {
+    nextInputElement.focus();
+    nextInputElement.select();
+  }
+}
+
+function handleDurationInputBlur(inputElement: HTMLInputElement): void {
+  normalizeDurationInput(inputElement, getDurationInputMaximum(inputElement));
+  updateActionButtons();
+}
+
+function clearDurationInputs(): void {
+  setDurationInputsFromSeconds(0);
+  updateActionButtons();
+  durationHoursInputElement.focus();
+  durationHoursInputElement.select();
 }
 
 function showStatus(message: string | null, isError: boolean = false): void {
@@ -291,15 +333,15 @@ function updateActionButtons(): void {
   const isTimerRunning = timerStateSnapshot?.isRunning === true;
   const hasActiveProject = gameStateSnapshot?.gameState.activeProjectId !== null;
   const activeProjectReady = isActiveProjectReady();
+  const hasPositiveDuration = getSelectedDurationSeconds() > 0;
 
-  startButtonElement.disabled = isTimerRunning || !hasActiveProject || activeProjectReady;
+  startButtonElement.disabled = isTimerRunning || !hasActiveProject || activeProjectReady || !hasPositiveDuration;
   pauseButtonElement.disabled = !isTimerRunning;
   resetButtonElement.disabled = false;
   startButtonElement.textContent =
     timerStateSnapshot?.hasStartedAtLeastOnce === true && (timerStateSnapshot?.remainingSeconds ?? 0) > 0
       ? "Resume"
       : "Start";
-  changeProjectButtonElement.disabled = isTimerRunning;
   claimProjectButtonElement.disabled = isTimerRunning;
 }
 
@@ -344,8 +386,6 @@ function renderProjectPicker(): void {
       seedProjectListElement.append(button);
     }
   }
-
-  projectPickerElement.classList.toggle("is-hidden", !isProjectPickerVisible);
 }
 
 function updateGameDisplay(gameResponse: GameMessageResponse): void {
@@ -431,6 +471,12 @@ async function catchUpHomesteadAfterAway(): Promise<void> {
 }
 
 async function handleStartButtonClick(): Promise<void> {
+  if (getSelectedDurationSeconds() <= 0) {
+    showStatus("Enter a focus duration.", true);
+    updateActionButtons();
+    return;
+  }
+
   const startTimerMessage: StartTimerMessage = {
     type: START_TIMER_MESSAGE_TYPE,
     durationSeconds: getSelectedDurationSeconds()
@@ -452,6 +498,12 @@ async function handlePauseButtonClick(): Promise<void> {
 }
 
 async function handleResetButtonClick(): Promise<void> {
+  if (getSelectedDurationSeconds() <= 0) {
+    showStatus("Enter a focus duration.", true);
+    updateActionButtons();
+    return;
+  }
+
   const resetTimerMessage: ResetTimerMessage = {
     type: RESET_TIMER_MESSAGE_TYPE,
     durationSeconds: getSelectedDurationSeconds()
@@ -466,7 +518,6 @@ async function handleSelectProject(projectId: ProjectId): Promise<void> {
     projectId
   };
   updateGameDisplay(await sendGameRuntimeMessage(selectProjectMessage));
-  isProjectPickerVisible = false;
   renderProjectPicker();
 }
 
@@ -912,16 +963,34 @@ async function handleFeedDuck(feedMode: FeedDuckMode): Promise<void> {
   updateGameDisplay(await sendGameRuntimeMessage(feedDuckMessage));
 }
 
-presetTwentyFiveMinutesButtonElement.addEventListener("click", () => {
-  setDurationSelectionMode("twentyFive");
-});
+for (const durationInputElement of getDurationInputElements()) {
+  durationInputElement.addEventListener("focus", () => {
+    durationInputElement.select();
+  });
+  durationInputElement.addEventListener("input", () => {
+    handleDurationInput(durationInputElement);
+  });
+  durationInputElement.addEventListener("blur", () => {
+    handleDurationInputBlur(durationInputElement);
+  });
+  durationInputElement.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter") {
+      return;
+    }
 
-presetFiftyMinutesButtonElement.addEventListener("click", () => {
-  setDurationSelectionMode("fifty");
-});
+    const nextInputElement = getNextDurationInput(durationInputElement);
 
-presetCustomDurationButtonElement.addEventListener("click", () => {
-  setDurationSelectionMode("custom");
+    if (nextInputElement !== null) {
+      nextInputElement.focus();
+      nextInputElement.select();
+    } else {
+      durationInputElement.blur();
+    }
+  });
+}
+
+clearDurationButtonElement.addEventListener("click", () => {
+  clearDurationInputs();
 });
 
 focusTabButtonElement.addEventListener("click", () => {
@@ -948,11 +1017,6 @@ resetButtonElement.addEventListener("click", () => {
   handleResetButtonClick().catch(() => {
     showStatus("Reset failed.", true);
   });
-});
-
-changeProjectButtonElement.addEventListener("click", () => {
-  isProjectPickerVisible = !isProjectPickerVisible;
-  renderProjectPicker();
 });
 
 claimProjectButtonElement.addEventListener("click", () => {
@@ -1042,8 +1106,6 @@ new ResizeObserver(() => {
 window.addEventListener("beforeunload", () => {
   saveHomesteadState().catch(() => {});
 });
-
-setDurationSelectionMode("twentyFive");
 
 loadPixelSprites()
   .then((loadedSpriteMap) => {

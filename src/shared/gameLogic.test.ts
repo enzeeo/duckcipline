@@ -168,6 +168,37 @@ describe("gameLogic", () => {
     });
   });
 
+  it("starts eating when a non-swimming duck is fed", () => {
+    const gameState: GameState = {
+      ...createDefaultGameState(),
+      seedCount: 2,
+      ducks: [createTestDuck({ activity: "idle", lastUpdatedAtTimestampMilliseconds: 1_000 })]
+    };
+
+    const result = feedDuck(gameState, "duck-1", "single", 2_000);
+
+    expect(result.gameState.ducks[0]).toMatchObject({
+      activity: "eat",
+      lastUpdatedAtTimestampMilliseconds: 2_000
+    });
+  });
+
+  it("keeps swimming when a swimming duck is fed", () => {
+    const gameState: GameState = {
+      ...createDefaultGameState(),
+      seedCount: 2,
+      ducks: [createTestDuck({ activity: "swim", lastUpdatedAtTimestampMilliseconds: 1_000 })]
+    };
+
+    const result = feedDuck(gameState, "duck-1", "single", 2_000);
+
+    expect(result.gameState.ducks[0]).toMatchObject({
+      activity: "swim",
+      lastUpdatedAtTimestampMilliseconds: 1_000,
+      seedsFedForCurrentStage: 1
+    });
+  });
+
   it("keeps repeated single-seed feeds in the same eating animation window", () => {
     const gameState: GameState = {
       ...createDefaultGameState(),
