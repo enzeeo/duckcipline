@@ -166,16 +166,33 @@ describe("FocusSessionView", () => {
     expect(seedButtons.every((button) => button.disabled)).toBe(false);
   });
 
-  it("renders reward nest and project progress", () => {
+  it("renders egg reward in the nest and project progress", () => {
     const view = createView();
     view.renderGame(createGameResponse("meadowEgg"));
 
+    expect(getElement<HTMLImageElement>("rewardNestImage").hidden).toBe(false);
+    expect(getElement<HTMLElement>("activeRewardStage").classList.contains("is-egg-reward")).toBe(true);
     expect(getElement<HTMLImageElement>("activeRewardImage").hidden).toBe(false);
     expect(getElement<HTMLParagraphElement>("activeRewardNameText").textContent).toBe("Meadow Egg");
     expect(getElement<HTMLParagraphElement>("projectProgressText").textContent).toBe("10 / 10 seconds");
     expect(getElement<HTMLDivElement>("projectProgressBar").style.width).not.toBe("0%");
+  });
+
+  it("hides the nest for seed rewards", () => {
+    const view = createView();
+    view.renderGame(createGameResponse("smallSeedPatch"));
+
+    expect(getElement<HTMLImageElement>("rewardNestImage").hidden).toBe(true);
+    expect(getElement<HTMLElement>("activeRewardStage").classList.contains("is-seed-reward")).toBe(true);
+    expect(getElement<HTMLImageElement>("activeRewardImage").hidden).toBe(false);
+    expect(getElement<HTMLParagraphElement>("activeRewardNameText").textContent).toBe("Small Seed Patch");
+  });
+
+  it("renders empty reward state with the nest", () => {
+    const view = createView();
 
     view.renderGame(createGameResponse(null));
+    expect(getElement<HTMLImageElement>("rewardNestImage").hidden).toBe(false);
     expect(getElement<HTMLImageElement>("activeRewardImage").hidden).toBe(true);
     expect(getElement<HTMLParagraphElement>("activeRewardNameText").textContent).toBe("Pick a project");
   });

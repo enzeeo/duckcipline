@@ -327,8 +327,12 @@ export class FocusSessionView {
   private updateActiveRewardStage(projectDefinition: ProjectDefinitionResponse | null): void {
     const rewardArt = getFocusRewardArt(projectDefinition);
     const isEmpty = rewardArt === null || projectDefinition === null;
+    const isSeedReward = projectDefinition?.type === "seeds";
 
     this.activeRewardStageElement.classList.toggle("is-empty", isEmpty);
+    this.activeRewardStageElement.classList.toggle("is-egg-reward", projectDefinition?.type === "egg");
+    this.activeRewardStageElement.classList.toggle("is-seed-reward", isSeedReward);
+    this.rewardNestImageElement.hidden = isSeedReward;
 
     if (isEmpty) {
       this.activeRewardImageElement.hidden = true;

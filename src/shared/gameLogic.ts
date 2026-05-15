@@ -21,6 +21,8 @@ import type {
 
 const MILLISECONDS_PER_SECOND = 1000;
 const MAX_DUCK_NAME_LENGTH = 18;
+const DUCK_NAME_NUMBER_PATTERN = /\d/g;
+const DUCK_NAME_WHITESPACE_PATTERN = /\s+/g;
 
 interface LegacyDuck {
   id?: unknown;
@@ -76,13 +78,41 @@ export function calculateElapsedSecondsSinceTimestamp(
 }
 
 export function sanitizeDuckName(submittedName: string, fallbackName: string): string {
-  const trimmedName = submittedName.trim();
+  const trimmedName = submittedName
+    .replace(DUCK_NAME_NUMBER_PATTERN, "")
+    .replace(DUCK_NAME_WHITESPACE_PATTERN, " ")
+    .trim();
 
   if (trimmedName.length === 0) {
     return fallbackName;
   }
 
   return trimmedName.slice(0, MAX_DUCK_NAME_LENGTH);
+}
+
+function normalizeDuckNameForComparison(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function isDuckNameAlreadyUsed(duckNames: readonly string[], duckName: string): boolean {
+  const normalizedDuckName = normalizeDuckNameForComparison(duckName);
+  return duckNames.some((existingDuckName) => normalizeDuckNameForComparison(existingDuckName) === normalizedDuckName);
+}
+
+function normalizeDuckNames(ducks: Duck[]): Duck[] {
+  const usedDuckNames: string[] = [];
+
+  return ducks.map((duck, duckIndex) => {
+    const fallbackName = createDefaultDuckName(duckIndex, usedDuckNames);
+    const sanitizedName = sanitizeDuckName(duck.name, fallbackName);
+    const uniqueName = isDuckNameAlreadyUsed(usedDuckNames, sanitizedName) ? fallbackName : sanitizedName;
+    usedDuckNames.push(uniqueName);
+
+    return {
+      ...duck,
+      name: uniqueName
+    };
+  });
 }
 
 function isObjectRecord(value: unknown): value is Record<string, unknown> {
@@ -261,11 +291,12 @@ export function normalizeGameState(value: unknown, nowTimestampMilliseconds: num
         .filter((duck): duck is Duck => duck !== null)
         .slice(0, MAX_DUCK_COUNT)
     : [];
+  const normalizedDucks = normalizeDuckNames(ducks);
 
   return {
     activeProjectId,
     projectProgressById,
-    ducks,
+    ducks: normalizedDucks,
     seedCount: typeof value.seedCount === "number" ? Math.max(0, Math.floor(value.seedCount)) : 0,
     totalCompletedSessions:
       typeof value.totalCompletedSessions === "number" ? Math.max(0, value.totalCompletedSessions) : 0,
@@ -501,11 +532,12 @@ export function createDuckFromEggProject(
   variantId: DuckVariantId,
   duckCountBeforeCreate: number,
   nowTimestampMilliseconds: number,
-  duckId: string = crypto.randomUUID()
+  duckId: string = crypto.randomUUID(),
+  existingDuckNames: readonly string[] = []
 ): Duck {
   return {
     id: duckId,
-    name: createDefaultDuckName(duckCountBeforeCreate),
+    name: createDefaultDuckName(duckCountBeforeCreate, existingDuckNames),
     variantId,
     sourceEggProjectId: projectId,
     growthStage: "duckling",
@@ -559,7 +591,8 @@ export function claimActiveProject(
     variantId,
     gameState.ducks.length,
     nowTimestampMilliseconds,
-    dependencies.createId()
+    dependencies.createId(),
+    gameState.ducks.map((existingDuck) => existingDuck.name)
   );
 
   return {
@@ -665,8 +698,15 @@ export function renameDuck(gameState: GameState, duckId: string, submittedName: 
     return { gameState, statusMessage: "Duck not found." };
   }
 
-  const fallbackName = createDefaultDuckName(duckIndex);
+  const existingDuckNames = gameState.ducks
+    .filter((duck) => duck.id !== duckId)
+    .map((duck) => duck.name);
+  const fallbackName = createDefaultDuckName(duckIndex, existingDuckNames);
   const sanitizedName = sanitizeDuckName(submittedName, fallbackName);
+
+  if (isDuckNameAlreadyUsed(existingDuckNames, sanitizedName)) {
+    return { gameState, statusMessage: "Duck name already exists." };
+  }
 
   return {
     gameState: {

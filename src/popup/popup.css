@@ -282,6 +282,17 @@ button:disabled {
   filter: drop-shadow(0 6px 0 rgba(47, 36, 24, 0.2));
 }
 
+.active-reward-stage.is-egg-reward .reward-nest-image {
+  z-index: 2;
+}
+
+.active-reward-stage.is-egg-reward .active-reward-image {
+  z-index: 1;
+  width: 76px;
+  height: 76px;
+  transform: translateY(18px);
+}
+
 .active-reward-stage.is-empty .reward-nest-image {
   opacity: 0.72;
 }
@@ -361,6 +372,7 @@ button:disabled {
   display: grid;
   grid-template-columns: max-content 56px;
   align-items: end;
+  justify-content: center;
   gap: 6px;
 }
 

@@ -7,6 +7,7 @@ import {
   synchronizeGameProgressStateWithTimer,
   updateDuckPlacement,
   feedDuck,
+  renameDuck,
   updateDuckSimulationState
 } from "./gameLogic.js";
 import { DUCK_EATING_ANIMATION_DURATION_MILLISECONDS } from "./duckAnimation.js";
@@ -60,6 +61,19 @@ describe("gameLogic", () => {
       homePosition: { x: 64, y: 96 },
       facingDirection: "right"
     });
+  });
+
+  it("normalizes stored duck names to remove numbers and avoid duplicates", () => {
+    const gameState = normalizeGameState({
+      ducks: [
+        { id: "duck-1", name: "Quill1" },
+        { id: "duck-2", name: "Quill" }
+      ]
+    }, 1_000);
+    const duckNames = gameState.ducks.map((duck) => duck.name);
+
+    expect(duckNames.every((duckName) => !/\d/.test(duckName))).toBe(true);
+    expect(new Set(duckNames.map((duckName) => duckName.toLowerCase())).size).toBe(duckNames.length);
   });
 
   it("synchronizes running timer progress into the active project", () => {
@@ -146,11 +160,34 @@ describe("gameLogic", () => {
 
     expect(result.gameState.ducks[0]).toMatchObject({
       id: "duck-fixed",
+      name: "Puddle",
       variantId: "yellow",
       homePosition: null,
       facingDirection: "right",
       hatchedAtTimestampMilliseconds: 2_000
     });
+  });
+
+  it("claims egg projects with unique number-free duck names", () => {
+    const selectedGameState = selectActiveProject(createDefaultGameState(), "meadowEgg");
+    selectedGameState.ducks = [createTestDuck({ id: "duck-existing", name: "Puddle" })];
+    selectedGameState.projectProgressById.meadowEgg = {
+      projectId: "meadowEgg",
+      progressSeconds: 10,
+      isReadyToClaim: true,
+      progressStartedAtTimestampMilliseconds: null
+    };
+
+    const result = claimActiveProject(selectedGameState, 2_000, {
+      random: () => 0,
+      createId: () => "duck-new"
+    });
+    const duckNames = result.gameState.ducks.map((duck) => duck.name);
+
+    expect(duckNames).toContain("Puddle");
+    expect(result.gameState.ducks[1].name).not.toBe("Puddle");
+    expect(result.gameState.ducks[1].name).not.toMatch(/\d/);
+    expect(new Set(duckNames.map((duckName) => duckName.toLowerCase())).size).toBe(duckNames.length);
   });
 
   it("sets placement position as duck home", () => {
@@ -225,5 +262,32 @@ describe("gameLogic", () => {
     const result = feedDuck(gameState, "duck-1", "single", nextTimestampMilliseconds);
 
     expect(result.gameState.ducks[0].lastUpdatedAtTimestampMilliseconds).toBe(nextTimestampMilliseconds);
+  });
+
+  it("rejects duplicate duck renames", () => {
+    const gameState: GameState = {
+      ...createDefaultGameState(),
+      ducks: [
+        createTestDuck({ id: "duck-1", name: "Quill" }),
+        createTestDuck({ id: "duck-2", name: "River" })
+      ]
+    };
+
+    const result = renameDuck(gameState, "duck-2", "quill");
+
+    expect(result.statusMessage).toBe("Duck name already exists.");
+    expect(result.gameState.ducks.map((duck) => duck.name)).toEqual(["Quill", "River"]);
+  });
+
+  it("removes numbers from duck renames", () => {
+    const gameState: GameState = {
+      ...createDefaultGameState(),
+      ducks: [createTestDuck({ id: "duck-1", name: "Quill" })]
+    };
+
+    const result = renameDuck(gameState, "duck-1", "River2");
+
+    expect(result.statusMessage).toBe("Duck renamed.");
+    expect(result.gameState.ducks[0].name).toBe("River");
   });
 });

@@ -88,6 +88,17 @@ describe("homesteadInteraction", () => {
     expect(selectEffect.renderCanvas).toBe(true);
     expect(interaction.getSnapshot()?.selectedDuck?.id).toBe(duck.id);
 
+    const focusEffect = interaction.dispatch({
+      type: "animationFrameAdvanced",
+      timestampMilliseconds: 520,
+      isHomesteadActive: true,
+      canvasSize: TEST_CANVAS_METRICS,
+      nowTimestampMilliseconds: 2_500,
+      random: () => 0
+    });
+
+    expect(focusEffect.saveCamera?.zoom).toBe(1.75);
+
     const followEffect = interaction.dispatch({
       type: "followToggled",
       canvasSize: TEST_CANVAS_METRICS,

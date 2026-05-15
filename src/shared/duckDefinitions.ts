@@ -65,7 +65,19 @@ const DEFAULT_DUCK_NAMES = [
   "Moss",
   "Sunny",
   "Clover",
-  "Quill"
+  "Quill",
+  "River",
+  "Fern",
+  "Biscuit",
+  "Maple",
+  "Noodle",
+  "Pip",
+  "Marigold",
+  "Dewdrop",
+  "Button",
+  "Acorn",
+  "Juniper",
+  "Minnow"
 ] as const;
 
 const FAVORITE_ACTIVITIES = [
@@ -77,9 +89,22 @@ const FAVORITE_ACTIVITIES = [
   "sun patches"
 ] as const;
 
-export function createDefaultDuckName(duckCountBeforeCreate: number): string {
-  const defaultName = DEFAULT_DUCK_NAMES[duckCountBeforeCreate % DEFAULT_DUCK_NAMES.length];
-  return `${defaultName} ${duckCountBeforeCreate + 1}`;
+function normalizeDuckNameForComparison(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+export function createDefaultDuckName(duckCountBeforeCreate: number, existingDuckNames: readonly string[] = []): string {
+  const usedDuckNames = new Set(existingDuckNames.map(normalizeDuckNameForComparison));
+
+  for (let offset = 0; offset < DEFAULT_DUCK_NAMES.length; offset += 1) {
+    const defaultName = DEFAULT_DUCK_NAMES[(duckCountBeforeCreate + offset) % DEFAULT_DUCK_NAMES.length];
+
+    if (!usedDuckNames.has(normalizeDuckNameForComparison(defaultName))) {
+      return defaultName;
+    }
+  }
+
+  return DEFAULT_DUCK_NAMES[duckCountBeforeCreate % DEFAULT_DUCK_NAMES.length];
 }
 
 export function createFavoriteActivity(duckCountBeforeCreate: number): string {
