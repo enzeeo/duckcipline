@@ -37,6 +37,7 @@ import type {
   FeedDuckMode,
   GameMessageResponse,
   GameStatusResponse,
+  HomesteadCameraState,
   ProjectDefinitionResponse,
   ProjectId,
   TimerMessageResponse,
@@ -44,7 +45,13 @@ import type {
 } from "../shared/types.js";
 import { createAssetUrl, loadPixelSprites, type SpriteMap } from "./assetLoader.js";
 import { renderHomesteadCanvas } from "./canvasRenderer.js";
-import { createHomesteadInteraction, type HomesteadCanvasMetrics } from "./homesteadInteraction.js";
+import {
+  createHomesteadInteraction,
+  type HomesteadCanvasMetrics,
+  type HomesteadInteractionEffect,
+  type HomesteadInteractionSnapshot,
+  type HomesteadSaveSnapshot
+} from "./homesteadInteraction.js";
 import { getFocusRewardArt } from "./rewardArt.js";
 
 const UPDATE_INTERVAL_MILLISECONDS = 1000;
@@ -112,6 +119,7 @@ const followDuckButtonElement = getRequiredElement("followDuckButton", HTMLButto
 let activeTab: ActiveTab = "focus";
 let timerStateSnapshot: TimerStatusResponse | null = null;
 let gameStateSnapshot: GameStatusResponse | null = null;
+let homesteadInteractionSnapshot: HomesteadInteractionSnapshot | null = null;
 let spriteMap: SpriteMap = {};
 const homesteadInteraction = createHomesteadInteraction();
 let animationFrameId: number | null = null;
@@ -462,12 +470,11 @@ async function catchUpHomesteadAfterAway(): Promise<void> {
     return;
   }
 
-  if (homesteadInteraction.catchUpAfterAway(Date.now(), Math.random)) {
-    syncGameStateSnapshotFromHomestead();
-    renderDuckDetails();
-    renderCanvas();
-    await saveHomesteadState();
-  }
+  await applyHomesteadEffect(homesteadInteraction.dispatch({
+    type: "catchUpAfterAway",
+    nowTimestampMilliseconds: Date.now(),
+    random: Math.random
+  }));
 }
 
 async function handleStartButtonClick(): Promise<void> {
@@ -544,7 +551,10 @@ function setActiveTab(nextActiveTab: ActiveTab): void {
       showStatus("Homestead unavailable.", true);
     });
   } else {
-    saveHomesteadState().catch(() => {});
+    applyHomesteadEffect(homesteadInteraction.dispatch({
+      type: "homesteadDeactivated",
+      nowTimestampMilliseconds: Date.now()
+    })).catch(() => {});
     stopAnimationLoop();
   }
 }
@@ -570,24 +580,27 @@ function getHomesteadCanvasSize(): { width: number; height: number } {
 }
 
 function syncGameStateSnapshotFromHomestead(): void {
-  gameStateSnapshot = homesteadInteraction.getGameResponse();
+  homesteadInteractionSnapshot = homesteadInteraction.getSnapshot();
+  gameStateSnapshot = homesteadInteractionSnapshot?.gameResponse ?? null;
 }
 
 function updateFollowDuckButton(): void {
-  followDuckButtonElement.textContent = homesteadInteraction.getIsFollowingSelectedDuck() ? "Unfollow" : "Follow";
-}
-
-function getPointerWorldPosition(event: PointerEvent | DragEvent): DuckPosition {
-  const clientX = "clientX" in event ? event.clientX : 0;
-  const clientY = "clientY" in event ? event.clientY : 0;
-  return homesteadInteraction.getPointerWorldPosition(clientX, clientY, getHomesteadCanvasMetrics());
+  followDuckButtonElement.textContent = homesteadInteractionSnapshot?.isFollowingSelectedDuck ? "Unfollow" : "Follow";
 }
 
 function mergeGameResponseForDisplay(gameResponse: GameStatusResponse): GameStatusResponse {
-  const mergedGameResponse = homesteadInteraction.mergeGameResponse(gameResponse, activeTab === "homestead");
-  gameStateSnapshot = mergedGameResponse;
+  const effect = homesteadInteraction.dispatch({
+    type: "gameResponseSynced",
+    gameResponse,
+    isHomesteadActive: activeTab === "homestead",
+    nowTimestampMilliseconds: Date.now()
+  });
+  applyHomesteadEffect(effect).catch(() => {
+    showStatus("Homestead unavailable.", true);
+  });
+  syncGameStateSnapshotFromHomestead();
   updateFollowDuckButton();
-  return mergedGameResponse;
+  return gameStateSnapshot ?? gameResponse;
 }
 
 function resizeCanvasToFrame(): void {
@@ -604,12 +617,12 @@ function resizeCanvasToFrame(): void {
     homesteadCanvasElement.height = canvasHeight;
   }
 
-  homesteadInteraction.resizeCanvas({ width: canvasWidth, height: canvasHeight });
+  homesteadInteraction.dispatch({ type: "canvasResized", canvasSize: { width: canvasWidth, height: canvasHeight } });
   syncGameStateSnapshotFromHomestead();
 }
 
 function renderCanvas(): void {
-  const renderState = homesteadInteraction.getRenderState();
+  const renderState = homesteadInteractionSnapshot?.renderState ?? null;
 
   if (renderState === null) {
     return;
@@ -625,83 +638,64 @@ function renderCanvas(): void {
   });
 }
 
-function getIsClientPointInsideCanvas(clientX: number, clientY: number): boolean {
-  return homesteadInteraction.isClientPointInsideCanvas(clientX, clientY, getHomesteadCanvasMetrics());
-}
-
 function createDuckThumbnail(duck: Duck): HTMLButtonElement {
   const button = document.createElement("button");
   const sprite = document.createElement("span");
 
   button.className = "duck-thumbnail";
-  button.classList.toggle("is-selected", homesteadInteraction.getSelectedUnplacedDuckId() === duck.id);
+  button.classList.toggle("is-selected", homesteadInteractionSnapshot?.selectedUnplacedDuckId === duck.id);
+  button.dataset.duckId = duck.id;
   button.type = "button";
   button.draggable = true;
   button.title = duck.name;
   sprite.className = "duck-thumbnail-sprite";
   button.append(sprite);
   button.addEventListener("click", () => {
-    if (homesteadInteraction.consumeSuppressedThumbnailClick(duck.id)) {
-      return;
-    }
-
-    const selectedUnplacedDuckId = homesteadInteraction.toggleUnplacedDuckSelection(duck.id);
-    placementHintTextElement.textContent = selectedUnplacedDuckId ? "Click a valid grass/path tile." : "Click a duck, then click the map.";
-    renderUnplacedDuckTray();
-    renderCanvas();
+    applyHomesteadEffect(homesteadInteraction.dispatch({ type: "unplacedDuckClicked", duckId: duck.id })).catch(() => {
+      showStatus("Homestead unavailable.", true);
+    });
   });
   button.addEventListener("dragstart", (event) => {
     event.dataTransfer?.setData("text/plain", duck.id);
-    homesteadInteraction.selectUnplacedDuck(duck.id);
+    applyHomesteadEffect(homesteadInteraction.dispatch({ type: "nativeDuckDragStarted", duckId: duck.id })).catch(() => {
+      showStatus("Homestead unavailable.", true);
+    });
   });
   button.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) {
       return;
     }
 
-    homesteadInteraction.startUnplacedDuckPointerDrag(duck.id, {
-      pointerId: event.pointerId,
-      clientX: event.clientX,
-      clientY: event.clientY
+    applyHomesteadEffect(homesteadInteraction.dispatch({
+      type: "unplacedDuckDragStarted",
+      duckId: duck.id,
+      pointer: { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY }
+    })).catch(() => {
+      showStatus("Homestead unavailable.", true);
     });
     button.setPointerCapture(event.pointerId);
   });
   button.addEventListener("pointermove", (event) => {
-    const dragMoveResult = homesteadInteraction.moveUnplacedDuckPointerDrag({
-      pointerId: event.pointerId,
-      clientX: event.clientX,
-      clientY: event.clientY
+    applyHomesteadEffect(homesteadInteraction.dispatch({
+      type: "unplacedDuckDragMoved",
+      pointer: { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY }
+    })).catch(() => {
+      showStatus("Homestead unavailable.", true);
     });
-
-    if (dragMoveResult === null) {
-      return;
-    }
-
-    button.classList.toggle("is-pointer-dragging", dragMoveResult.hasMoved);
   });
   button.addEventListener("pointerup", (event) => {
-    const endedDragState = homesteadInteraction.endUnplacedDuckPointerDrag(event.pointerId);
-
-    if (endedDragState === null) {
-      return;
-    }
-
-    button.classList.remove("is-pointer-dragging");
-
-    if (!endedDragState.hasMoved) {
-      return;
-    }
-
-    if (getIsClientPointInsideCanvas(event.clientX, event.clientY)) {
-      placeDuckAtWorldPosition(endedDragState.duckId, getPointerWorldPosition(event)).catch(() => {
-        showStatus("Placement failed.", true);
-      });
-    }
+    applyHomesteadEffect(homesteadInteraction.dispatch({
+      type: "unplacedDuckDragEnded",
+      pointer: { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY },
+      canvasMetrics: getHomesteadCanvasMetrics()
+    })).catch(() => {
+      showStatus("Placement failed.", true);
+    });
   });
   button.addEventListener("pointercancel", () => {
-    if (homesteadInteraction.cancelUnplacedDuckPointerDrag(duck.id)) {
-      button.classList.remove("is-pointer-dragging");
-    }
+    applyHomesteadEffect(homesteadInteraction.dispatch({ type: "unplacedDuckDragCanceled", duckId: duck.id })).catch(() => {
+      showStatus("Homestead unavailable.", true);
+    });
   });
 
   return button;
@@ -712,7 +706,7 @@ function renderUnplacedDuckTray(): void {
     return;
   }
 
-  const unplacedDucks = homesteadInteraction.getUnplacedDucks();
+  const unplacedDucks = homesteadInteractionSnapshot?.unplacedDucks ?? [];
   unplacedDuckTrayElement.replaceChildren();
 
   if (unplacedDucks.length === 0) {
@@ -729,7 +723,7 @@ function renderUnplacedDuckTray(): void {
 }
 
 function getSelectedDuck(): Duck | null {
-  return homesteadInteraction.getSelectedDuck();
+  return homesteadInteractionSnapshot?.selectedDuck ?? null;
 }
 
 function getSeedsNeededForSelectedDuck(duck: Duck): number | null {
@@ -772,112 +766,63 @@ function renderDuckDetails(): void {
 }
 
 async function placeDuckAtWorldPosition(duckId: string, worldPosition: DuckPosition): Promise<void> {
-  const placementResult = homesteadInteraction.createPlacementResult(worldPosition);
-
-  if (!placementResult.isValid || placementResult.centeredPosition === null) {
-    placementHintTextElement.textContent = "That tile is blocked.";
-    showStatus("Invalid placement.", true);
-    renderCanvas();
-    return;
-  }
-
   const placeDuckMessage: PlaceDuckMessage = {
     type: PLACE_DUCK_MESSAGE_TYPE,
     duckId,
-    x: placementResult.centeredPosition.x,
-    y: placementResult.centeredPosition.y
+    x: worldPosition.x,
+    y: worldPosition.y
   };
   updateGameDisplay(await sendGameRuntimeMessage(placeDuckMessage));
-  homesteadInteraction.finishDuckPlacement(duckId, getHomesteadCanvasSize(), performance.now());
-  syncGameStateSnapshotFromHomestead();
-  updateFollowDuckButton();
-  placementHintTextElement.textContent = "Duck placed.";
+  await applyHomesteadEffect(homesteadInteraction.dispatch({
+    type: "duckPlacementSucceeded",
+    duckId,
+    canvasSize: getHomesteadCanvasSize(),
+    timestampMilliseconds: performance.now()
+  }));
 }
 
 function handleCanvasPointerDown(event: PointerEvent): void {
-  const pointerDownResult = homesteadInteraction.handleCanvasPointerDown(
-    { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY },
-    getHomesteadCanvasMetrics(),
-    performance.now()
-  );
-  syncGameStateSnapshotFromHomestead();
-  updateFollowDuckButton();
-
-  if (pointerDownResult.shouldCapturePointer) {
-    homesteadCanvasElement.setPointerCapture(event.pointerId);
-  }
-
-  if (pointerDownResult.isDraggingCamera) {
-    homesteadCanvasElement.classList.add("is-dragging");
-  }
-
-  if (pointerDownResult.shouldRenderDuckDetails) {
-    renderDuckDetails();
-  }
-
-  if (pointerDownResult.shouldRenderCanvas) {
-    renderCanvas();
-  }
+  applyHomesteadEffect(homesteadInteraction.dispatch({
+    type: "canvasPointerDown",
+    pointer: { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY },
+    canvasMetrics: getHomesteadCanvasMetrics(),
+    timestampMilliseconds: performance.now()
+  })).catch(() => {
+    showStatus("Homestead unavailable.", true);
+  });
 }
 
 function handleCanvasPointerMove(event: PointerEvent): void {
-  const pointerMoveResult = homesteadInteraction.handleCanvasPointerMove(
-    { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY },
-    getHomesteadCanvasMetrics()
-  );
-  syncGameStateSnapshotFromHomestead();
-
-  if (pointerMoveResult.shouldRenderCanvas) {
-    renderCanvas();
-  }
+  applyHomesteadEffect(homesteadInteraction.dispatch({
+    type: "canvasPointerMove",
+    pointer: { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY },
+    canvasMetrics: getHomesteadCanvasMetrics()
+  })).catch(() => {
+    showStatus("Homestead unavailable.", true);
+  });
 }
 
 function handleCanvasPointerUp(event: PointerEvent): void {
-  const pointerUpResult = homesteadInteraction.handleCanvasPointerUp(
-    { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY },
-    getHomesteadCanvasMetrics()
-  );
-  syncGameStateSnapshotFromHomestead();
-
-  if (pointerUpResult.stoppedCameraDrag) {
-    homesteadCanvasElement.classList.remove("is-dragging");
-  }
-
-  if (pointerUpResult.duckPlacementRequest !== null) {
-    placeDuckAtWorldPosition(
-      pointerUpResult.duckPlacementRequest.duckId,
-      pointerUpResult.duckPlacementRequest.worldPosition
-    ).catch(() => {
-      showStatus("Placement failed.", true);
-    });
-  } else if (pointerUpResult.shouldSaveCamera) {
-    saveCameraState().catch(() => {});
-  }
-
-  if (pointerUpResult.shouldRenderCanvas) {
-    renderCanvas();
-  }
+  applyHomesteadEffect(homesteadInteraction.dispatch({
+    type: "canvasPointerUp",
+    pointer: { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY },
+    canvasMetrics: getHomesteadCanvasMetrics()
+  })).catch(() => {
+    showStatus("Placement failed.", true);
+  });
 }
 
 function animationLoop(timestampMilliseconds: number): void {
-  const frameResult = homesteadInteraction.advanceAnimationFrame({
+  applyHomesteadEffect(homesteadInteraction.dispatch({
+    type: "animationFrameAdvanced",
     timestampMilliseconds,
     isHomesteadActive: activeTab === "homestead",
     canvasSize: getHomesteadCanvasSize(),
     nowTimestampMilliseconds: Date.now(),
     random: Math.random
+  })).catch(() => {
+    showStatus("Homestead unavailable.", true);
   });
-  syncGameStateSnapshotFromHomestead();
-  updateFollowDuckButton();
-  renderCanvas();
-
-  if (frameResult.shouldSaveCamera) {
-    saveCameraState().catch(() => {});
-  }
-
-  if (frameResult.shouldSaveHomestead) {
-    saveHomesteadState().catch(() => {});
-  }
 
   animationFrameId = window.requestAnimationFrame(animationLoop);
 }
@@ -887,7 +832,7 @@ function startAnimationLoop(): void {
     return;
   }
 
-  homesteadInteraction.resetAnimationClock();
+  homesteadInteraction.dispatch({ type: "animationStarted" });
   animationFrameId = window.requestAnimationFrame(animationLoop);
 }
 
@@ -901,8 +846,10 @@ function stopAnimationLoop(): void {
 }
 
 async function saveCameraState(): Promise<void> {
-  const cameraState = homesteadInteraction.createCameraSaveState();
+  await applyHomesteadEffect(homesteadInteraction.dispatch({ type: "cameraSaveRequested" }));
+}
 
+async function sendCameraSave(cameraState: HomesteadCameraState | null): Promise<void> {
   if (cameraState === null) {
     return;
   }
@@ -915,8 +862,13 @@ async function saveCameraState(): Promise<void> {
 }
 
 async function saveHomesteadState(): Promise<void> {
-  const saveSnapshot = homesteadInteraction.createHomesteadSaveSnapshot();
+  await applyHomesteadEffect(homesteadInteraction.dispatch({
+    type: "homesteadSaveRequested",
+    nowTimestampMilliseconds: Date.now()
+  }));
+}
 
+async function sendHomesteadSave(saveSnapshot: HomesteadSaveSnapshot | null): Promise<void> {
   if (saveSnapshot === null) {
     return;
   }
@@ -931,6 +883,53 @@ async function saveHomesteadState(): Promise<void> {
     homesteadCamera: saveSnapshot.camera
   };
   await sendGameRuntimeMessage(saveCameraMessage);
+}
+
+async function applyHomesteadEffect(effect: HomesteadInteractionEffect): Promise<void> {
+  syncGameStateSnapshotFromHomestead();
+  updateFollowDuckButton();
+
+  if (effect.captureCanvasPointerId !== null) {
+    homesteadCanvasElement.setPointerCapture(effect.captureCanvasPointerId);
+  }
+
+  if (effect.isCanvasDragging !== null) {
+    homesteadCanvasElement.classList.toggle("is-dragging", effect.isCanvasDragging);
+  }
+
+  if (effect.duckThumbnailDrag !== null) {
+    const thumbnailElement = unplacedDuckTrayElement.querySelector<HTMLButtonElement>(
+      `.duck-thumbnail[data-duck-id="${CSS.escape(effect.duckThumbnailDrag.duckId)}"]`
+    );
+    thumbnailElement?.classList.toggle("is-pointer-dragging", effect.duckThumbnailDrag.isDragging);
+  }
+
+  if (effect.placementHintText !== null) {
+    placementHintTextElement.textContent = effect.placementHintText;
+  }
+
+  if (effect.statusMessage !== null) {
+    showStatus(effect.statusMessage.text, effect.statusMessage.isError);
+  }
+
+  if (effect.renderUnplacedDuckTray) {
+    renderUnplacedDuckTray();
+  }
+
+  if (effect.renderDuckDetails) {
+    renderDuckDetails();
+  }
+
+  if (effect.renderCanvas) {
+    renderCanvas();
+  }
+
+  if (effect.placementRequest !== null) {
+    await placeDuckAtWorldPosition(effect.placementRequest.duckId, effect.placementRequest.worldPosition);
+  }
+
+  await sendCameraSave(effect.saveCamera);
+  await sendHomesteadSave(effect.saveHomestead);
 }
 
 async function handleRenameDuck(): Promise<void> {
@@ -1050,13 +1049,13 @@ feedToNextStageButtonElement.addEventListener("click", () => {
 });
 
 followDuckButtonElement.addEventListener("click", () => {
-  const isFollowingSelectedDuck = homesteadInteraction.toggleFollowSelectedDuck(getHomesteadCanvasSize(), performance.now());
-  syncGameStateSnapshotFromHomestead();
-  updateFollowDuckButton();
-
-  if (isFollowingSelectedDuck) {
-    renderCanvas();
-  }
+  applyHomesteadEffect(homesteadInteraction.dispatch({
+    type: "followToggled",
+    canvasSize: getHomesteadCanvasSize(),
+    timestampMilliseconds: performance.now()
+  })).catch(() => {
+    showStatus("Homestead unavailable.", true);
+  });
 });
 
 homesteadCanvasElement.addEventListener("pointerdown", handleCanvasPointerDown);
@@ -1070,30 +1069,29 @@ homesteadCanvasElement.addEventListener("wheel", (event) => {
 
   event.preventDefault();
   const zoomMultiplier = event.deltaY < 0 ? 1.1 : 0.9;
-  homesteadInteraction.handleWheelZoom(
-    gameStateSnapshot.gameState.homesteadCamera.zoom * zoomMultiplier,
-    event.clientX,
-    event.clientY,
-    getHomesteadCanvasMetrics()
-  );
-  syncGameStateSnapshotFromHomestead();
-  updateFollowDuckButton();
-  saveCameraState().catch(() => {});
-  renderDuckDetails();
-  renderCanvas();
+  applyHomesteadEffect(homesteadInteraction.dispatch({
+    type: "wheelZoomed",
+    requestedZoom: gameStateSnapshot.gameState.homesteadCamera.zoom * zoomMultiplier,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    canvasMetrics: getHomesteadCanvasMetrics()
+  })).catch(() => {
+    showStatus("Homestead unavailable.", true);
+  });
 }, { passive: false });
 homesteadCanvasElement.addEventListener("dragover", (event) => {
   event.preventDefault();
 });
 homesteadCanvasElement.addEventListener("drop", (event) => {
   event.preventDefault();
-  const duckId = event.dataTransfer?.getData("text/plain") ?? homesteadInteraction.getSelectedUnplacedDuckId();
-
-  if (!duckId) {
-    return;
-  }
-
-  placeDuckAtWorldPosition(duckId, getPointerWorldPosition(event)).catch(() => {
+  const duckId = event.dataTransfer?.getData("text/plain") || null;
+  applyHomesteadEffect(homesteadInteraction.dispatch({
+    type: "nativeDuckDropped",
+    duckId,
+    clientX: event.clientX,
+    clientY: event.clientY,
+    canvasMetrics: getHomesteadCanvasMetrics()
+  })).catch(() => {
     showStatus("Placement failed.", true);
   });
 });

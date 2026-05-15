@@ -38,6 +38,7 @@ function createDuck(overrides: Partial<Duck> = {}): Duck {
 function createGameResponse(overrides: {
   ducks?: Duck[];
   homesteadCamera?: HomesteadCameraState;
+  lastHomesteadSimulationTimestampMilliseconds?: number;
 } = {}): GameStatusResponse {
   return {
     gameState: {
@@ -48,7 +49,7 @@ function createGameResponse(overrides: {
       totalCompletedSessions: 0,
       totalCompletedFocusSeconds: 0,
       homesteadCamera: overrides.homesteadCamera ?? { x: 0, y: 0, zoom: 1 },
-      lastHomesteadSimulationTimestampMilliseconds: 0
+      lastHomesteadSimulationTimestampMilliseconds: overrides.lastHomesteadSimulationTimestampMilliseconds ?? 0
     },
     projectDefinitions: [],
     maxDuckCount: 12,
@@ -57,201 +58,213 @@ function createGameResponse(overrides: {
   };
 }
 
+function syncGameResponse(interaction: ReturnType<typeof createHomesteadInteraction>, gameResponse = createGameResponse()): void {
+  interaction.dispatch({
+    type: "gameResponseSynced",
+    gameResponse,
+    isHomesteadActive: true,
+    nowTimestampMilliseconds: 2_000
+  });
+}
+
 describe("homesteadInteraction", () => {
-  it("selects ducks and toggles follow state", () => {
+  it("selects a placed duck from the canvas, then toggles follow", () => {
     const interaction = createHomesteadInteraction();
     const duck = createDuck();
-    interaction.mergeGameResponse(createGameResponse({ ducks: [duck] }), true);
+    syncGameResponse(interaction, createGameResponse({ ducks: [duck] }));
 
-    const pointerDownResult = interaction.handleCanvasPointerDown(
-      {
+    const selectEffect = interaction.dispatch({
+      type: "canvasPointerDown",
+      pointer: {
         pointerId: 1,
         clientX: duck.position?.x ?? 0,
         clientY: duck.position?.y ?? 0
       },
-      TEST_CANVAS_METRICS,
-      100
-    );
+      canvasMetrics: TEST_CANVAS_METRICS,
+      timestampMilliseconds: 100
+    });
 
-    expect(pointerDownResult.shouldRenderDuckDetails).toBe(true);
-    expect(interaction.getSelectedDuck()?.id).toBe(duck.id);
-    expect(interaction.toggleFollowSelectedDuck(TEST_CANVAS_METRICS, 120)).toBe(true);
-    expect(interaction.getIsFollowingSelectedDuck()).toBe(true);
-    interaction.setFollowSelectedDuck(false);
-    expect(interaction.getIsFollowingSelectedDuck()).toBe(false);
+    expect(selectEffect.renderDuckDetails).toBe(true);
+    expect(selectEffect.renderCanvas).toBe(true);
+    expect(interaction.getSnapshot()?.selectedDuck?.id).toBe(duck.id);
+
+    const followEffect = interaction.dispatch({
+      type: "followToggled",
+      canvasSize: TEST_CANVAS_METRICS,
+      timestampMilliseconds: 120
+    });
+
+    expect(followEffect.renderCanvas).toBe(true);
+    expect(interaction.getSnapshot()?.isFollowingSelectedDuck).toBe(true);
   });
 
-  it("keeps following the selected duck after the initial camera centering finishes", () => {
+  it("drags the camera and pinches zoom, producing render and save effects", () => {
     const interaction = createHomesteadInteraction();
-    const initialDuck = createDuck({
+    syncGameResponse(interaction, createGameResponse({ homesteadCamera: { x: 100, y: 100, zoom: 1 } }));
+
+    const dragStartEffect = interaction.dispatch({
+      type: "canvasPointerDown",
+      pointer: { pointerId: 1, clientX: 400, clientY: 300 },
+      canvasMetrics: TEST_CANVAS_METRICS,
+      timestampMilliseconds: 100
+    });
+    expect(dragStartEffect.captureCanvasPointerId).toBe(1);
+    expect(dragStartEffect.isCanvasDragging).toBe(true);
+
+    const dragMoveEffect = interaction.dispatch({
+      type: "canvasPointerMove",
+      pointer: { pointerId: 1, clientX: 390, clientY: 300 },
+      canvasMetrics: TEST_CANVAS_METRICS
+    });
+    expect(dragMoveEffect.renderCanvas).toBe(true);
+
+    const dragEndEffect = interaction.dispatch({
+      type: "canvasPointerUp",
+      pointer: { pointerId: 1, clientX: 390, clientY: 300 },
+      canvasMetrics: TEST_CANVAS_METRICS
+    });
+    expect(dragEndEffect.isCanvasDragging).toBe(false);
+    expect(dragEndEffect.saveCamera).not.toBeNull();
+
+    interaction.dispatch({
+      type: "canvasPointerDown",
+      pointer: { pointerId: 2, clientX: 100, clientY: 100 },
+      canvasMetrics: TEST_CANVAS_METRICS,
+      timestampMilliseconds: 200
+    });
+    interaction.dispatch({
+      type: "canvasPointerDown",
+      pointer: { pointerId: 3, clientX: 200, clientY: 100 },
+      canvasMetrics: TEST_CANVAS_METRICS,
+      timestampMilliseconds: 200
+    });
+    const pinchMoveEffect = interaction.dispatch({
+      type: "canvasPointerMove",
+      pointer: { pointerId: 3, clientX: 300, clientY: 100 },
+      canvasMetrics: TEST_CANVAS_METRICS
+    });
+
+    expect(pinchMoveEffect.renderCanvas).toBe(true);
+    expect(interaction.getSnapshot()?.gameResponse.gameState.homesteadCamera.zoom).toBeGreaterThan(1);
+
+    const wheelEffect = interaction.dispatch({
+      type: "wheelZoomed",
+      requestedZoom: 100,
+      clientX: 400,
+      clientY: 300,
+      canvasMetrics: TEST_CANVAS_METRICS
+    });
+    expect(wheelEffect.saveCamera?.zoom).toBe(HOMESTEAD_MAX_ZOOM);
+  });
+
+  it("selects an unplaced duck, rejects a blocked click, and drag-drops onto the canvas", () => {
+    const interaction = createHomesteadInteraction();
+    const unplacedDuck = createDuck({
+      placementStatus: "unplaced",
+      position: null,
+      homePosition: null
+    });
+    syncGameResponse(interaction, createGameResponse({ ducks: [unplacedDuck] }));
+
+    const selectEffect = interaction.dispatch({ type: "unplacedDuckClicked", duckId: unplacedDuck.id });
+    expect(selectEffect.placementHintText).toBe("Click a valid grass/path tile.");
+    expect(interaction.getSnapshot()?.selectedUnplacedDuckId).toBe(unplacedDuck.id);
+
+    const blockedPosition = getCenteredTileWorldPosition(0, 1);
+    interaction.dispatch({
+      type: "canvasPointerDown",
+      pointer: { pointerId: 1, clientX: blockedPosition.x, clientY: blockedPosition.y },
+      canvasMetrics: TEST_CANVAS_METRICS,
+      timestampMilliseconds: 100
+    });
+    const blockedEffect = interaction.dispatch({
+      type: "canvasPointerUp",
+      pointer: { pointerId: 1, clientX: blockedPosition.x, clientY: blockedPosition.y },
+      canvasMetrics: TEST_CANVAS_METRICS
+    });
+    expect(blockedEffect.placementRequest).toBeNull();
+    expect(blockedEffect.statusMessage).toEqual({ text: "Invalid placement.", isError: true });
+
+    interaction.dispatch({
+      type: "unplacedDuckDragStarted",
+      duckId: unplacedDuck.id,
+      pointer: { pointerId: 2, clientX: 0, clientY: 0 }
+    });
+    const dragMoveEffect = interaction.dispatch({
+      type: "unplacedDuckDragMoved",
+      pointer: { pointerId: 2, clientX: 12, clientY: 0 }
+    });
+    expect(dragMoveEffect.duckThumbnailDrag).toEqual({ duckId: unplacedDuck.id, isDragging: true });
+
+    const validPosition = getCenteredTileWorldPosition(2, 1);
+    const dragEndEffect = interaction.dispatch({
+      type: "unplacedDuckDragEnded",
+      pointer: { pointerId: 2, clientX: validPosition.x, clientY: validPosition.y },
+      canvasMetrics: TEST_CANVAS_METRICS
+    });
+    expect(dragEndEffect.duckThumbnailDrag).toEqual({ duckId: unplacedDuck.id, isDragging: false });
+    expect(dragEndEffect.placementRequest).toEqual({ duckId: unplacedDuck.id, worldPosition: validPosition });
+  });
+
+  it("advances animation frames and emits save effects at the existing cadence", () => {
+    const interaction = createHomesteadInteraction();
+    const duck = createDuck({
       position: getCenteredTileWorldPosition(22, 14),
       homePosition: getCenteredTileWorldPosition(22, 14)
     });
-    interaction.mergeGameResponse(createGameResponse({ ducks: [initialDuck] }), true);
+    syncGameResponse(interaction, createGameResponse({ ducks: [duck] }));
 
-    interaction.handleCanvasPointerDown(
-      {
-        pointerId: 1,
-        clientX: initialDuck.position?.x ?? 0,
-        clientY: initialDuck.position?.y ?? 0
-      },
-      TEST_CANVAS_METRICS,
-      100
-    );
-    expect(interaction.toggleFollowSelectedDuck(TEST_CANVAS_METRICS, 120)).toBe(true);
-    interaction.advanceAnimationFrame({
-      timestampMilliseconds: 540,
-      isHomesteadActive: false,
-      canvasSize: TEST_CANVAS_METRICS,
-      nowTimestampMilliseconds: 1_000_000,
-      random: () => 0
-    });
-    const centeredCamera = interaction.getGameResponse()?.gameState.homesteadCamera;
-    if (centeredCamera === undefined) {
-      throw new Error("Expected camera after initial centering.");
-    }
-
-    const movedDuck = createDuck({
-      position: getCenteredTileWorldPosition(35, 22),
-      homePosition: getCenteredTileWorldPosition(35, 22)
-    });
-    interaction.mergeGameResponse(createGameResponse({ ducks: [movedDuck], homesteadCamera: centeredCamera }), false);
-    interaction.advanceAnimationFrame({
-      timestampMilliseconds: 560,
-      isHomesteadActive: true,
-      canvasSize: TEST_CANVAS_METRICS,
-      nowTimestampMilliseconds: 1_000_000,
-      random: () => 0
-    });
-    interaction.advanceAnimationFrame({
-      timestampMilliseconds: 660,
-      isHomesteadActive: true,
-      canvasSize: TEST_CANVAS_METRICS,
-      nowTimestampMilliseconds: 1_000_100,
-      random: () => 0
-    });
-
-    expect(interaction.getGameResponse()?.gameState.homesteadCamera.x).toBeGreaterThan(centeredCamera.x);
-  });
-
-  it("clamps zoom and updates camera during drag", () => {
-    const interaction = createHomesteadInteraction();
-    interaction.mergeGameResponse(createGameResponse(), true);
-
-    interaction.handleWheelZoom(100, 400, 300, TEST_CANVAS_METRICS);
-    expect(interaction.getGameResponse()?.gameState.homesteadCamera.zoom).toBe(HOMESTEAD_MAX_ZOOM);
-
-    interaction.handleCanvasPointerDown(
-      { pointerId: 1, clientX: 400, clientY: 300 },
-      TEST_CANVAS_METRICS,
-      100
-    );
-    interaction.handleCanvasPointerMove({ pointerId: 1, clientX: 100, clientY: 300 }, TEST_CANVAS_METRICS);
-
-    expect(interaction.getGameResponse()?.gameState.homesteadCamera.x).toBeGreaterThan(0);
-  });
-
-  it("focuses a clicked duck at fixed zoom", () => {
-    const interaction = createHomesteadInteraction();
-    const duck = createDuck();
-    interaction.mergeGameResponse(createGameResponse({ ducks: [duck], homesteadCamera: { x: 0, y: 0, zoom: 2 } }), true);
-
-    interaction.handleCanvasPointerDown(
-      {
-        pointerId: 1,
-        clientX: (duck.position?.x ?? 0) * 2,
-        clientY: (duck.position?.y ?? 0) * 2
-      },
-      TEST_CANVAS_METRICS,
-      100
-    );
-    interaction.advanceAnimationFrame({
-      timestampMilliseconds: 600,
-      isHomesteadActive: false,
-      canvasSize: TEST_CANVAS_METRICS,
-      nowTimestampMilliseconds: 1_000_000,
-      random: () => 0
-    });
-
-    expect(interaction.getGameResponse()?.gameState.homesteadCamera.zoom).toBe(1.25);
-  });
-
-  it("tracks drag and pinch pointer transitions", () => {
-    const interaction = createHomesteadInteraction();
-    interaction.mergeGameResponse(createGameResponse({ homesteadCamera: { x: 100, y: 100, zoom: 1 } }), true);
-
-    const dragStart = interaction.handleCanvasPointerDown(
-      { pointerId: 1, clientX: 400, clientY: 300 },
-      TEST_CANVAS_METRICS,
-      100
-    );
-    expect(dragStart.isDraggingCamera).toBe(true);
-    expect(interaction.handleCanvasPointerMove({ pointerId: 1, clientX: 390, clientY: 300 }, TEST_CANVAS_METRICS))
-      .toEqual({ shouldRenderCanvas: true });
-    expect(interaction.handleCanvasPointerUp({ pointerId: 1, clientX: 390, clientY: 300 }, TEST_CANVAS_METRICS))
-      .toMatchObject({ shouldSaveCamera: true, stoppedCameraDrag: true });
-
-    interaction.handleCanvasPointerDown({ pointerId: 2, clientX: 100, clientY: 100 }, TEST_CANVAS_METRICS, 200);
-    interaction.handleCanvasPointerDown({ pointerId: 3, clientX: 200, clientY: 100 }, TEST_CANVAS_METRICS, 200);
-    expect(interaction.handleCanvasPointerMove({ pointerId: 3, clientX: 300, clientY: 100 }, TEST_CANVAS_METRICS))
-      .toEqual({ shouldRenderCanvas: true });
-    expect(interaction.getGameResponse()?.gameState.homesteadCamera.zoom).toBeGreaterThan(1);
-  });
-
-  it("advances simulated ducks but leaves dragged ducks in place", () => {
-    const movingInteraction = createHomesteadInteraction();
-    const blockedDuck = createDuck({
-      position: getCenteredTileWorldPosition(22, 14),
-      homePosition: getCenteredTileWorldPosition(22, 14)
-    });
-    movingInteraction.mergeGameResponse(createGameResponse({ ducks: [blockedDuck] }), true);
-    movingInteraction.advanceAnimationFrame({
+    const earlyFrameEffect = interaction.dispatch({
+      type: "animationFrameAdvanced",
       timestampMilliseconds: 1_000,
       isHomesteadActive: true,
       canvasSize: TEST_CANVAS_METRICS,
       nowTimestampMilliseconds: 2_000,
       random: () => 0
     });
-    movingInteraction.advanceAnimationFrame({
-      timestampMilliseconds: 2_000,
+    expect(earlyFrameEffect.renderCanvas).toBe(true);
+    expect(earlyFrameEffect.saveHomestead).toBeNull();
+
+    const saveFrameEffect = interaction.dispatch({
+      type: "animationFrameAdvanced",
+      timestampMilliseconds: 6_100,
       isHomesteadActive: true,
       canvasSize: TEST_CANVAS_METRICS,
-      nowTimestampMilliseconds: 3_000,
+      nowTimestampMilliseconds: 7_100,
       random: () => 0
     });
-
-    expect(movingInteraction.getRenderState()?.ducks[0].position).not.toEqual(blockedDuck.position);
-
-    const draggedInteraction = createHomesteadInteraction();
-    draggedInteraction.mergeGameResponse(createGameResponse({ ducks: [blockedDuck] }), true);
-    draggedInteraction.startUnplacedDuckPointerDrag(blockedDuck.id, { pointerId: 1, clientX: 0, clientY: 0 });
-    draggedInteraction.advanceAnimationFrame({
-      timestampMilliseconds: 1_000,
-      isHomesteadActive: true,
-      canvasSize: TEST_CANVAS_METRICS,
-      nowTimestampMilliseconds: 2_000,
-      random: () => 0
-    });
-
-    expect(draggedInteraction.getRenderState()?.ducks[0].position).toEqual(blockedDuck.position);
+    expect(saveFrameEffect.saveHomestead?.duckSimulationUpdates).toHaveLength(1);
+    expect(saveFrameEffect.saveHomestead?.duckSimulationUpdates[0].duckId).toBe(duck.id);
   });
 
-  it("creates save snapshots only when homestead state exists", () => {
+  it("catches up after away and saves only placed duck simulation updates", () => {
     const interaction = createHomesteadInteraction();
-    expect(interaction.createHomesteadSaveSnapshot()).toBeNull();
-
-    const placedDuck = createDuck();
+    const placedDuck = createDuck({
+      position: getCenteredTileWorldPosition(22, 14),
+      homePosition: getCenteredTileWorldPosition(22, 14)
+    });
     const unplacedDuck = createDuck({
       id: "duck-2",
       placementStatus: "unplaced",
       position: null,
       homePosition: null
     });
-    interaction.mergeGameResponse(createGameResponse({ ducks: [placedDuck, unplacedDuck] }), true);
+    syncGameResponse(
+      interaction,
+      createGameResponse({
+        ducks: [placedDuck, unplacedDuck],
+        lastHomesteadSimulationTimestampMilliseconds: 1_000
+      })
+    );
 
-    const saveSnapshot = interaction.createHomesteadSaveSnapshot();
-    expect(saveSnapshot?.camera).toEqual({ x: 0, y: 0, zoom: 1 });
-    expect(saveSnapshot?.duckSimulationUpdates).toHaveLength(1);
-    expect(saveSnapshot?.duckSimulationUpdates[0].duckId).toBe(placedDuck.id);
+    const effect = interaction.dispatch({
+      type: "catchUpAfterAway",
+      nowTimestampMilliseconds: 6_000,
+      random: () => 0
+    });
+
+    expect(effect.renderCanvas).toBe(true);
+    expect(effect.saveHomestead?.duckSimulationUpdates).toHaveLength(1);
+    expect(effect.saveHomestead?.duckSimulationUpdates[0].duckId).toBe(placedDuck.id);
   });
 });

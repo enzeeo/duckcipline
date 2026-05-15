@@ -54,7 +54,7 @@ export interface HomesteadRenderState {
   ducks: Duck[];
 }
 
-export interface HomesteadFrameResult {
+interface HomesteadFrameResult {
   shouldSaveCamera: boolean;
   shouldSaveHomestead: boolean;
 }
@@ -64,34 +64,34 @@ export interface HomesteadSaveSnapshot {
   duckSimulationUpdates: DuckSimulationStateUpdate[];
 }
 
-export interface HomesteadPlacementResult {
+interface HomesteadPlacementResult {
   isValid: boolean;
   centeredPosition: DuckPosition | null;
 }
 
-export interface HomesteadPointerDownResult {
+interface HomesteadPointerDownResult {
   shouldCapturePointer: boolean;
   shouldRenderCanvas: boolean;
   shouldRenderDuckDetails: boolean;
   isDraggingCamera: boolean;
 }
 
-export interface HomesteadPointerMoveResult {
+interface HomesteadPointerMoveResult {
   shouldRenderCanvas: boolean;
 }
 
-export interface HomesteadPointerUpResult {
+interface HomesteadPointerUpResult {
   duckPlacementRequest: { duckId: string; worldPosition: DuckPosition } | null;
   shouldSaveCamera: boolean;
   shouldRenderCanvas: boolean;
   stoppedCameraDrag: boolean;
 }
 
-export interface UnplacedDuckDragMoveResult {
+interface UnplacedDuckDragMoveResult {
   hasMoved: boolean;
 }
 
-export interface UnplacedDuckDragEndResult {
+interface UnplacedDuckDragEndResult {
   duckId: string;
   hasMoved: boolean;
 }
@@ -129,57 +129,96 @@ interface UnplacedDuckPointerDragState {
   hasMoved: boolean;
 }
 
+export interface HomesteadInteractionSnapshot {
+  gameResponse: GameStatusResponse;
+  renderState: HomesteadRenderState;
+  selectedDuck: Duck | null;
+  selectedUnplacedDuckId: string | null;
+  unplacedDucks: Duck[];
+  isFollowingSelectedDuck: boolean;
+}
+
+export type HomesteadInteractionEvent =
+  | {
+      type: "gameResponseSynced";
+      gameResponse: GameStatusResponse;
+      isHomesteadActive: boolean;
+      nowTimestampMilliseconds: number;
+    }
+  | { type: "canvasResized"; canvasSize: HomesteadCanvasSize }
+  | {
+      type: "canvasPointerDown";
+      pointer: HomesteadPointerInput;
+      canvasMetrics: HomesteadCanvasMetrics;
+      timestampMilliseconds: number;
+    }
+  | { type: "canvasPointerMove"; pointer: HomesteadPointerInput; canvasMetrics: HomesteadCanvasMetrics }
+  | { type: "canvasPointerUp"; pointer: HomesteadPointerInput; canvasMetrics: HomesteadCanvasMetrics }
+  | {
+      type: "wheelZoomed";
+      requestedZoom: number;
+      clientX: number;
+      clientY: number;
+      canvasMetrics: HomesteadCanvasMetrics;
+    }
+  | { type: "unplacedDuckClicked"; duckId: string }
+  | { type: "unplacedDuckDragStarted"; duckId: string; pointer: HomesteadPointerInput }
+  | { type: "unplacedDuckDragMoved"; pointer: HomesteadPointerInput }
+  | { type: "unplacedDuckDragEnded"; pointer: HomesteadPointerInput; canvasMetrics: HomesteadCanvasMetrics }
+  | { type: "unplacedDuckDragCanceled"; duckId: string }
+  | { type: "nativeDuckDragStarted"; duckId: string }
+  | { type: "nativeDuckDropped"; duckId: string | null; clientX: number; clientY: number; canvasMetrics: HomesteadCanvasMetrics }
+  | { type: "followToggled"; canvasSize: HomesteadCanvasSize; timestampMilliseconds: number }
+  | {
+      type: "animationFrameAdvanced";
+      timestampMilliseconds: number;
+      isHomesteadActive: boolean;
+      canvasSize: HomesteadCanvasSize;
+      nowTimestampMilliseconds: number;
+      random: () => number;
+    }
+  | { type: "catchUpAfterAway"; nowTimestampMilliseconds: number; random: () => number }
+  | { type: "animationStarted" }
+  | { type: "homesteadDeactivated"; nowTimestampMilliseconds: number }
+  | { type: "duckPlacementSucceeded"; duckId: string; canvasSize: HomesteadCanvasSize; timestampMilliseconds: number }
+  | { type: "cameraSaveRequested" }
+  | { type: "homesteadSaveRequested"; nowTimestampMilliseconds: number };
+
+export interface HomesteadInteractionEffect {
+  gameResponse: GameStatusResponse | null;
+  renderCanvas: boolean;
+  renderDuckDetails: boolean;
+  renderUnplacedDuckTray: boolean;
+  captureCanvasPointerId: number | null;
+  isCanvasDragging: boolean | null;
+  duckThumbnailDrag: { duckId: string; isDragging: boolean } | null;
+  placementRequest: { duckId: string; worldPosition: DuckPosition } | null;
+  placementHintText: string | null;
+  statusMessage: { text: string; isError: boolean } | null;
+  saveCamera: HomesteadCameraState | null;
+  saveHomestead: HomesteadSaveSnapshot | null;
+}
+
 export interface HomesteadInteraction {
-  mergeGameResponse(gameResponse: GameStatusResponse, isHomesteadActive: boolean): GameStatusResponse;
-  getGameResponse(): GameStatusResponse | null;
-  getRenderState(): HomesteadRenderState | null;
-  getSelectedDuck(): Duck | null;
-  getSelectedUnplacedDuckId(): string | null;
-  getUnplacedDucks(): Duck[];
-  getIsFollowingSelectedDuck(): boolean;
-  getPointerWorldPosition(clientX: number, clientY: number, canvasMetrics: HomesteadCanvasMetrics): DuckPosition;
-  findDuckAtWorldPosition(position: DuckPosition): Duck | null;
-  resizeCanvas(canvasSize: HomesteadCanvasSize): void;
-  createPlacementResult(worldPosition: DuckPosition): HomesteadPlacementResult;
-  finishDuckPlacement(duckId: string, canvasSize: HomesteadCanvasSize, timestampMilliseconds: number): void;
-  setFollowSelectedDuck(isFollowing: boolean): void;
-  toggleFollowSelectedDuck(canvasSize: HomesteadCanvasSize, timestampMilliseconds: number): boolean;
-  stopFollowingForManualCameraInput(): void;
-  consumeSuppressedThumbnailClick(duckId: string): boolean;
-  toggleUnplacedDuckSelection(duckId: string): string | null;
-  selectUnplacedDuck(duckId: string): void;
-  startUnplacedDuckPointerDrag(duckId: string, pointer: HomesteadPointerInput): void;
-  moveUnplacedDuckPointerDrag(pointer: HomesteadPointerInput): UnplacedDuckDragMoveResult | null;
-  endUnplacedDuckPointerDrag(pointerId: number): UnplacedDuckDragEndResult | null;
-  cancelUnplacedDuckPointerDrag(duckId: string): boolean;
-  isClientPointInsideCanvas(clientX: number, clientY: number, canvasMetrics: HomesteadCanvasMetrics): boolean;
-  handleCanvasPointerDown(
-    pointer: HomesteadPointerInput,
-    canvasMetrics: HomesteadCanvasMetrics,
-    timestampMilliseconds: number
-  ): HomesteadPointerDownResult;
-  handleCanvasPointerMove(pointer: HomesteadPointerInput, canvasMetrics: HomesteadCanvasMetrics): HomesteadPointerMoveResult;
-  handleCanvasPointerUp(pointer: HomesteadPointerInput, canvasMetrics: HomesteadCanvasMetrics): HomesteadPointerUpResult;
-  updateLocalZoom(
-    requestedZoom: number,
-    clientX: number,
-    clientY: number,
-    canvasMetrics: HomesteadCanvasMetrics,
-    baseCamera?: HomesteadCameraState | null
-  ): void;
-  handleWheelZoom(requestedZoom: number, clientX: number, clientY: number, canvasMetrics: HomesteadCanvasMetrics): boolean;
-  catchUpAfterAway(nowTimestampMilliseconds: number, random: () => number): boolean;
-  advanceAnimationFrame(input: {
-    timestampMilliseconds: number;
-    isHomesteadActive: boolean;
-    canvasSize: HomesteadCanvasSize;
-    nowTimestampMilliseconds: number;
-    random: () => number;
-  }): HomesteadFrameResult;
-  resetAnimationClock(): void;
-  createCameraSaveState(): HomesteadCameraState | null;
-  createHomesteadSaveSnapshot(): HomesteadSaveSnapshot | null;
-  resetDuckRoamState(duckId: string): void;
+  dispatch(event: HomesteadInteractionEvent): HomesteadInteractionEffect;
+  getSnapshot(): HomesteadInteractionSnapshot | null;
+}
+
+function createEmptyEffect(gameResponse: GameStatusResponse | null = null): HomesteadInteractionEffect {
+  return {
+    gameResponse,
+    renderCanvas: false,
+    renderDuckDetails: false,
+    renderUnplacedDuckTray: false,
+    captureCanvasPointerId: null,
+    isCanvasDragging: null,
+    duckThumbnailDrag: null,
+    placementRequest: null,
+    placementHintText: null,
+    statusMessage: null,
+    saveCamera: null,
+    saveHomestead: null
+  };
 }
 
 class HomesteadInteractionController implements HomesteadInteraction {
@@ -199,8 +238,219 @@ class HomesteadInteractionController implements HomesteadInteraction {
   private localDucks: Duck[] = [];
   private duckRoamStateById = new Map<string, DuckRoamState>();
 
-  mergeGameResponse(gameResponse: GameStatusResponse, isHomesteadActive: boolean): GameStatusResponse {
-    const mergedDucks = this.mergeLiveDuckSimulationState(gameResponse.gameState.ducks, isHomesteadActive);
+  dispatch(event: HomesteadInteractionEvent): HomesteadInteractionEffect {
+    switch (event.type) {
+      case "gameResponseSynced": {
+        return createEmptyEffect(
+          this.mergeGameResponse(event.gameResponse, event.isHomesteadActive, event.nowTimestampMilliseconds)
+        );
+      }
+      case "canvasResized": {
+        this.resizeCanvas(event.canvasSize);
+        return createEmptyEffect(this.gameResponse);
+      }
+      case "canvasPointerDown": {
+        const result = this.handleCanvasPointerDown(event.pointer, event.canvasMetrics, event.timestampMilliseconds);
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          captureCanvasPointerId: result.shouldCapturePointer ? event.pointer.pointerId : null,
+          isCanvasDragging: result.isDraggingCamera ? true : null,
+          renderCanvas: result.shouldRenderCanvas,
+          renderDuckDetails: result.shouldRenderDuckDetails
+        };
+      }
+      case "canvasPointerMove": {
+        const result = this.handleCanvasPointerMove(event.pointer, event.canvasMetrics);
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          renderCanvas: result.shouldRenderCanvas
+        };
+      }
+      case "canvasPointerUp": {
+        const result = this.handleCanvasPointerUp(event.pointer, event.canvasMetrics);
+        const placementEffect =
+          result.duckPlacementRequest === null
+            ? {}
+            : this.createPlacementEffectFromWorldPosition(
+              result.duckPlacementRequest.duckId,
+              result.duckPlacementRequest.worldPosition
+            );
+
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          ...placementEffect,
+          isCanvasDragging: result.stoppedCameraDrag ? false : null,
+          renderCanvas: result.shouldRenderCanvas,
+          saveCamera: result.shouldSaveCamera ? this.createCameraSaveState() : null
+        };
+      }
+      case "wheelZoomed": {
+        const didZoom = this.handleWheelZoom(event.requestedZoom, event.clientX, event.clientY, event.canvasMetrics);
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          renderCanvas: didZoom,
+          renderDuckDetails: didZoom,
+          saveCamera: didZoom ? this.createCameraSaveState() : null
+        };
+      }
+      case "unplacedDuckClicked": {
+        if (this.consumeSuppressedThumbnailClick(event.duckId)) {
+          return createEmptyEffect(this.gameResponse);
+        }
+
+        const selectedUnplacedDuckId = this.toggleUnplacedDuckSelection(event.duckId);
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          placementHintText: selectedUnplacedDuckId ? "Click a valid grass/path tile." : "Click a duck, then click the map.",
+          renderUnplacedDuckTray: true,
+          renderCanvas: true
+        };
+      }
+      case "nativeDuckDragStarted": {
+        this.selectUnplacedDuck(event.duckId);
+        return createEmptyEffect(this.gameResponse);
+      }
+      case "unplacedDuckDragStarted": {
+        this.startUnplacedDuckPointerDrag(event.duckId, event.pointer);
+        return createEmptyEffect(this.gameResponse);
+      }
+      case "unplacedDuckDragMoved": {
+        const result = this.moveUnplacedDuckPointerDrag(event.pointer);
+
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          duckThumbnailDrag: result === null ? null : {
+            duckId: this.unplacedDuckPointerDragState?.duckId ?? "",
+            isDragging: result.hasMoved
+          }
+        };
+      }
+      case "unplacedDuckDragEnded": {
+        const result = this.endUnplacedDuckPointerDrag(event.pointer.pointerId);
+
+        if (result === null) {
+          return createEmptyEffect(this.gameResponse);
+        }
+
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          duckThumbnailDrag: { duckId: result.duckId, isDragging: false },
+          ...(result.hasMoved
+            ? this.createPlacementEffectFromClientPoint(
+              result.duckId,
+              event.pointer.clientX,
+              event.pointer.clientY,
+              event.canvasMetrics
+            )
+            : {})
+        };
+      }
+      case "unplacedDuckDragCanceled": {
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          duckThumbnailDrag: this.cancelUnplacedDuckPointerDrag(event.duckId)
+            ? { duckId: event.duckId, isDragging: false }
+            : null
+        };
+      }
+      case "nativeDuckDropped": {
+        const duckId = event.duckId ?? this.selectedUnplacedDuckId;
+
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          ...(duckId === null ? {} : this.createPlacementEffectFromClientPoint(duckId, event.clientX, event.clientY, event.canvasMetrics))
+        };
+      }
+      case "followToggled": {
+        const isFollowingSelectedDuck = this.toggleFollowSelectedDuck(event.canvasSize, event.timestampMilliseconds);
+
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          renderCanvas: isFollowingSelectedDuck
+        };
+      }
+      case "animationFrameAdvanced": {
+        const result = this.advanceAnimationFrame(event);
+
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          renderCanvas: true,
+          saveCamera: result.shouldSaveCamera ? this.createCameraSaveState() : null,
+          saveHomestead: result.shouldSaveHomestead ? this.createHomesteadSaveSnapshot(event.nowTimestampMilliseconds) : null
+        };
+      }
+      case "catchUpAfterAway": {
+        const didCatchUp = this.catchUpAfterAway(event.nowTimestampMilliseconds, event.random);
+
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          renderCanvas: didCatchUp,
+          renderDuckDetails: didCatchUp,
+          saveHomestead: didCatchUp ? this.createHomesteadSaveSnapshot(event.nowTimestampMilliseconds) : null
+        };
+      }
+      case "animationStarted": {
+        this.resetAnimationClock();
+        return createEmptyEffect(this.gameResponse);
+      }
+      case "homesteadDeactivated": {
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          saveHomestead: this.createHomesteadSaveSnapshot(event.nowTimestampMilliseconds)
+        };
+      }
+      case "duckPlacementSucceeded": {
+        this.finishDuckPlacement(event.duckId, event.canvasSize, event.timestampMilliseconds);
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          placementHintText: "Duck placed.",
+          renderCanvas: true,
+          renderDuckDetails: true,
+          renderUnplacedDuckTray: true
+        };
+      }
+      case "cameraSaveRequested": {
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          saveCamera: this.createCameraSaveState()
+        };
+      }
+      case "homesteadSaveRequested": {
+        return {
+          ...createEmptyEffect(this.gameResponse),
+          saveHomestead: this.createHomesteadSaveSnapshot(event.nowTimestampMilliseconds)
+        };
+      }
+    }
+  }
+
+  getSnapshot(): HomesteadInteractionSnapshot | null {
+    const renderState = this.getRenderState();
+
+    if (this.gameResponse === null || renderState === null) {
+      return null;
+    }
+
+    return {
+      gameResponse: this.gameResponse,
+      renderState,
+      selectedDuck: this.getSelectedDuck(),
+      selectedUnplacedDuckId: this.selectedUnplacedDuckId,
+      unplacedDucks: this.getUnplacedDucks(),
+      isFollowingSelectedDuck: this.isFollowingSelectedDuck
+    };
+  }
+
+  mergeGameResponse(
+    gameResponse: GameStatusResponse,
+    isHomesteadActive: boolean,
+    nowTimestampMilliseconds: number
+  ): GameStatusResponse {
+    const mergedDucks = this.mergeLiveDuckSimulationState(
+      gameResponse.gameState.ducks,
+      isHomesteadActive,
+      nowTimestampMilliseconds
+    );
     this.gameResponse = {
       ...gameResponse,
       gameState: {
@@ -302,6 +552,44 @@ class HomesteadInteractionController implements HomesteadInteraction {
     return {
       isValid: true,
       centeredPosition
+    };
+  }
+
+  createPlacementEffectFromClientPoint(
+    duckId: string,
+    clientX: number,
+    clientY: number,
+    canvasMetrics: HomesteadCanvasMetrics
+  ): Partial<HomesteadInteractionEffect> {
+    if (!this.isClientPointInsideCanvas(clientX, clientY, canvasMetrics)) {
+      return {};
+    }
+
+    return this.createPlacementEffectFromWorldPosition(
+      duckId,
+      this.getPointerWorldPosition(clientX, clientY, canvasMetrics)
+    );
+  }
+
+  createPlacementEffectFromWorldPosition(
+    duckId: string,
+    worldPosition: DuckPosition
+  ): Partial<HomesteadInteractionEffect> {
+    const placementResult = this.createPlacementResult(worldPosition);
+
+    if (!placementResult.isValid || placementResult.centeredPosition === null) {
+      return {
+        placementHintText: "That tile is blocked.",
+        statusMessage: { text: "Invalid placement.", isError: true },
+        renderCanvas: true
+      };
+    }
+
+    return {
+      placementRequest: {
+        duckId,
+        worldPosition: placementResult.centeredPosition
+      }
     };
   }
 
@@ -699,14 +987,13 @@ class HomesteadInteractionController implements HomesteadInteraction {
     return this.gameResponse?.gameState.homesteadCamera ?? null;
   }
 
-  createHomesteadSaveSnapshot(): HomesteadSaveSnapshot | null {
+  createHomesteadSaveSnapshot(nowTimestampMilliseconds: number): HomesteadSaveSnapshot | null {
     const camera = this.createCameraSaveState();
 
     if (camera === null || this.gameResponse === null) {
       return null;
     }
 
-    const nowTimestampMilliseconds = Date.now();
     this.lastLocalHomesteadSaveTimestampMilliseconds = nowTimestampMilliseconds;
     this.normalizeLocalDucksForSimulationSave(nowTimestampMilliseconds);
     this.setLocalDucks(this.localDucks, nowTimestampMilliseconds);
@@ -721,13 +1008,16 @@ class HomesteadInteractionController implements HomesteadInteraction {
     this.duckRoamStateById.delete(duckId);
   }
 
-  private mergeLiveDuckSimulationState(ducks: Duck[], isHomesteadActive: boolean): Duck[] {
+  private mergeLiveDuckSimulationState(
+    ducks: Duck[],
+    isHomesteadActive: boolean,
+    nowTimestampMilliseconds: number
+  ): Duck[] {
     if (!isHomesteadActive) {
       return ducks;
     }
 
     const liveDuckById = new Map(this.localDucks.map((duck) => [duck.id, duck]));
-    const nowTimestampMilliseconds = Date.now();
 
     return ducks.map((duck) => {
       const liveDuck = liveDuckById.get(duck.id);
