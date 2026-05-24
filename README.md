@@ -112,6 +112,10 @@ Rules that matter:
 
 ## Documentation
 
+- [Docs index](docs/README.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Development workflow](docs/DEVELOPMENT.md)
+- [Data and messages](docs/DATA_AND_MESSAGES.md)
 - [Design contract](docs/DESIGN.md)
 - [Manual testing checklist](docs/MANUAL_TESTING.md)
 - [Roadmap and TODOs](docs/TODO.md)
