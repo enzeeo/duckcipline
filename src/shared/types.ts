@@ -76,6 +76,11 @@ export interface HomesteadCameraState {
   zoom: number;
 }
 
+export interface HomesteadSaveSnapshot {
+  camera: HomesteadCameraState;
+  duckSimulationUpdates: DuckSimulationStateUpdate[] | null;
+}
+
 export interface GameState {
   activeProjectId: ProjectId | null;
   projectProgressById: Partial<Record<ProjectId, ProjectProgressState>>;

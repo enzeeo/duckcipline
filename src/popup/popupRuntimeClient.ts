@@ -7,10 +7,9 @@ import {
   PLACE_DUCK_MESSAGE_TYPE,
   RENAME_DUCK_MESSAGE_TYPE,
   RESET_TIMER_MESSAGE_TYPE,
-  SAVE_HOMESTEAD_CAMERA_MESSAGE_TYPE,
+  SAVE_HOMESTEAD_STATE_MESSAGE_TYPE,
   SELECT_PROJECT_MESSAGE_TYPE,
   START_TIMER_MESSAGE_TYPE,
-  UPDATE_DUCK_SIMULATION_STATE_MESSAGE_TYPE,
   isGameMessageResponse,
   isTimerMessageResponse,
   type GameRequestMessage,
@@ -18,10 +17,9 @@ import {
 } from "../shared/messages.js";
 import type {
   DuckPosition,
-  DuckSimulationStateUpdate,
   FeedDuckMode,
   GameMessageResponse,
-  HomesteadCameraState,
+  HomesteadSaveSnapshot,
   ProjectId,
   TimerMessageResponse
 } from "../shared/types.js";
@@ -83,12 +81,8 @@ export class PopupRuntimeClient {
     return this.sendGameMessage({ type: FEED_DUCK_MESSAGE_TYPE, duckId, feedMode });
   }
 
-  async updateDuckSimulationState(updates: DuckSimulationStateUpdate[]): Promise<GameMessageResponse> {
-    return this.sendGameMessage({ type: UPDATE_DUCK_SIMULATION_STATE_MESSAGE_TYPE, updates });
-  }
-
-  async saveHomesteadCamera(homesteadCamera: HomesteadCameraState): Promise<GameMessageResponse> {
-    return this.sendGameMessage({ type: SAVE_HOMESTEAD_CAMERA_MESSAGE_TYPE, homesteadCamera });
+  async saveHomesteadState(snapshot: HomesteadSaveSnapshot): Promise<GameMessageResponse> {
+    return this.sendGameMessage({ type: SAVE_HOMESTEAD_STATE_MESSAGE_TYPE, snapshot });
   }
 
   private async sendTimerMessage(message: TimerRequestMessage): Promise<TimerMessageResponse> {

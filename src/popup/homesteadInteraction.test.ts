@@ -97,7 +97,8 @@ describe("homesteadInteraction", () => {
       random: () => 0
     });
 
-    expect(focusEffect.saveCamera?.zoom).toBe(1.75);
+    expect(focusEffect.saveHomesteadState?.camera.zoom).toBe(1.75);
+    expect(focusEffect.saveHomesteadState?.duckSimulationUpdates).toBeNull();
 
     const followEffect = interaction.dispatch({
       type: "followToggled",
@@ -135,7 +136,8 @@ describe("homesteadInteraction", () => {
       canvasMetrics: TEST_CANVAS_METRICS
     });
     expect(dragEndEffect.isCanvasDragging).toBe(false);
-    expect(dragEndEffect.saveCamera).not.toBeNull();
+    expect(dragEndEffect.saveHomesteadState).not.toBeNull();
+    expect(dragEndEffect.saveHomesteadState?.duckSimulationUpdates).toBeNull();
 
     interaction.dispatch({
       type: "canvasPointerDown",
@@ -165,7 +167,8 @@ describe("homesteadInteraction", () => {
       clientY: 300,
       canvasMetrics: TEST_CANVAS_METRICS
     });
-    expect(wheelEffect.saveCamera?.zoom).toBe(HOMESTEAD_MAX_ZOOM);
+    expect(wheelEffect.saveHomesteadState?.camera.zoom).toBe(HOMESTEAD_MAX_ZOOM);
+    expect(wheelEffect.saveHomesteadState?.duckSimulationUpdates).toBeNull();
   });
 
   it("selects an unplaced duck, rejects a blocked click, and drag-drops onto the canvas", () => {
@@ -234,7 +237,7 @@ describe("homesteadInteraction", () => {
       random: () => 0
     });
     expect(earlyFrameEffect.renderCanvas).toBe(true);
-    expect(earlyFrameEffect.saveHomestead).toBeNull();
+    expect(earlyFrameEffect.saveHomesteadState).toBeNull();
 
     const saveFrameEffect = interaction.dispatch({
       type: "animationFrameAdvanced",
@@ -244,8 +247,8 @@ describe("homesteadInteraction", () => {
       nowTimestampMilliseconds: 7_100,
       random: () => 0
     });
-    expect(saveFrameEffect.saveHomestead?.duckSimulationUpdates).toHaveLength(1);
-    expect(saveFrameEffect.saveHomestead?.duckSimulationUpdates[0].duckId).toBe(duck.id);
+    expect(saveFrameEffect.saveHomesteadState?.duckSimulationUpdates).toHaveLength(1);
+    expect(saveFrameEffect.saveHomesteadState?.duckSimulationUpdates?.[0].duckId).toBe(duck.id);
   });
 
   it("catches up after away and saves only placed duck simulation updates", () => {
@@ -275,7 +278,7 @@ describe("homesteadInteraction", () => {
     });
 
     expect(effect.renderCanvas).toBe(true);
-    expect(effect.saveHomestead?.duckSimulationUpdates).toHaveLength(1);
-    expect(effect.saveHomestead?.duckSimulationUpdates[0].duckId).toBe(placedDuck.id);
+    expect(effect.saveHomesteadState?.duckSimulationUpdates).toHaveLength(1);
+    expect(effect.saveHomesteadState?.duckSimulationUpdates?.[0].duckId).toBe(placedDuck.id);
   });
 });

@@ -137,7 +137,7 @@ describe("HomesteadView", () => {
     expect(getElement<HTMLParagraphElement>("selectedDuckMetaText").textContent).toContain("yellow");
   });
 
-  it("wires placement, rename, feed, follow, camera save, and simulation save", async () => {
+  it("wires placement, rename, feed, follow, and homestead state save", async () => {
     const placedDuck = createDuck({
       placementStatus: "placed",
       position: getCenteredTileWorldPosition(2, 1),
@@ -148,8 +148,7 @@ describe("HomesteadView", () => {
       placeDuck: vi.fn(async () => placedGameResponse),
       renameDuck: vi.fn(async () => placedGameResponse),
       feedDuck: vi.fn(async () => placedGameResponse),
-      saveHomesteadCamera: vi.fn(async () => placedGameResponse),
-      updateDuckSimulationState: vi.fn(async () => placedGameResponse)
+      saveHomesteadState: vi.fn(async () => placedGameResponse)
     };
     let view: HomesteadView;
     const onGameResponse = vi.fn(async (gameResponse: GameMessageResponse) => {
@@ -190,7 +189,12 @@ describe("HomesteadView", () => {
     expect(runtimeClient.renameDuck).toHaveBeenCalledWith("duck-1", "River");
     expect(runtimeClient.feedDuck).toHaveBeenCalledWith("duck-1", "single");
     expect(getElement<HTMLButtonElement>("followDuckButton")).toBeInstanceOf(HTMLButtonElement);
-    expect(runtimeClient.updateDuckSimulationState).toHaveBeenCalled();
-    expect(runtimeClient.saveHomesteadCamera).toHaveBeenCalled();
+    expect(runtimeClient.saveHomesteadState).toHaveBeenCalledTimes(1);
+    expect(runtimeClient.saveHomesteadState).toHaveBeenCalledWith(
+      expect.objectContaining({
+        camera: expect.any(Object),
+        duckSimulationUpdates: expect.any(Array)
+      })
+    );
   });
 });

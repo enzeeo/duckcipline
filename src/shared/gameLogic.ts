@@ -14,6 +14,7 @@ import type {
   FeedDuckMode,
   GameState,
   HomesteadCameraState,
+  HomesteadSaveSnapshot,
   ProjectId,
   ProjectProgressState,
   TimerState
@@ -749,7 +750,7 @@ export function updateDuckPlacement(
   };
 }
 
-export function updateDuckSimulationState(
+function updateDuckSimulationState(
   gameState: GameState,
   updates: DuckSimulationStateUpdate[],
   nowTimestampMilliseconds: number
@@ -777,9 +778,19 @@ export function updateDuckSimulationState(
   };
 }
 
-export function saveHomesteadCamera(gameState: GameState, homesteadCamera: HomesteadCameraState): GameState {
-  return {
+export function saveHomesteadState(
+  gameState: GameState,
+  snapshot: HomesteadSaveSnapshot,
+  nowTimestampMilliseconds: number
+): GameState {
+  const gameStateWithSavedCamera = {
     ...gameState,
-    homesteadCamera
+    homesteadCamera: snapshot.camera
   };
+
+  if (snapshot.duckSimulationUpdates === null) {
+    return gameStateWithSavedCamera;
+  }
+
+  return updateDuckSimulationState(gameStateWithSavedCamera, snapshot.duckSimulationUpdates, nowTimestampMilliseconds);
 }

@@ -15,7 +15,8 @@ import type {
   DuckPosition,
   DuckSimulationStateUpdate,
   GameStatusResponse,
-  HomesteadCameraState
+  HomesteadCameraState,
+  HomesteadSaveSnapshot
 } from "../shared/types.js";
 import {
   pruneDuckRoamStates,
@@ -57,11 +58,6 @@ export interface HomesteadRenderState {
 interface HomesteadFrameResult {
   shouldSaveCamera: boolean;
   shouldSaveHomestead: boolean;
-}
-
-export interface HomesteadSaveSnapshot {
-  camera: HomesteadCameraState;
-  duckSimulationUpdates: DuckSimulationStateUpdate[];
 }
 
 interface HomesteadPlacementResult {
@@ -195,8 +191,7 @@ export interface HomesteadInteractionEffect {
   placementRequest: { duckId: string; worldPosition: DuckPosition } | null;
   placementHintText: string | null;
   statusMessage: { text: string; isError: boolean } | null;
-  saveCamera: HomesteadCameraState | null;
-  saveHomestead: HomesteadSaveSnapshot | null;
+  saveHomesteadState: HomesteadSaveSnapshot | null;
 }
 
 export interface HomesteadInteraction {
@@ -216,8 +211,7 @@ function createEmptyEffect(gameResponse: GameStatusResponse | null = null): Home
     placementRequest: null,
     placementHintText: null,
     statusMessage: null,
-    saveCamera: null,
-    saveHomestead: null
+    saveHomesteadState: null
   };
 }
 
@@ -281,7 +275,7 @@ class HomesteadInteractionController implements HomesteadInteraction {
           ...placementEffect,
           isCanvasDragging: result.stoppedCameraDrag ? false : null,
           renderCanvas: result.shouldRenderCanvas,
-          saveCamera: result.shouldSaveCamera ? this.createCameraSaveState() : null
+          saveHomesteadState: result.shouldSaveCamera ? this.createCameraSaveSnapshot() : null
         };
       }
       case "wheelZoomed": {
@@ -290,7 +284,7 @@ class HomesteadInteractionController implements HomesteadInteraction {
           ...createEmptyEffect(this.gameResponse),
           renderCanvas: didZoom,
           renderDuckDetails: didZoom,
-          saveCamera: didZoom ? this.createCameraSaveState() : null
+          saveHomesteadState: didZoom ? this.createCameraSaveSnapshot() : null
         };
       }
       case "unplacedDuckClicked": {
@@ -375,8 +369,11 @@ class HomesteadInteractionController implements HomesteadInteraction {
         return {
           ...createEmptyEffect(this.gameResponse),
           renderCanvas: true,
-          saveCamera: result.shouldSaveCamera ? this.createCameraSaveState() : null,
-          saveHomestead: result.shouldSaveHomestead ? this.createHomesteadSaveSnapshot(event.nowTimestampMilliseconds) : null
+          saveHomesteadState: result.shouldSaveHomestead
+            ? this.createHomesteadSaveSnapshot(event.nowTimestampMilliseconds)
+            : result.shouldSaveCamera
+              ? this.createCameraSaveSnapshot()
+              : null
         };
       }
       case "catchUpAfterAway": {
@@ -386,7 +383,7 @@ class HomesteadInteractionController implements HomesteadInteraction {
           ...createEmptyEffect(this.gameResponse),
           renderCanvas: didCatchUp,
           renderDuckDetails: didCatchUp,
-          saveHomestead: didCatchUp ? this.createHomesteadSaveSnapshot(event.nowTimestampMilliseconds) : null
+          saveHomesteadState: didCatchUp ? this.createHomesteadSaveSnapshot(event.nowTimestampMilliseconds) : null
         };
       }
       case "animationStarted": {
@@ -396,7 +393,7 @@ class HomesteadInteractionController implements HomesteadInteraction {
       case "homesteadDeactivated": {
         return {
           ...createEmptyEffect(this.gameResponse),
-          saveHomestead: this.createHomesteadSaveSnapshot(event.nowTimestampMilliseconds)
+          saveHomesteadState: this.createHomesteadSaveSnapshot(event.nowTimestampMilliseconds)
         };
       }
       case "duckPlacementSucceeded": {
@@ -412,13 +409,13 @@ class HomesteadInteractionController implements HomesteadInteraction {
       case "cameraSaveRequested": {
         return {
           ...createEmptyEffect(this.gameResponse),
-          saveCamera: this.createCameraSaveState()
+          saveHomesteadState: this.createCameraSaveSnapshot()
         };
       }
       case "homesteadSaveRequested": {
         return {
           ...createEmptyEffect(this.gameResponse),
-          saveHomestead: this.createHomesteadSaveSnapshot(event.nowTimestampMilliseconds)
+          saveHomesteadState: this.createHomesteadSaveSnapshot(event.nowTimestampMilliseconds)
         };
       }
     }
@@ -985,6 +982,19 @@ class HomesteadInteractionController implements HomesteadInteraction {
 
   createCameraSaveState(): HomesteadCameraState | null {
     return this.gameResponse?.gameState.homesteadCamera ?? null;
+  }
+
+  createCameraSaveSnapshot(): HomesteadSaveSnapshot | null {
+    const camera = this.createCameraSaveState();
+
+    if (camera === null) {
+      return null;
+    }
+
+    return {
+      camera,
+      duckSimulationUpdates: null
+    };
   }
 
   createHomesteadSaveSnapshot(nowTimestampMilliseconds: number): HomesteadSaveSnapshot | null {

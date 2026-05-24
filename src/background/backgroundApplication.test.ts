@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultGameState, selectActiveProject } from "../shared/gameLogic.js";
-import type { GameState } from "../shared/types.js";
+import type { Duck, GameState } from "../shared/types.js";
 import { createBackgroundApplication } from "./backgroundApplication.js";
 import { createMemoryStateStore } from "./stateStore.js";
 
@@ -12,6 +12,26 @@ function createTestClock(startTimestampMilliseconds: number) {
     advanceBy(milliseconds: number): void {
       currentTimestampMilliseconds += milliseconds;
     }
+  };
+}
+
+function createTestDuck(overrides: Partial<Duck> = {}): Duck {
+  return {
+    id: "duck-1",
+    name: "Quill",
+    variantId: "yellow",
+    sourceEggProjectId: "meadowEgg",
+    growthStage: "duckling",
+    seedsFedForCurrentStage: 0,
+    placementStatus: "placed",
+    position: { x: 32, y: 32 },
+    homePosition: { x: 32, y: 32 },
+    activity: "idle",
+    facingDirection: "right",
+    favoriteActivity: "path patrol",
+    hatchedAtTimestampMilliseconds: 1_000,
+    lastUpdatedAtTimestampMilliseconds: 1_000,
+    ...overrides
   };
 }
 
@@ -143,5 +163,42 @@ describe("backgroundApplication", () => {
 
     expect("gameState" in response && response.gameState.seedCount).toBe(5);
     expect("gameState" in response && response.gameState.activeProjectId).toBeNull();
+  });
+
+  it("saves homestead camera and duck simulation in one handler path", async () => {
+    const clock = createTestClock(3_000);
+    const gameState: GameState = {
+      ...createDefaultGameState(),
+      ducks: [createTestDuck()]
+    };
+    const stateStore = createMemoryStateStore({ gameState });
+    const application = createBackgroundApplication({ clock, stateStore });
+
+    const response = await application.handleMessage({
+      type: "saveHomesteadState",
+      snapshot: {
+        camera: { x: 12, y: 24, zoom: 1.5 },
+        duckSimulationUpdates: [
+          {
+            duckId: "duck-1",
+            position: { x: 96, y: 128 },
+            activity: "wander",
+            facingDirection: "left",
+            lastUpdatedAtTimestampMilliseconds: 2_500
+          }
+        ]
+      }
+    });
+    const storedGameState = await stateStore.readGameState(clock.now());
+
+    expect("gameState" in response && response.gameState.homesteadCamera).toEqual({ x: 12, y: 24, zoom: 1.5 });
+    expect(storedGameState.homesteadCamera).toEqual({ x: 12, y: 24, zoom: 1.5 });
+    expect(storedGameState.ducks[0]).toMatchObject({
+      position: { x: 96, y: 128 },
+      activity: "wander",
+      facingDirection: "left",
+      lastUpdatedAtTimestampMilliseconds: 2_500
+    });
+    expect(storedGameState.lastHomesteadSimulationTimestampMilliseconds).toBe(3_000);
   });
 });

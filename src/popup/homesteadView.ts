@@ -7,9 +7,9 @@ import type {
   FeedDuckMode,
   GameMessageResponse,
   GameStatusResponse,
-  HomesteadCameraState
+  HomesteadSaveSnapshot
 } from "../shared/types.js";
-import { createHomesteadInteraction, type HomesteadCanvasMetrics, type HomesteadInteractionEffect, type HomesteadInteractionSnapshot, type HomesteadSaveSnapshot } from "./homesteadInteraction.js";
+import { createHomesteadInteraction, type HomesteadCanvasMetrics, type HomesteadInteractionEffect, type HomesteadInteractionSnapshot } from "./homesteadInteraction.js";
 import { renderHomesteadCanvas } from "./canvasRenderer.js";
 import type { PopupRuntimeClient } from "./popupRuntimeClient.js";
 import type { SpriteMap } from "./assetLoader.js";
@@ -460,21 +460,12 @@ export class HomesteadView {
     this.animationFrameId = null;
   }
 
-  private async sendCameraSave(cameraState: HomesteadCameraState | null): Promise<void> {
-    if (cameraState === null) {
-      return;
-    }
-
-    await this.options.runtimeClient.saveHomesteadCamera(cameraState);
-  }
-
   private async sendHomesteadSave(saveSnapshot: HomesteadSaveSnapshot | null): Promise<void> {
     if (saveSnapshot === null) {
       return;
     }
 
-    await this.options.runtimeClient.updateDuckSimulationState(saveSnapshot.duckSimulationUpdates);
-    await this.options.runtimeClient.saveHomesteadCamera(saveSnapshot.camera);
+    await this.options.runtimeClient.saveHomesteadState(saveSnapshot);
   }
 
   private async applyHomesteadEffect(effect: HomesteadInteractionEffect): Promise<void> {
@@ -520,8 +511,7 @@ export class HomesteadView {
       await this.placeDuckAtWorldPosition(effect.placementRequest.duckId, effect.placementRequest.worldPosition);
     }
 
-    await this.sendCameraSave(effect.saveCamera);
-    await this.sendHomesteadSave(effect.saveHomestead);
+    await this.sendHomesteadSave(effect.saveHomesteadState);
   }
 
   private async handleRenameDuck(): Promise<void> {

@@ -8,7 +8,7 @@ import {
   updateDuckPlacement,
   feedDuck,
   renameDuck,
-  updateDuckSimulationState
+  saveHomesteadState
 } from "./gameLogic.js";
 import { DUCK_EATING_ANIMATION_DURATION_MILLISECONDS } from "./duckAnimation.js";
 import type { Duck, GameState } from "./types.js";
@@ -90,26 +90,51 @@ describe("gameLogic", () => {
     expect(gameState.projectProgressById.smallSeedPatch?.progressStartedAtTimestampMilliseconds).toBe(7_000);
   });
 
-  it("applies only minimal simulation fields to existing placed ducks", () => {
+  it("saves homestead camera without updating simulation timestamp", () => {
     const gameState: GameState = {
       ...createDefaultGameState(),
-      ducks: [createTestDuck()]
+      homesteadCamera: { x: 1, y: 2, zoom: 1 },
+      lastHomesteadSimulationTimestampMilliseconds: 1_000
     };
 
-    const updatedGameState = updateDuckSimulationState(
+    const updatedGameState = saveHomesteadState(
       gameState,
-      [
-        {
-          duckId: "duck-1",
-          position: { x: 96, y: 128 },
-          activity: "wander",
-          facingDirection: "left",
-          lastUpdatedAtTimestampMilliseconds: 2_000
-        }
-      ],
+      {
+        camera: { x: 10, y: 20, zoom: 1.5 },
+        duckSimulationUpdates: null
+      },
       3_000
     );
 
+    expect(updatedGameState.homesteadCamera).toEqual({ x: 10, y: 20, zoom: 1.5 });
+    expect(updatedGameState.lastHomesteadSimulationTimestampMilliseconds).toBe(1_000);
+  });
+
+  it("saves homestead camera and minimal simulation fields for existing placed ducks", () => {
+    const gameState: GameState = {
+      ...createDefaultGameState(),
+      homesteadCamera: { x: 1, y: 2, zoom: 1 },
+      ducks: [createTestDuck()]
+    };
+
+    const updatedGameState = saveHomesteadState(
+      gameState,
+      {
+        camera: { x: 10, y: 20, zoom: 1.5 },
+        duckSimulationUpdates: [
+          {
+            duckId: "duck-1",
+            position: { x: 96, y: 128 },
+            activity: "wander",
+            facingDirection: "left",
+            lastUpdatedAtTimestampMilliseconds: 2_000
+          }
+        ]
+      },
+      3_000
+    );
+
+    expect(updatedGameState.homesteadCamera).toEqual({ x: 10, y: 20, zoom: 1.5 });
     expect(updatedGameState.ducks[0]).toMatchObject({
       id: "duck-1",
       name: "Quill",
@@ -121,27 +146,48 @@ describe("gameLogic", () => {
     expect(updatedGameState.lastHomesteadSimulationTimestampMilliseconds).toBe(3_000);
   });
 
-  it("ignores simulation updates for unplaced ducks", () => {
+  it("ignores homestead simulation updates for unplaced ducks", () => {
     const gameState: GameState = {
       ...createDefaultGameState(),
       ducks: [createTestDuck({ placementStatus: "unplaced", position: null })]
     };
 
-    const updatedGameState = updateDuckSimulationState(
+    const updatedGameState = saveHomesteadState(
       gameState,
-      [
-        {
-          duckId: "duck-1",
-          position: { x: 96, y: 128 },
-          activity: "wander",
-          facingDirection: "right",
-          lastUpdatedAtTimestampMilliseconds: 2_000
-        }
-      ],
+      {
+        camera: { x: 0, y: 0, zoom: 1 },
+        duckSimulationUpdates: [
+          {
+            duckId: "duck-1",
+            position: { x: 96, y: 128 },
+            activity: "wander",
+            facingDirection: "right",
+            lastUpdatedAtTimestampMilliseconds: 2_000
+          }
+        ]
+      },
       3_000
     );
 
     expect(updatedGameState.ducks[0].position).toBeNull();
+  });
+
+  it("advances homestead simulation timestamp for empty simulation saves", () => {
+    const gameState: GameState = {
+      ...createDefaultGameState(),
+      lastHomesteadSimulationTimestampMilliseconds: 1_000
+    };
+
+    const updatedGameState = saveHomesteadState(
+      gameState,
+      {
+        camera: { x: 0, y: 0, zoom: 1 },
+        duckSimulationUpdates: []
+      },
+      3_000
+    );
+
+    expect(updatedGameState.lastHomesteadSimulationTimestampMilliseconds).toBe(3_000);
   });
 
   it("claims egg projects with injected random and id dependencies", () => {

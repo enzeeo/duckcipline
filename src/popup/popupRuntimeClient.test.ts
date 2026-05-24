@@ -43,4 +43,29 @@ describe("PopupRuntimeClient", () => {
     await expect(client.feedDuck("duck-1", "single")).resolves.toEqual({ error: "Unexpected game response." });
     expect(sentMessages).toEqual([{ type: "feedDuck", duckId: "duck-1", feedMode: "single" }]);
   });
+
+  it("builds one homestead state save message", async () => {
+    const sentMessages: unknown[] = [];
+    const client = new PopupRuntimeClient({
+      async sendMessage(message) {
+        sentMessages.push(message);
+        return null;
+      }
+    });
+
+    await client.saveHomesteadState({
+      camera: { x: 1, y: 2, zoom: 1.5 },
+      duckSimulationUpdates: []
+    });
+
+    expect(sentMessages).toEqual([
+      {
+        type: "saveHomesteadState",
+        snapshot: {
+          camera: { x: 1, y: 2, zoom: 1.5 },
+          duckSimulationUpdates: []
+        }
+      }
+    ]);
+  });
 });

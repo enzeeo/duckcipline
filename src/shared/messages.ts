@@ -6,6 +6,7 @@ import type {
   GameMessageResponse,
   GameStatusResponse,
   HomesteadCameraState,
+  HomesteadSaveSnapshot,
   ProjectId,
   TimerMessageResponse,
   TimerStatusResponse
@@ -25,8 +26,7 @@ export const RENAME_DUCK_MESSAGE_TYPE = "renameDuck";
 export const FEED_DUCK_MESSAGE_TYPE = "feedDuck";
 export const PLACE_DUCK_MESSAGE_TYPE = "placeDuck";
 export const MOVE_DUCK_MESSAGE_TYPE = "moveDuck";
-export const UPDATE_DUCK_SIMULATION_STATE_MESSAGE_TYPE = "updateDuckSimulationState";
-export const SAVE_HOMESTEAD_CAMERA_MESSAGE_TYPE = "saveHomesteadCamera";
+export const SAVE_HOMESTEAD_STATE_MESSAGE_TYPE = "saveHomesteadState";
 
 export interface StartTimerMessage {
   type: typeof START_TIMER_MESSAGE_TYPE;
@@ -89,14 +89,9 @@ export interface MoveDuckMessage {
   y: number;
 }
 
-export interface UpdateDuckSimulationStateMessage {
-  type: typeof UPDATE_DUCK_SIMULATION_STATE_MESSAGE_TYPE;
-  updates: DuckSimulationStateUpdate[];
-}
-
-export interface SaveHomesteadCameraMessage {
-  type: typeof SAVE_HOMESTEAD_CAMERA_MESSAGE_TYPE;
-  homesteadCamera: HomesteadCameraState;
+export interface SaveHomesteadStateMessage {
+  type: typeof SAVE_HOMESTEAD_STATE_MESSAGE_TYPE;
+  snapshot: HomesteadSaveSnapshot;
 }
 
 export type TimerRequestMessage =
@@ -114,8 +109,7 @@ export type GameRequestMessage =
   | FeedDuckMessage
   | PlaceDuckMessage
   | MoveDuckMessage
-  | UpdateDuckSimulationStateMessage
-  | SaveHomesteadCameraMessage;
+  | SaveHomesteadStateMessage;
 
 export type ExtensionRequestMessage = TimerRequestMessage | GameRequestMessage;
 
@@ -197,6 +191,17 @@ function isHomesteadCameraState(value: unknown): value is HomesteadCameraState {
   return typeof value.x === "number" && typeof value.y === "number" && typeof value.zoom === "number";
 }
 
+function isHomesteadSaveSnapshot(value: unknown): value is HomesteadSaveSnapshot {
+  if (!isObjectRecord(value)) {
+    return false;
+  }
+
+  return (
+    isHomesteadCameraState(value.camera) &&
+    (value.duckSimulationUpdates === null || isDuckSimulationStateUpdateArray(value.duckSimulationUpdates))
+  );
+}
+
 export function isTimerMessageResponse(value: unknown): value is TimerMessageResponse {
   return isErrorResponse(value) || isTimerStatusResponse(value);
 }
@@ -250,12 +255,8 @@ export function isExtensionRequestMessage(value: unknown): value is ExtensionReq
     return typeof value.duckId === "string" && typeof value.x === "number" && typeof value.y === "number";
   }
 
-  if (value.type === UPDATE_DUCK_SIMULATION_STATE_MESSAGE_TYPE) {
-    return isDuckSimulationStateUpdateArray(value.updates);
-  }
-
-  if (value.type === SAVE_HOMESTEAD_CAMERA_MESSAGE_TYPE) {
-    return isHomesteadCameraState(value.homesteadCamera);
+  if (value.type === SAVE_HOMESTEAD_STATE_MESSAGE_TYPE) {
+    return isHomesteadSaveSnapshot(value.snapshot);
   }
 
   return false;
