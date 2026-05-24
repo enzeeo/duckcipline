@@ -1,0 +1,3994 @@
+{
+  "version": "1.0.0",
+  "gitCommitHash": "044e573f99ef3dc6e4c347ae04074d5a99360ece",
+  "generatedAt": "2026-05-24T23:51:10.515Z",
+  "files": {
+    ".nvmrc": {
+      "filePath": ".nvmrc",
+      "contentHash": "d163649b204e0ea27669c9feccac0c6b82a8263cef38b745f0383fdb6530abe0",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 2,
+      "hasStructuralAnalysis": false
+    },
+    ".understand-anything/.understandignore": {
+      "filePath": ".understand-anything/.understandignore",
+      "contentHash": "051c19f4b6afd38cb5bebe471e5680b6dc95e052024260dfd696f85702889ceb",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 35,
+      "hasStructuralAnalysis": false
+    },
+    "public/assets/icons/.gitkeep": {
+      "filePath": "public/assets/icons/.gitkeep",
+      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1,
+      "hasStructuralAnalysis": false
+    },
+    "public/assets/pixel/backgrounds/.gitkeep": {
+      "filePath": "public/assets/pixel/backgrounds/.gitkeep",
+      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1,
+      "hasStructuralAnalysis": false
+    },
+    "public/assets/pixel/placeables/.gitkeep": {
+      "filePath": "public/assets/pixel/placeables/.gitkeep",
+      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1,
+      "hasStructuralAnalysis": false
+    },
+    "public/assets/pixel/sprites/.gitkeep": {
+      "filePath": "public/assets/pixel/sprites/.gitkeep",
+      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1,
+      "hasStructuralAnalysis": false
+    },
+    "public/assets/pixel/user-created-maps/.gitkeep": {
+      "filePath": "public/assets/pixel/user-created-maps/.gitkeep",
+      "contentHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 1,
+      "hasStructuralAnalysis": false
+    },
+    "scripts/extract_generated_assets.sh": {
+      "filePath": "scripts/extract_generated_assets.sh",
+      "contentHash": "63a744940f819498faa4d61b92900f028b4e19b9f5fb63bacf9aba2196bf3f38",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 6,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/extract_selected_sprite_sheets.py": {
+      "filePath": "scripts/extract_selected_sprite_sheets.py",
+      "contentHash": "7b8cfa57e0422556019d22e57b94d3d7cf66e92bd5f1b729ba851052c176d171",
+      "functions": [
+        {
+          "name": "read_json_file",
+          "params": [
+            "path"
+          ],
+          "returnType": "dict[str, Any]",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "resolve_repo_path",
+          "params": [
+            "path_value"
+          ],
+          "returnType": "Path",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "require_int",
+          "params": [
+            "value",
+            "field_name"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "require_string",
+          "params": [
+            "value",
+            "field_name"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 4
+        },
+        {
+          "name": "read_crop_box",
+          "params": [
+            "sprite"
+          ],
+          "returnType": "tuple[int, int, int, int]",
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "add_background_cleanup_args",
+          "params": [
+            "command",
+            "sprite",
+            "crop_width",
+            "crop_height"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "crop_sprite",
+          "params": [
+            "magick_binary",
+            "source_path",
+            "output_path",
+            "sprite",
+            "default_output_width",
+            "default_output_height"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 40
+        },
+        {
+          "name": "clean_output_directories",
+          "params": [
+            "manifest"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "crop_grid_sheet",
+          "params": [
+            "sheet",
+            "magick_binary"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 19
+        },
+        {
+          "name": "get_duck_sprite_name",
+          "params": [
+            "variant_id",
+            "stage_prefix"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "get_duck_animation_sprite_name",
+          "params": [
+            "variant_id",
+            "stage_prefix",
+            "activity",
+            "frame_index"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 2
+        },
+        {
+          "name": "crop_duck_placeholder_sheet",
+          "params": [
+            "sheet",
+            "magick_binary"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "extract_assets",
+          "params": [
+            "manifest_path"
+          ],
+          "returnType": "int",
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "argparse",
+          "specifiers": [
+            "argparse"
+          ]
+        },
+        {
+          "source": "json",
+          "specifiers": [
+            "json"
+          ]
+        },
+        {
+          "source": "shutil",
+          "specifiers": [
+            "shutil"
+          ]
+        },
+        {
+          "source": "subprocess",
+          "specifiers": [
+            "subprocess"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "typing",
+          "specifiers": [
+            "Any"
+          ]
+        }
+      ],
+      "exports": [
+        "read_json_file",
+        "resolve_repo_path",
+        "require_int",
+        "require_string",
+        "read_crop_box",
+        "add_background_cleanup_args",
+        "crop_sprite",
+        "clean_output_directories",
+        "crop_grid_sheet",
+        "get_duck_sprite_name",
+        "get_duck_animation_sprite_name",
+        "crop_duck_placeholder_sheet",
+        "extract_assets",
+        "main"
+      ],
+      "totalLines": 259,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/generate_pixel_assets.py": {
+      "filePath": "scripts/generate_pixel_assets.py",
+      "contentHash": "41c0003417c13e0ac7a3ca85a2a51308dbbbf788de440f1c900bea79e0870b1f",
+      "functions": [
+        {
+          "name": "stage_prefix",
+          "params": [
+            "stage"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "duck_size",
+          "params": [
+            "stage"
+          ],
+          "returnType": "dict[str, int]",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "draw_duck",
+          "params": [
+            "stage",
+            "palette",
+            "animation",
+            "frame"
+          ],
+          "returnType": "Canvas",
+          "exported": true,
+          "lineCount": 73
+        },
+        {
+          "name": "draw_egg",
+          "params": [
+            "color",
+            "accent"
+          ],
+          "returnType": "Canvas",
+          "exported": true,
+          "lineCount": 8
+        },
+        {
+          "name": "draw_nest",
+          "params": [],
+          "returnType": "Canvas",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "draw_tree",
+          "params": [],
+          "returnType": "Canvas",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "draw_rock",
+          "params": [],
+          "returnType": "Canvas",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "draw_reeds",
+          "params": [],
+          "returnType": "Canvas",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "draw_lily_pad",
+          "params": [],
+          "returnType": "Canvas",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "draw_tile",
+          "params": [
+            "kind",
+            "frame"
+          ],
+          "returnType": "Canvas",
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "generate_ducks",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "generate_static_assets",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 5
+        }
+      ],
+      "classes": [
+        {
+          "name": "Canvas",
+          "methods": [
+            "__init__",
+            "set_pixel",
+            "rect",
+            "ellipse",
+            "line",
+            "save"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 60
+        }
+      ],
+      "imports": [
+        {
+          "source": "math",
+          "specifiers": [
+            "math"
+          ]
+        },
+        {
+          "source": "struct",
+          "specifiers": [
+            "struct"
+          ]
+        },
+        {
+          "source": "zlib",
+          "specifiers": [
+            "zlib"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        }
+      ],
+      "exports": [
+        "Canvas",
+        "stage_prefix",
+        "duck_size",
+        "draw_duck",
+        "draw_egg",
+        "draw_nest",
+        "draw_tree",
+        "draw_rock",
+        "draw_reeds",
+        "draw_lily_pad",
+        "draw_tile",
+        "generate_ducks",
+        "generate_static_assets",
+        "main"
+      ],
+      "totalLines": 394,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/generate_sprite_sheet_prompts.py": {
+      "filePath": "scripts/generate_sprite_sheet_prompts.py",
+      "contentHash": "0a6f398ff662c761b53d0d92105f57f9255de53191b59b6c355e515110dc8e98",
+      "functions": [
+        {
+          "name": "create_duck_prompt",
+          "params": [
+            "variant_id",
+            "growth_stage",
+            "option_number"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "create_environment_prompt",
+          "params": [
+            "batch_id",
+            "option_number"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 20
+        },
+        {
+          "name": "create_egg_prompt",
+          "params": [
+            "option_number"
+          ],
+          "returnType": "str",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "print_prompt_group",
+          "params": [
+            "title",
+            "prompts"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 40
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "argparse",
+          "specifiers": [
+            "argparse"
+          ]
+        }
+      ],
+      "exports": [
+        "create_duck_prompt",
+        "create_environment_prompt",
+        "create_egg_prompt",
+        "print_prompt_group",
+        "main"
+      ],
+      "totalLines": 134,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/package_extension.py": {
+      "filePath": "scripts/package_extension.py",
+      "contentHash": "50d3e1247e8f38f7502aa602236d6fdcd3a96a84100b2000bf615d23f6895092",
+      "functions": [
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 16
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        },
+        {
+          "source": "zipfile",
+          "specifiers": [
+            "ZIP_DEFLATED",
+            "ZipFile"
+          ]
+        }
+      ],
+      "exports": [
+        "main"
+      ],
+      "totalLines": 34,
+      "hasStructuralAnalysis": true
+    },
+    "scripts/verify_pixel_assets.py": {
+      "filePath": "scripts/verify_pixel_assets.py",
+      "contentHash": "cdbe8c99f48e82844012bd28afc2f388bb5d3ab1efb036d6c05def0b210062cc",
+      "functions": [
+        {
+          "name": "read_png_size",
+          "params": [
+            "path"
+          ],
+          "returnType": "tuple[int, int]",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "add_expected_duck_assets",
+          "params": [
+            "expected_assets"
+          ],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "main",
+          "params": [],
+          "returnType": "None",
+          "exported": true,
+          "lineCount": 29
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "struct",
+          "specifiers": [
+            "struct"
+          ]
+        },
+        {
+          "source": "pathlib",
+          "specifiers": [
+            "Path"
+          ]
+        }
+      ],
+      "exports": [
+        "read_png_size",
+        "add_expected_duck_assets",
+        "main"
+      ],
+      "totalLines": 120,
+      "hasStructuralAnalysis": true
+    },
+    "src/background/background.ts": {
+      "filePath": "src/background/background.ts",
+      "contentHash": "752cec88171a7eaf3e94c441eadb51e2e00a7c07e002b77a4898235164d1029c",
+      "functions": [
+        {
+          "name": "createErrorResponse",
+          "params": [
+            "message"
+          ],
+          "returnType": "ErrorResponse",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "configureSidePanelBehavior",
+          "params": [],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "openSidePanelForTab",
+          "params": [
+            "tab"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "stopRunningTimerIfNoNormalWindowsRemain",
+          "params": [],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 11
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./backgroundApplication.js",
+          "specifiers": [
+            "createBackgroundApplication"
+          ]
+        },
+        {
+          "source": "./stateStore.js",
+          "specifiers": [
+            "createChromeStateStore"
+          ]
+        },
+        {
+          "source": "../shared/messages.js",
+          "specifiers": [
+            "isExtensionRequestMessage"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "ErrorResponse"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 103,
+      "hasStructuralAnalysis": true
+    },
+    "src/background/backgroundApplication.test.ts": {
+      "filePath": "src/background/backgroundApplication.test.ts",
+      "contentHash": "4e3e34bde484fba2375c77ecda3881cd441052903fd8c740e3dc7ec3e5aa3061",
+      "functions": [
+        {
+          "name": "createTestClock",
+          "params": [
+            "startTimestampMilliseconds"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "createTestDuck",
+          "params": [
+            "overrides"
+          ],
+          "returnType": "Duck",
+          "exported": false,
+          "lineCount": 19
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "../shared/gameLogic.js",
+          "specifiers": [
+            "createDefaultGameState",
+            "selectActiveProject"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "Duck",
+            "GameState"
+          ]
+        },
+        {
+          "source": "./backgroundApplication.js",
+          "specifiers": [
+            "createBackgroundApplication"
+          ]
+        },
+        {
+          "source": "./stateStore.js",
+          "specifiers": [
+            "createMemoryStateStore"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 205,
+      "hasStructuralAnalysis": true
+    },
+    "src/background/backgroundApplication.ts": {
+      "filePath": "src/background/backgroundApplication.ts",
+      "contentHash": "12ed8da33441ffeb821d4a74b19f9d979a6bed98a028913d881e3333c6c26ee7",
+      "functions": [
+        {
+          "name": "createErrorResponse",
+          "params": [
+            "message"
+          ],
+          "returnType": "ErrorResponse",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "createTimerStatusResponse",
+          "params": [
+            "isRunning",
+            "hasStartedAtLeastOnce",
+            "remainingSeconds",
+            "configuredDurationSeconds"
+          ],
+          "returnType": "TimerMessageResponse",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "createGameStatusResponse",
+          "params": [
+            "gameState",
+            "timerState",
+            "nowTimestampMilliseconds",
+            "statusMessage"
+          ],
+          "returnType": "GameStatusResponse",
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "createTimerStatusResponseFromState",
+          "params": [
+            "timerState",
+            "nowTimestampMilliseconds"
+          ],
+          "returnType": "TimerMessageResponse",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "areTimerStatesEqual",
+          "params": [
+            "leftState",
+            "rightState"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "areGameStatesEqual",
+          "params": [
+            "leftState",
+            "rightState"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "createBackgroundApplication",
+          "params": [
+            "options"
+          ],
+          "exported": true,
+          "lineCount": 347
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../shared/balance.js",
+          "specifiers": [
+            "MAX_DUCK_COUNT"
+          ]
+        },
+        {
+          "source": "../shared/gameLogic.js",
+          "specifiers": [
+            "applyCompletedFocusSessionToTotals",
+            "claimActiveProject",
+            "feedDuck",
+            "renameDuck",
+            "saveHomesteadState",
+            "selectActiveProject",
+            "synchronizeGameProgressStateWithTimer",
+            "updateDuckPlacement"
+          ]
+        },
+        {
+          "source": "../shared/projectDefinitions.js",
+          "specifiers": [
+            "PROJECT_DEFINITION_BY_ID"
+          ]
+        },
+        {
+          "source": "../shared/messages.js",
+          "specifiers": [
+            "CLAIM_ACTIVE_PROJECT_MESSAGE_TYPE",
+            "FEED_DUCK_MESSAGE_TYPE",
+            "GET_GAME_STATE_MESSAGE_TYPE",
+            "GET_TIMER_STATE_MESSAGE_TYPE",
+            "MOVE_DUCK_MESSAGE_TYPE",
+            "PAUSE_TIMER_MESSAGE_TYPE",
+            "PLACE_DUCK_MESSAGE_TYPE",
+            "RENAME_DUCK_MESSAGE_TYPE",
+            "RESET_TIMER_MESSAGE_TYPE",
+            "SAVE_HOMESTEAD_STATE_MESSAGE_TYPE",
+            "SELECT_PROJECT_MESSAGE_TYPE",
+            "START_TIMER_MESSAGE_TYPE",
+            "STOP_TIMER_MESSAGE_TYPE",
+            "ExtensionRequestMessage"
+          ]
+        },
+        {
+          "source": "../shared/projectDefinitions.js",
+          "specifiers": [
+            "createProjectDefinitionResponses"
+          ]
+        },
+        {
+          "source": "../timer/timerState.js",
+          "specifiers": [
+            "calculateRemainingSecondsForRunningTimer",
+            "calculateStartedAtTimestampMillisecondsForResumedTimer",
+            "createDefaultTimerState",
+            "parseTimerDurationSeconds"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "ErrorResponse",
+            "GameMessageResponse",
+            "GameState",
+            "GameStatusResponse",
+            "HomesteadSaveSnapshot",
+            "ProjectId",
+            "TimerMessageResponse",
+            "TimerState"
+          ]
+        },
+        {
+          "source": "./stateStore.js",
+          "specifiers": [
+            "BackgroundStateStore"
+          ]
+        }
+      ],
+      "exports": [
+        "createBackgroundApplication"
+      ],
+      "totalLines": 482,
+      "hasStructuralAnalysis": true
+    },
+    "src/background/stateStore.ts": {
+      "filePath": "src/background/stateStore.ts",
+      "contentHash": "edf9b0bffb351dd25ac86544fba73dbdac9d9d704e01bcb9290915d6237e56b0",
+      "functions": [
+        {
+          "name": "createChromeStateStore",
+          "params": [
+            "chromeApi"
+          ],
+          "returnType": "BackgroundStateStore",
+          "exported": true,
+          "lineCount": 52
+        },
+        {
+          "name": "createMemoryStateStore",
+          "params": [
+            "options"
+          ],
+          "returnType": "BackgroundStateStore",
+          "exported": true,
+          "lineCount": 22
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../shared/gameLogic.js",
+          "specifiers": [
+            "createDefaultGameState",
+            "migrateLegacyDuckRewardsState",
+            "normalizeGameState"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "GameState",
+            "TimerState"
+          ]
+        },
+        {
+          "source": "../timer/timerState.js",
+          "specifiers": [
+            "createDefaultTimerState",
+            "isTimerState"
+          ]
+        }
+      ],
+      "exports": [
+        "TIMER_STATE_STORAGE_KEY",
+        "GAME_STATE_STORAGE_KEY",
+        "LEGACY_DUCK_REWARDS_STATE_STORAGE_KEY",
+        "createChromeStateStore",
+        "createMemoryStateStore"
+      ],
+      "totalLines": 100,
+      "hasStructuralAnalysis": true
+    },
+    "src/manifest.ts": {
+      "filePath": "src/manifest.ts",
+      "contentHash": "83e811426143b0c7cf1198542b74fdb86c3a3afa85838094ba24f7c476b2faac",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "@crxjs/vite-plugin",
+          "specifiers": [
+            "defineManifest"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 32,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/assetLoader.ts": {
+      "filePath": "src/popup/assetLoader.ts",
+      "contentHash": "da6e5667f739a94f97b0ce8ff970770b0a81a23d41b4bf26b432c44b68a01306",
+      "functions": [
+        {
+          "name": "createAssetUrl",
+          "params": [
+            "relativePath"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 14
+        },
+        {
+          "name": "loadImage",
+          "params": [
+            "relativePath"
+          ],
+          "returnType": "Promise<HTMLImageElement | null>",
+          "exported": false,
+          "lineCount": 14
+        },
+        {
+          "name": "loadPixelSprites",
+          "params": [],
+          "returnType": "Promise<SpriteMap>",
+          "exported": true,
+          "lineCount": 51
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "DuckActivity",
+            "DuckGrowthStage",
+            "DuckVariantId"
+          ]
+        },
+        {
+          "source": "../shared/duckDefinitions.js",
+          "specifiers": [
+            "DUCK_ANIMATION_NAMES",
+            "DUCK_GROWTH_STAGES",
+            "DUCK_VARIANT_IDS",
+            "DuckAnimationName",
+            "getDuckAnimationSpriteName",
+            "getDuckSpriteName"
+          ]
+        }
+      ],
+      "exports": [
+        "createAssetUrl",
+        "loadPixelSprites"
+      ],
+      "totalLines": 116,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/canvasRenderer.ts": {
+      "filePath": "src/popup/canvasRenderer.ts",
+      "contentHash": "1dd4b49591d743e161e89ef467a7e19b085582de9a7687ea5152b3e48709084e",
+      "functions": [
+        {
+          "name": "drawPixelTileFallback",
+          "params": [
+            "context",
+            "spriteKey",
+            "x",
+            "y",
+            "size"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 47
+        },
+        {
+          "name": "drawObjectFallback",
+          "params": [
+            "context",
+            "spriteKey",
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 50
+        },
+        {
+          "name": "drawDuckFallback",
+          "params": [
+            "context",
+            "duck",
+            "x",
+            "y",
+            "size"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "drawSpriteOrFallback",
+          "params": [
+            "context",
+            "spriteMap",
+            "spriteKey",
+            "x",
+            "y",
+            "width",
+            "height",
+            "duck",
+            "isMirrored"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 41
+        },
+        {
+          "name": "getPixelAlignedScreenCoordinate",
+          "params": [
+            "worldCoordinate",
+            "cameraCoordinate",
+            "zoom"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "getIdleRenderedDuckActivity",
+          "params": [
+            "duck"
+          ],
+          "returnType": "Duck[\"activity\"]",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "getRenderedDuckActivity",
+          "params": [
+            "duck",
+            "currentTimestampMilliseconds"
+          ],
+          "returnType": "Duck[\"activity\"] | \"sleep\"",
+          "exported": false,
+          "lineCount": 17
+        },
+        {
+          "name": "getDuckAnimationFrameIndex",
+          "params": [
+            "duck",
+            "sharedAnimationFrameIndex",
+            "currentTimestampMilliseconds"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "renderHomesteadCanvas",
+          "params": [
+            "options"
+          ],
+          "returnType": "void",
+          "exported": true,
+          "lineCount": 84
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../shared/homesteadMap.js",
+          "specifiers": [
+            "HOMESTEAD_COLUMNS",
+            "HOMESTEAD_OBJECTS",
+            "HOMESTEAD_ROWS",
+            "HOMESTEAD_TILE_SIZE",
+            "getTilePositionFromWorldPosition",
+            "getTileTerrainKindAt",
+            "getTileTypeAt"
+          ]
+        },
+        {
+          "source": "../shared/duckAnimation.js",
+          "specifiers": [
+            "DUCK_ANIMATION_FRAME_MILLISECONDS",
+            "isDuckEatingAnimationActive"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "Duck",
+            "HomesteadCameraState"
+          ]
+        },
+        {
+          "source": "./assetLoader.js",
+          "specifiers": [
+            "SpriteKey",
+            "SpriteMap"
+          ]
+        }
+      ],
+      "exports": [
+        "renderHomesteadCanvas"
+      ],
+      "totalLines": 320,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/focusSessionView.test.ts": {
+      "filePath": "src/popup/focusSessionView.test.ts",
+      "contentHash": "f3d096ed137540da006fb1b95f59465ea6e7f59c50eb5b5ace41ede117f3fe27",
+      "functions": [
+        {
+          "name": "installFocusDom",
+          "params": [],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 27
+        },
+        {
+          "name": "getElement",
+          "params": [
+            "id"
+          ],
+          "returnType": "T",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "createGameResponse",
+          "params": [
+            "activeProjectId"
+          ],
+          "returnType": "GameStatusResponse",
+          "exported": false,
+          "lineCount": 20
+        },
+        {
+          "name": "createTimerResponse",
+          "params": [
+            "overrides"
+          ],
+          "returnType": "TimerStatusResponse",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "createView",
+          "params": [
+            "runtimeClient"
+          ],
+          "returnType": "FocusSessionView",
+          "exported": false,
+          "lineCount": 10
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "beforeEach",
+            "describe",
+            "expect",
+            "it",
+            "vi"
+          ]
+        },
+        {
+          "source": "../shared/gameLogic.js",
+          "specifiers": [
+            "createDefaultGameState"
+          ]
+        },
+        {
+          "source": "../shared/projectDefinitions.js",
+          "specifiers": [
+            "createProjectDefinitionResponses"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "GameStatusResponse",
+            "ProjectId",
+            "TimerStatusResponse"
+          ]
+        },
+        {
+          "source": "./focusSessionView.js",
+          "specifiers": [
+            "FocusSessionView"
+          ]
+        },
+        {
+          "source": "./popupRuntimeClient.js",
+          "specifiers": [
+            "PopupRuntimeClient"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 200,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/focusSessionView.ts": {
+      "filePath": "src/popup/focusSessionView.ts",
+      "contentHash": "fcedfd6481751926ed78d2349c0341b41bca48872489ba33f36d19b7313debe3",
+      "functions": [
+        {
+          "name": "getRequiredElement",
+          "params": [
+            "elementId",
+            "constructor"
+          ],
+          "returnType": "T",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "padTimeSegment",
+          "params": [
+            "segmentValue"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "formatAsHoursMinutesSeconds",
+          "params": [
+            "totalSeconds"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "formatProjectSeconds",
+          "params": [
+            "totalSeconds"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 7
+        }
+      ],
+      "classes": [
+        {
+          "name": "FocusSessionView",
+          "methods": [
+            "constructor",
+            "bindEvents",
+            "getSelectedDurationSeconds",
+            "renderTimer",
+            "renderGame",
+            "updateActionButtons",
+            "getDurationInputElements",
+            "clampDurationSegment",
+            "readDurationSegment",
+            "writeDurationSegment",
+            "setDurationInputsFromSeconds",
+            "normalizeDurationInput",
+            "getDurationInputMaximum",
+            "getNextDurationInput",
+            "handleDurationInput",
+            "handleDurationInputBlur",
+            "clearDurationInputs",
+            "findProjectDefinition",
+            "getActiveProjectProgressSeconds",
+            "isActiveProjectReady",
+            "updateActiveRewardStage",
+            "createProjectButton",
+            "renderProjectPicker",
+            "handleStartButtonClick",
+            "handlePauseButtonClick",
+            "handleResetButtonClick",
+            "handleSelectProject",
+            "handleClaimProjectButtonClick"
+          ],
+          "properties": [
+            "timerDisplayElement",
+            "timerStateTextElement",
+            "timerProgressBarElement",
+            "activeRewardStageElement",
+            "rewardNestImageElement",
+            "activeRewardImageElement",
+            "activeRewardNameTextElement",
+            "activeRewardPromptTextElement",
+            "projectProgressBarElement",
+            "startButtonElement",
+            "pauseButtonElement",
+            "resetButtonElement",
+            "durationHoursInputElement",
+            "durationMinutesInputElement",
+            "durationSecondsInputElement",
+            "clearDurationButtonElement",
+            "activeProjectTextElement",
+            "projectProgressTextElement",
+            "claimProjectButtonElement",
+            "eggProjectListElement",
+            "seedProjectListElement",
+            "duckCapacityTextElement",
+            "sessionStatsTextElement",
+            "timerStateSnapshot",
+            "gameStateSnapshot"
+          ],
+          "exported": true,
+          "lineCount": 387
+        }
+      ],
+      "imports": [
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "GameMessageResponse",
+            "GameStatusResponse",
+            "ProjectDefinitionResponse",
+            "ProjectId",
+            "TimerMessageResponse",
+            "TimerStatusResponse"
+          ]
+        },
+        {
+          "source": "./assetLoader.js",
+          "specifiers": [
+            "createAssetUrl"
+          ]
+        },
+        {
+          "source": "./popupRuntimeClient.js",
+          "specifiers": [
+            "PopupRuntimeClient"
+          ]
+        },
+        {
+          "source": "./rewardArt.js",
+          "specifiers": [
+            "getFocusRewardArt"
+          ]
+        }
+      ],
+      "exports": [
+        "FocusSessionView"
+      ],
+      "totalLines": 439,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/homesteadInteraction.test.ts": {
+      "filePath": "src/popup/homesteadInteraction.test.ts",
+      "contentHash": "6da9e9ea5c471618ac7777340d68e84faf0f51bf2a7fc799d40e961ea670c52b",
+      "functions": [
+        {
+          "name": "createDuck",
+          "params": [
+            "overrides"
+          ],
+          "returnType": "Duck",
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "createGameResponse",
+          "params": [
+            "overrides"
+          ],
+          "returnType": "GameStatusResponse",
+          "exported": false,
+          "lineCount": 22
+        },
+        {
+          "name": "syncGameResponse",
+          "params": [
+            "interaction",
+            "gameResponse"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "../shared/homesteadMap.js",
+          "specifiers": [
+            "HOMESTEAD_MAX_ZOOM",
+            "getCenteredTileWorldPosition"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "Duck",
+            "GameStatusResponse",
+            "HomesteadCameraState"
+          ]
+        },
+        {
+          "source": "./homesteadInteraction.js",
+          "specifiers": [
+            "createHomesteadInteraction",
+            "HomesteadCanvasMetrics"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 285,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/homesteadInteraction.ts": {
+      "filePath": "src/popup/homesteadInteraction.ts",
+      "contentHash": "5d7b96b3de48c23908867f09e54552078bb664fae8f2786b590fe6b9976450ff",
+      "functions": [
+        {
+          "name": "createEmptyEffect",
+          "params": [
+            "gameResponse"
+          ],
+          "returnType": "HomesteadInteractionEffect",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "createHomesteadInteraction",
+          "params": [],
+          "returnType": "HomesteadInteraction",
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [
+        {
+          "name": "HomesteadInteractionController",
+          "methods": [
+            "dispatch",
+            "getSnapshot",
+            "mergeGameResponse",
+            "getGameResponse",
+            "getRenderState",
+            "getSelectedDuck",
+            "getSelectedUnplacedDuckId",
+            "getUnplacedDucks",
+            "getIsFollowingSelectedDuck",
+            "getPointerWorldPosition",
+            "findDuckAtWorldPosition",
+            "resizeCanvas",
+            "createPlacementResult",
+            "createPlacementEffectFromClientPoint",
+            "createPlacementEffectFromWorldPosition",
+            "finishDuckPlacement",
+            "setFollowSelectedDuck",
+            "toggleFollowSelectedDuck",
+            "stopFollowingForManualCameraInput",
+            "consumeSuppressedThumbnailClick",
+            "toggleUnplacedDuckSelection",
+            "selectUnplacedDuck",
+            "startUnplacedDuckPointerDrag",
+            "moveUnplacedDuckPointerDrag",
+            "endUnplacedDuckPointerDrag",
+            "cancelUnplacedDuckPointerDrag",
+            "isClientPointInsideCanvas",
+            "handleCanvasPointerDown",
+            "handleCanvasPointerMove",
+            "handleCanvasPointerUp",
+            "updateLocalZoom",
+            "handleWheelZoom",
+            "catchUpAfterAway",
+            "advanceAnimationFrame",
+            "resetAnimationClock",
+            "createCameraSaveState",
+            "createCameraSaveSnapshot",
+            "createHomesteadSaveSnapshot",
+            "resetDuckRoamState",
+            "mergeLiveDuckSimulationState",
+            "updateLocalCameraFromDrag",
+            "simulateDuckMovement",
+            "followSelectedDuckIfNeeded",
+            "startCameraFocusOnDuck",
+            "getCenteredCameraForPosition",
+            "updateCameraFocusAnimation",
+            "easeCameraFocusProgress",
+            "isCameraSettledAtTarget",
+            "updateCamera",
+            "setLocalDucks",
+            "getPersistableDuckActivity",
+            "normalizeLocalDucksForSimulationSave",
+            "createDuckSimulationUpdates"
+          ],
+          "properties": [
+            "gameResponse",
+            "selectedDuckId",
+            "selectedUnplacedDuckId",
+            "pointerDragState",
+            "activeCanvasPointerById",
+            "pinchZoomState",
+            "cameraFocusAnimationState",
+            "unplacedDuckPointerDragState",
+            "suppressedThumbnailClickDuckId",
+            "isFollowingSelectedDuck",
+            "previousAnimationTimestampMilliseconds",
+            "lastSimulationSaveTimestampMilliseconds",
+            "lastLocalHomesteadSaveTimestampMilliseconds",
+            "localDucks",
+            "duckRoamStateById"
+          ],
+          "exported": false,
+          "lineCount": 1077
+        }
+      ],
+      "imports": [
+        {
+          "source": "../shared/homesteadMap.js",
+          "specifiers": [
+            "HOMESTEAD_MAX_ZOOM",
+            "HOMESTEAD_MIN_ZOOM",
+            "HOMESTEAD_TILE_SIZE",
+            "clampCamera",
+            "getCenteredTileWorldPosition",
+            "getTilePositionFromWorldPosition",
+            "getTileTerrainKindAt",
+            "isManualDuckPlacementValid"
+          ]
+        },
+        {
+          "source": "../shared/duckAnimation.js",
+          "specifiers": [
+            "isDuckEatingAnimationActive"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "Duck",
+            "DuckActivity",
+            "DuckPosition",
+            "DuckSimulationStateUpdate",
+            "GameStatusResponse",
+            "HomesteadCameraState",
+            "HomesteadSaveSnapshot"
+          ]
+        },
+        {
+          "source": "./homesteadSimulation.js",
+          "specifiers": [
+            "pruneDuckRoamStates",
+            "simulateDuckMovementCatchUp",
+            "simulateHomesteadDuckMovement",
+            "DuckRoamState"
+          ]
+        }
+      ],
+      "exports": [
+        "createHomesteadInteraction"
+      ],
+      "totalLines": 1299,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/homesteadSimulation.test.ts": {
+      "filePath": "src/popup/homesteadSimulation.test.ts",
+      "contentHash": "6d41e46b83857970dc5924201a2bf54b72c7cec591e39ecef45683d310d4857a",
+      "functions": [
+        {
+          "name": "createDuck",
+          "params": [
+            "overrides"
+          ],
+          "returnType": "Duck",
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "findTileByType",
+          "params": [
+            "tileType"
+          ],
+          "returnType": "{ column: number; row: number }",
+          "exported": false,
+          "lineCount": 11
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "../shared/homesteadMap.js",
+          "specifiers": [
+            "HOMESTEAD_COLUMNS",
+            "HOMESTEAD_ROWS",
+            "getCenteredTileWorldPosition",
+            "getTileTerrainKindAt",
+            "getTileTypeAt",
+            "getTilePositionFromWorldPosition",
+            "isDuckAiPositionValid"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "Duck"
+          ]
+        },
+        {
+          "source": "../shared/duckAnimation.js",
+          "specifiers": [
+            "DUCK_EATING_ANIMATION_DURATION_MILLISECONDS"
+          ]
+        },
+        {
+          "source": "./homesteadSimulation.js",
+          "specifiers": [
+            "chooseDuckRoamBehavior",
+            "createRoamPathForDuck",
+            "DUCK_HOME_RADIUS_TILES",
+            "findEscapePathFromBlockedTile",
+            "findPathBetweenTiles",
+            "getDuckBehaviorProfile",
+            "getDuckMovementActivity",
+            "normalizeDuckFavoriteActivity",
+            "scoreDuckDestinationTile",
+            "simulateDuckMovementCatchUp",
+            "simulateDuckMovement"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 370,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/homesteadSimulation.ts": {
+      "filePath": "src/popup/homesteadSimulation.ts",
+      "contentHash": "2ec7238e2577faa6b621eeca5467bd9daaf2e339e1b2eb7027f617f5c6918601",
+      "functions": [
+        {
+          "name": "isPondDuck",
+          "params": [
+            "duck"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isWaterWorldPosition",
+          "params": [
+            "position"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "isDuckTileValid",
+          "params": [
+            "tileCoordinate"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "normalizeDuckFavoriteActivity",
+          "params": [
+            "favoriteActivity"
+          ],
+          "returnType": "DuckFavoriteActivity",
+          "exported": true,
+          "lineCount": 5
+        },
+        {
+          "name": "getDuckBehaviorProfile",
+          "params": [
+            "duck"
+          ],
+          "returnType": "DuckBehaviorProfile",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "getDuckMovementActivity",
+          "params": [
+            "_duck",
+            "position"
+          ],
+          "returnType": "DuckActivity",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "getFacingDirection",
+          "params": [
+            "currentPosition",
+            "nextPosition",
+            "fallback"
+          ],
+          "returnType": "Duck[\"facingDirection\"]",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "getDurationMilliseconds",
+          "params": [
+            "minimumMilliseconds",
+            "maximumMilliseconds",
+            "random"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "createTileKey",
+          "params": [
+            "tileCoordinate"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "parseTileKey",
+          "params": [
+            "tileKey"
+          ],
+          "returnType": "HomesteadTileCoordinate",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "getManhattanTileDistance",
+          "params": [
+            "leftTile",
+            "rightTile"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isInsideHomeRadius",
+          "params": [
+            "tileCoordinate",
+            "homeTile"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "getHomeTileForDuck",
+          "params": [
+            "duck"
+          ],
+          "returnType": "HomesteadTileCoordinate | null",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "getNeighborTileCoordinates",
+          "params": [
+            "tileCoordinate",
+            "random"
+          ],
+          "returnType": "HomesteadTileCoordinate[]",
+          "exported": false,
+          "lineCount": 17
+        },
+        {
+          "name": "findPathBetweenTiles",
+          "params": [
+            "startTile",
+            "destinationTile",
+            "canEnterWater",
+            "homeTile",
+            "random"
+          ],
+          "returnType": "HomesteadTileCoordinate[]",
+          "exported": true,
+          "lineCount": 71
+        },
+        {
+          "name": "findEscapePathFromBlockedTile",
+          "params": [
+            "startTile",
+            "homeTile",
+            "random"
+          ],
+          "returnType": "HomesteadTileCoordinate[]",
+          "exported": true,
+          "lineCount": 50
+        },
+        {
+          "name": "hasReachableWaterTile",
+          "params": [
+            "duck",
+            "startTile",
+            "random"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "getCurrentTileBehaviorWeights",
+          "params": [
+            "duck",
+            "startTile"
+          ],
+          "returnType": "Record<DuckRoamBehavior, number>",
+          "exported": false,
+          "lineCount": 23
+        },
+        {
+          "name": "chooseDuckRoamBehavior",
+          "params": [
+            "duck",
+            "startTile",
+            "random"
+          ],
+          "returnType": "DuckRoamBehavior",
+          "exported": true,
+          "lineCount": 23
+        },
+        {
+          "name": "isNearWaterTile",
+          "params": [
+            "tileCoordinate"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "scoreDuckDestinationTile",
+          "params": [
+            "duck",
+            "destinationTile",
+            "startTile",
+            "behavior"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 33
+        },
+        {
+          "name": "getRandomValidDestinationTile",
+          "params": [
+            "duck",
+            "startTile",
+            "behavior",
+            "random"
+          ],
+          "returnType": "HomesteadTileCoordinate | null",
+          "exported": false,
+          "lineCount": 54
+        },
+        {
+          "name": "createRoamPathForDuck",
+          "params": [
+            "duck",
+            "random",
+            "behavior"
+          ],
+          "returnType": "DuckPosition[]",
+          "exported": true,
+          "lineCount": 26
+        },
+        {
+          "name": "pruneDuckRoamStates",
+          "params": [
+            "ducks",
+            "roamStateById"
+          ],
+          "returnType": "Map<string, DuckRoamState>",
+          "exported": true,
+          "lineCount": 15
+        },
+        {
+          "name": "createIdleState",
+          "params": [
+            "nowTimestampMilliseconds",
+            "random"
+          ],
+          "returnType": "DuckRoamState",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "createRestState",
+          "params": [
+            "nowTimestampMilliseconds",
+            "random"
+          ],
+          "returnType": "DuckRoamState",
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "createMovementState",
+          "params": [
+            "duck",
+            "behavior",
+            "nowTimestampMilliseconds",
+            "random",
+            "existingBehaviorUntilTimestampMilliseconds"
+          ],
+          "returnType": "DuckRoamState",
+          "exported": false,
+          "lineCount": 21
+        },
+        {
+          "name": "createEscapeMovementState",
+          "params": [
+            "duck",
+            "random"
+          ],
+          "returnType": "DuckRoamState",
+          "exported": false,
+          "lineCount": 25
+        },
+        {
+          "name": "chooseNextRoamState",
+          "params": [
+            "duck",
+            "nowTimestampMilliseconds",
+            "random"
+          ],
+          "returnType": "DuckRoamState",
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "simulateDuckMovement",
+          "params": [
+            "input"
+          ],
+          "returnType": "SimulateDuckMovementResult",
+          "exported": true,
+          "lineCount": 135
+        },
+        {
+          "name": "simulateDuckMovementCatchUp",
+          "params": [
+            "input"
+          ],
+          "returnType": "SimulateDuckMovementCatchUpResult",
+          "exported": true,
+          "lineCount": 33
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../shared/duckDefinitions.js",
+          "specifiers": [
+            "getDuckVariantFamily"
+          ]
+        },
+        {
+          "source": "../shared/duckAnimation.js",
+          "specifiers": [
+            "isDuckEatingAnimationActive"
+          ]
+        },
+        {
+          "source": "../shared/homesteadMap.js",
+          "specifiers": [
+            "HOMESTEAD_COLUMNS",
+            "HOMESTEAD_ROWS",
+            "getCenteredTileWorldPosition",
+            "getTilePositionFromWorldPosition",
+            "getTileTerrainKindAt",
+            "getTileTypeAt",
+            "isDuckAiPositionValid"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "Duck",
+            "DuckActivity",
+            "DuckPosition"
+          ]
+        }
+      ],
+      "exports": [
+        "DUCK_HOME_RADIUS_TILES",
+        "normalizeDuckFavoriteActivity",
+        "getDuckBehaviorProfile",
+        "getDuckMovementActivity",
+        "findPathBetweenTiles",
+        "findEscapePathFromBlockedTile",
+        "chooseDuckRoamBehavior",
+        "scoreDuckDestinationTile",
+        "createRoamPathForDuck",
+        "pruneDuckRoamStates",
+        "simulateDuckMovement",
+        "simulateDuckMovementCatchUp"
+      ],
+      "totalLines": 830,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/homesteadView.test.ts": {
+      "filePath": "src/popup/homesteadView.test.ts",
+      "contentHash": "7380c4e76b62626744423fe03b09b6330f288855cf1958b8e6d673e20d4eec6e",
+      "functions": [
+        {
+          "name": "installHomesteadDom",
+          "params": [],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "installBrowserStubs",
+          "params": [],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "getElement",
+          "params": [
+            "id"
+          ],
+          "returnType": "T",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "createDuck",
+          "params": [
+            "overrides"
+          ],
+          "returnType": "Duck",
+          "exported": false,
+          "lineCount": 19
+        },
+        {
+          "name": "createGameResponse",
+          "params": [
+            "ducks"
+          ],
+          "returnType": "GameStatusResponse",
+          "exported": false,
+          "lineCount": 13
+        },
+        {
+          "name": "createPointerEvent",
+          "params": [
+            "type",
+            "x",
+            "y"
+          ],
+          "returnType": "PointerEvent",
+          "exported": false,
+          "lineCount": 8
+        }
+      ],
+      "classes": [
+        {
+          "name": "TestResizeObserver",
+          "methods": [
+            "observe",
+            "unobserve",
+            "disconnect"
+          ],
+          "properties": [],
+          "exported": false,
+          "lineCount": 5
+        }
+      ],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "beforeEach",
+            "describe",
+            "expect",
+            "it",
+            "vi"
+          ]
+        },
+        {
+          "source": "../shared/gameLogic.js",
+          "specifiers": [
+            "createDefaultGameState"
+          ]
+        },
+        {
+          "source": "../shared/homesteadMap.js",
+          "specifiers": [
+            "getCenteredTileWorldPosition"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "Duck",
+            "GameMessageResponse",
+            "GameStatusResponse"
+          ]
+        },
+        {
+          "source": "./homesteadView.js",
+          "specifiers": [
+            "HomesteadView"
+          ]
+        },
+        {
+          "source": "./popupRuntimeClient.js",
+          "specifiers": [
+            "PopupRuntimeClient"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 201,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/homesteadView.ts": {
+      "filePath": "src/popup/homesteadView.ts",
+      "contentHash": "309b5fba320eec5b204d30ebaf12234a6f91b4c330e7ad205fe852c97c5f738b",
+      "functions": [
+        {
+          "name": "getRequiredElement",
+          "params": [
+            "elementId",
+            "constructor"
+          ],
+          "returnType": "T",
+          "exported": false,
+          "lineCount": 9
+        }
+      ],
+      "classes": [
+        {
+          "name": "HomesteadView",
+          "methods": [
+            "constructor",
+            "bindEvents",
+            "setSpriteMap",
+            "syncGameResponse",
+            "renderGame",
+            "activate",
+            "deactivate",
+            "saveHomesteadState",
+            "resizeCanvasToFrame",
+            "renderCanvas",
+            "getHomesteadCanvasMetrics",
+            "getHomesteadCanvasSize",
+            "syncGameStateSnapshotFromHomestead",
+            "updateFollowDuckButton",
+            "createDuckThumbnail",
+            "renderUnplacedDuckTray",
+            "getSelectedDuck",
+            "getSeedsNeededForSelectedDuck",
+            "renderDuckDetails",
+            "placeDuckAtWorldPosition",
+            "handleCanvasPointerDown",
+            "handleCanvasPointerMove",
+            "handleCanvasPointerUp",
+            "animationLoop",
+            "startAnimationLoop",
+            "stopAnimationLoop",
+            "sendHomesteadSave",
+            "applyHomesteadEffect",
+            "handleRenameDuck",
+            "handleFeedDuck"
+          ],
+          "properties": [
+            "homesteadTabElement",
+            "homesteadFrameElement",
+            "homesteadCanvasElement",
+            "placementHintTextElement",
+            "unplacedDuckTrayElement",
+            "duckDetailsEmptyTextElement",
+            "duckDetailsContentElement",
+            "selectedDuckNameTextElement",
+            "selectedDuckStageTextElement",
+            "selectedDuckMetaTextElement",
+            "feedOneSeedButtonElement",
+            "feedToNextStageButtonElement",
+            "followDuckButtonElement",
+            "gameStateSnapshot",
+            "homesteadInteractionSnapshot",
+            "spriteMap",
+            "homesteadInteraction",
+            "animationFrameId"
+          ],
+          "exported": true,
+          "lineCount": 503
+        }
+      ],
+      "imports": [
+        {
+          "source": "../shared/balance.js",
+          "specifiers": [
+            "DUCK_GROWTH_SEED_REQUIREMENTS"
+          ]
+        },
+        {
+          "source": "../shared/duckDefinitions.js",
+          "specifiers": [
+            "getActivityLabel"
+          ]
+        },
+        {
+          "source": "../shared/homesteadMap.js",
+          "specifiers": [
+            "HOMESTEAD_FRAME_GUTTER"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "Duck",
+            "DuckPosition",
+            "FeedDuckMode",
+            "GameMessageResponse",
+            "GameStatusResponse",
+            "HomesteadSaveSnapshot"
+          ]
+        },
+        {
+          "source": "./homesteadInteraction.js",
+          "specifiers": [
+            "createHomesteadInteraction",
+            "HomesteadCanvasMetrics",
+            "HomesteadInteractionEffect",
+            "HomesteadInteractionSnapshot"
+          ]
+        },
+        {
+          "source": "./canvasRenderer.js",
+          "specifiers": [
+            "renderHomesteadCanvas"
+          ]
+        },
+        {
+          "source": "./popupRuntimeClient.js",
+          "specifiers": [
+            "PopupRuntimeClient"
+          ]
+        },
+        {
+          "source": "./assetLoader.js",
+          "specifiers": [
+            "SpriteMap"
+          ]
+        }
+      ],
+      "exports": [
+        "HomesteadView"
+      ],
+      "totalLines": 537,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/popup.ts": {
+      "filePath": "src/popup/popup.ts",
+      "contentHash": "f619fdcd6354cd4b33e51d0d872ba7ea855458a80fbd486df6d7dc75b0e63e3c",
+      "functions": [
+        {
+          "name": "getRequiredElement",
+          "params": [
+            "elementId",
+            "constructor"
+          ],
+          "returnType": "T",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "showStatus",
+          "params": [
+            "message",
+            "isError"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "updateTimerDisplay",
+          "params": [
+            "timerResponse"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "updateGameDisplay",
+          "params": [
+            "gameResponse"
+          ],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "refreshTimerDisplay",
+          "params": [],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "refreshGameDisplay",
+          "params": [],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "refreshAllDisplays",
+          "params": [],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "catchUpHomesteadAfterAway",
+          "params": [],
+          "returnType": "Promise<void>",
+          "exported": false,
+          "lineCount": 9
+        },
+        {
+          "name": "setActiveTab",
+          "params": [
+            "nextActiveTab"
+          ],
+          "returnType": "void",
+          "exported": false,
+          "lineCount": 18
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "GameMessageResponse",
+            "GameStatusResponse",
+            "TimerMessageResponse"
+          ]
+        },
+        {
+          "source": "./assetLoader.js",
+          "specifiers": [
+            "createAssetUrl",
+            "loadPixelSprites"
+          ]
+        },
+        {
+          "source": "./focusSessionView.js",
+          "specifiers": [
+            "FocusSessionView"
+          ]
+        },
+        {
+          "source": "./homesteadView.js",
+          "specifiers": [
+            "HomesteadView"
+          ]
+        },
+        {
+          "source": "./popupRuntimeClient.js",
+          "specifiers": [
+            "PopupRuntimeClient"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 151,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/popupRuntimeClient.test.ts": {
+      "filePath": "src/popup/popupRuntimeClient.test.ts",
+      "contentHash": "2bbbb5eda4e12e83be5c4a2c3605e92607c6728a5829ef23ac3cf47761787470",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "./popupRuntimeClient.js",
+          "specifiers": [
+            "PopupRuntimeClient",
+            "RuntimeMessageSender"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 72,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/popupRuntimeClient.ts": {
+      "filePath": "src/popup/popupRuntimeClient.ts",
+      "contentHash": "7d67709b9977d86afb7cec039ab3d0a8078c226c3d19625dca88682b672b60e9",
+      "functions": [
+        {
+          "name": "createErrorResponse",
+          "params": [
+            "message"
+          ],
+          "returnType": "{ error: string }",
+          "exported": false,
+          "lineCount": 3
+        }
+      ],
+      "classes": [
+        {
+          "name": "PopupRuntimeClient",
+          "methods": [
+            "constructor",
+            "getTimerState",
+            "startTimer",
+            "pauseTimer",
+            "resetTimer",
+            "getGameState",
+            "selectProject",
+            "claimActiveProject",
+            "placeDuck",
+            "renameDuck",
+            "feedDuck",
+            "saveHomesteadState",
+            "sendTimerMessage",
+            "sendGameMessage"
+          ],
+          "properties": [],
+          "exported": true,
+          "lineCount": 72
+        }
+      ],
+      "imports": [
+        {
+          "source": "../shared/messages.js",
+          "specifiers": [
+            "CLAIM_ACTIVE_PROJECT_MESSAGE_TYPE",
+            "FEED_DUCK_MESSAGE_TYPE",
+            "GET_GAME_STATE_MESSAGE_TYPE",
+            "GET_TIMER_STATE_MESSAGE_TYPE",
+            "PAUSE_TIMER_MESSAGE_TYPE",
+            "PLACE_DUCK_MESSAGE_TYPE",
+            "RENAME_DUCK_MESSAGE_TYPE",
+            "RESET_TIMER_MESSAGE_TYPE",
+            "SAVE_HOMESTEAD_STATE_MESSAGE_TYPE",
+            "SELECT_PROJECT_MESSAGE_TYPE",
+            "START_TIMER_MESSAGE_TYPE",
+            "isGameMessageResponse",
+            "isTimerMessageResponse",
+            "GameRequestMessage",
+            "TimerRequestMessage"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "DuckPosition",
+            "FeedDuckMode",
+            "GameMessageResponse",
+            "HomesteadSaveSnapshot",
+            "ProjectId",
+            "TimerMessageResponse"
+          ]
+        }
+      ],
+      "exports": [
+        "PopupRuntimeClient"
+      ],
+      "totalLines": 108,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/rewardArt.test.ts": {
+      "filePath": "src/popup/rewardArt.test.ts",
+      "contentHash": "0ca9f7a0fd55de077f28ffe1ab3700e18cd1a635ee8325f232749872af8c812e",
+      "functions": [
+        {
+          "name": "createProjectDefinition",
+          "params": [
+            "id",
+            "type"
+          ],
+          "returnType": "ProjectDefinitionResponse",
+          "exported": false,
+          "lineCount": 9
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "ProjectDefinitionResponse",
+            "ProjectId",
+            "ProjectType"
+          ]
+        },
+        {
+          "source": "./rewardArt.js",
+          "specifiers": [
+            "getFocusRewardArt"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 44,
+      "hasStructuralAnalysis": true
+    },
+    "src/popup/rewardArt.ts": {
+      "filePath": "src/popup/rewardArt.ts",
+      "contentHash": "5234c0edc876b737cd649c8af66cbcadfe54abba90f875cdac9e47d208de70f7",
+      "functions": [
+        {
+          "name": "getFocusRewardArt",
+          "params": [
+            "projectDefinition"
+          ],
+          "returnType": "FocusRewardArt | null",
+          "exported": true,
+          "lineCount": 18
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "ProjectDefinitionResponse"
+          ]
+        }
+      ],
+      "exports": [
+        "getFocusRewardArt"
+      ],
+      "totalLines": 46,
+      "hasStructuralAnalysis": true
+    },
+    "src/shared/assetContract.ts": {
+      "filePath": "src/shared/assetContract.ts",
+      "contentHash": "21bf8886eda121216d6f1114e10c3ba685a1d5d31294fc9fd8716ff3de2453b4",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./duckDefinitions.js",
+          "specifiers": [
+            "DUCK_ANIMATION_NAMES",
+            "DUCK_GROWTH_STAGES",
+            "HATCHABLE_DUCK_VARIANT_IDS",
+            "getDuckAnimationSpriteName",
+            "getDuckSpriteName"
+          ]
+        }
+      ],
+      "exports": [
+        "PIXEL_ASSET_PATHS",
+        "PIXEL_ASSET_BASE_PATH",
+        "PIXEL_TILE_SIZE",
+        "PIXEL_DUCK_SPRITE_SIZE",
+        "PIXEL_DUCK_ANIMATION_FRAME_COUNT"
+      ],
+      "totalLines": 43,
+      "hasStructuralAnalysis": true
+    },
+    "src/shared/balance.ts": {
+      "filePath": "src/shared/balance.ts",
+      "contentHash": "16b363d970124d2ca21e22fb5571901368cb4c2df5e32fa317531ce4fc828b14",
+      "functions": [
+        {
+          "name": "getProjectDurationSeconds",
+          "params": [
+            "projectId"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 7
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./types.js",
+          "specifiers": [
+            "DuckGrowthStage",
+            "ProjectId"
+          ]
+        }
+      ],
+      "exports": [
+        "IS_DEBUG_BALANCE_ENABLED",
+        "MAX_DUCK_COUNT",
+        "DUCK_GROWTH_SEED_REQUIREMENTS",
+        "NORMAL_PROJECT_DURATION_SECONDS",
+        "DEBUG_PROJECT_DURATION_SECONDS",
+        "getProjectDurationSeconds"
+      ],
+      "totalLines": 37,
+      "hasStructuralAnalysis": true
+    },
+    "src/shared/duckAnimation.test.ts": {
+      "filePath": "src/shared/duckAnimation.test.ts",
+      "contentHash": "1ff532cf1e2b8a8227e9af39ba66470eeffc2a203a8f8d460471231649d84be8",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "./duckAnimation.js",
+          "specifiers": [
+            "DUCK_EATING_ANIMATION_DURATION_MILLISECONDS",
+            "isDuckEatingAnimationActive"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 13,
+      "hasStructuralAnalysis": true
+    },
+    "src/shared/duckAnimation.ts": {
+      "filePath": "src/shared/duckAnimation.ts",
+      "contentHash": "16bcc549b9217035f2b75531d32ddf8865d30be3394d6437e5d017827155338a",
+      "functions": [
+        {
+          "name": "isDuckEatingAnimationActive",
+          "params": [
+            "startedAtTimestampMilliseconds",
+            "nowTimestampMilliseconds"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 6
+        }
+      ],
+      "classes": [],
+      "imports": [],
+      "exports": [
+        "DUCK_ANIMATION_FRAME_MILLISECONDS",
+        "DUCK_ANIMATION_FRAME_COUNT",
+        "DUCK_EATING_ANIMATION_DURATION_MILLISECONDS",
+        "isDuckEatingAnimationActive"
+      ],
+      "totalLines": 12,
+      "hasStructuralAnalysis": true
+    },
+    "src/shared/duckDefinitions.ts": {
+      "filePath": "src/shared/duckDefinitions.ts",
+      "contentHash": "ec150b5b3b473198d086fbd88d927a18e5d0e55bae6733e26e7150b9c38485e9",
+      "functions": [
+        {
+          "name": "normalizeDuckNameForComparison",
+          "params": [
+            "name"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "createDefaultDuckName",
+          "params": [
+            "duckCountBeforeCreate",
+            "existingDuckNames"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "createFavoriteActivity",
+          "params": [
+            "duckCountBeforeCreate"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "getDuckVariantFamily",
+          "params": [
+            "variantId"
+          ],
+          "returnType": "DuckMovementFamily",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "getDuckSpriteName",
+          "params": [
+            "variantId",
+            "growthStage"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 16
+        },
+        {
+          "name": "getDuckAnimationSpriteName",
+          "params": [
+            "variantId",
+            "growthStage",
+            "activity",
+            "frameIndex"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "getActivityLabel",
+          "params": [
+            "activity"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 19
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./types.js",
+          "specifiers": [
+            "DuckActivity",
+            "DuckGrowthStage",
+            "DuckVariantId"
+          ]
+        }
+      ],
+      "exports": [
+        "DUCK_VARIANT_IDS",
+        "HATCHABLE_DUCK_VARIANT_IDS",
+        "DUCK_GROWTH_STAGES",
+        "DUCK_ANIMATION_NAMES",
+        "createDefaultDuckName",
+        "createFavoriteActivity",
+        "getDuckVariantFamily",
+        "getDuckSpriteName",
+        "getDuckAnimationSpriteName",
+        "getActivityLabel"
+      ],
+      "totalLines": 167,
+      "hasStructuralAnalysis": true
+    },
+    "src/shared/gameLogic.test.ts": {
+      "filePath": "src/shared/gameLogic.test.ts",
+      "contentHash": "98283dc03a92f687eb3bcc86c08bb391997833fe89a38137d36a5d18c0f35664",
+      "functions": [
+        {
+          "name": "createTestDuck",
+          "params": [
+            "overrides"
+          ],
+          "returnType": "Duck",
+          "exported": false,
+          "lineCount": 19
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "./gameLogic.js",
+          "specifiers": [
+            "claimActiveProject",
+            "createDefaultGameState",
+            "normalizeGameState",
+            "selectActiveProject",
+            "synchronizeGameProgressStateWithTimer",
+            "updateDuckPlacement",
+            "feedDuck",
+            "renameDuck",
+            "saveHomesteadState"
+          ]
+        },
+        {
+          "source": "./duckAnimation.js",
+          "specifiers": [
+            "DUCK_EATING_ANIMATION_DURATION_MILLISECONDS"
+          ]
+        },
+        {
+          "source": "./types.js",
+          "specifiers": [
+            "Duck",
+            "GameState"
+          ]
+        },
+        {
+          "source": "../timer/timerState.js",
+          "specifiers": [
+            "createDefaultTimerState"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 340,
+      "hasStructuralAnalysis": true
+    },
+    "src/shared/gameLogic.ts": {
+      "filePath": "src/shared/gameLogic.ts",
+      "contentHash": "8375dd2c92b8eab3de4580ea64cdb0f243424aeb9b5c4b47aebe7c50b0d56e74",
+      "functions": [
+        {
+          "name": "createDefaultGameState",
+          "params": [],
+          "returnType": "GameState",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "calculateElapsedSecondsSinceTimestamp",
+          "params": [
+            "fromTimestampMilliseconds",
+            "toTimestampMilliseconds"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "sanitizeDuckName",
+          "params": [
+            "submittedName",
+            "fallbackName"
+          ],
+          "returnType": "string",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "normalizeDuckNameForComparison",
+          "params": [
+            "name"
+          ],
+          "returnType": "string",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isDuckNameAlreadyUsed",
+          "params": [
+            "duckNames",
+            "duckName"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 4
+        },
+        {
+          "name": "normalizeDuckNames",
+          "params": [
+            "ducks"
+          ],
+          "returnType": "Duck[]",
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "isObjectRecord",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isDuckVariantId",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isDuckGrowthStage",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isDuckActivity",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isDuckFacingDirection",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isDuckPosition",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "isHomesteadCameraState",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "normalizeHomesteadCameraState",
+          "params": [
+            "value"
+          ],
+          "returnType": "HomesteadCameraState",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "normalizeProgressState",
+          "params": [
+            "projectId",
+            "value"
+          ],
+          "returnType": "ProjectProgressState",
+          "exported": false,
+          "lineCount": 25
+        },
+        {
+          "name": "normalizeDuck",
+          "params": [
+            "value",
+            "duckIndex",
+            "nowTimestampMilliseconds"
+          ],
+          "returnType": "Duck | null",
+          "exported": false,
+          "lineCount": 48
+        },
+        {
+          "name": "migrateLegacyDuck",
+          "params": [
+            "legacyDuck",
+            "duckIndex",
+            "nowTimestampMilliseconds"
+          ],
+          "returnType": "Duck | null",
+          "exported": false,
+          "lineCount": 28
+        },
+        {
+          "name": "normalizeGameState",
+          "params": [
+            "value",
+            "nowTimestampMilliseconds"
+          ],
+          "returnType": "GameState",
+          "exported": true,
+          "lineCount": 42
+        },
+        {
+          "name": "migrateLegacyDuckRewardsState",
+          "params": [
+            "value",
+            "nowTimestampMilliseconds"
+          ],
+          "returnType": "GameState | null",
+          "exported": true,
+          "lineCount": 46
+        },
+        {
+          "name": "getProjectProgressState",
+          "params": [
+            "gameState",
+            "projectId"
+          ],
+          "returnType": "ProjectProgressState",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "synchronizeGameProgressStateWithTimer",
+          "params": [
+            "gameState",
+            "timerState",
+            "nowTimestampMilliseconds"
+          ],
+          "returnType": "GameState",
+          "exported": true,
+          "lineCount": 105
+        },
+        {
+          "name": "applyCompletedFocusSessionToTotals",
+          "params": [
+            "gameState",
+            "completedFocusSeconds"
+          ],
+          "returnType": "GameState",
+          "exported": true,
+          "lineCount": 11
+        },
+        {
+          "name": "selectActiveProject",
+          "params": [
+            "gameState",
+            "projectId"
+          ],
+          "returnType": "GameState",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "clearClaimedActiveProject",
+          "params": [
+            "gameState",
+            "projectId"
+          ],
+          "returnType": "GameState",
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "rollDuckVariant",
+          "params": [
+            "hatchTable",
+            "random"
+          ],
+          "returnType": "DuckVariantId",
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "createDuckFromEggProject",
+          "params": [
+            "projectId",
+            "variantId",
+            "duckCountBeforeCreate",
+            "nowTimestampMilliseconds",
+            "duckId",
+            "existingDuckNames"
+          ],
+          "returnType": "Duck",
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "claimActiveProject",
+          "params": [
+            "gameState",
+            "nowTimestampMilliseconds",
+            "dependencies"
+          ],
+          "returnType": "GameLogicResult",
+          "exported": true,
+          "lineCount": 50
+        },
+        {
+          "name": "getSeedsNeededForNextStage",
+          "params": [
+            "growthStage"
+          ],
+          "returnType": "number | null",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "getNextGrowthStage",
+          "params": [
+            "growthStage"
+          ],
+          "returnType": "DuckGrowthStage",
+          "exported": false,
+          "lineCount": 11
+        },
+        {
+          "name": "feedDuck",
+          "params": [
+            "gameState",
+            "duckId",
+            "feedMode",
+            "nowTimestampMilliseconds"
+          ],
+          "returnType": "GameLogicResult",
+          "exported": true,
+          "lineCount": 66
+        },
+        {
+          "name": "renameDuck",
+          "params": [
+            "gameState",
+            "duckId",
+            "submittedName"
+          ],
+          "returnType": "GameLogicResult",
+          "exported": true,
+          "lineCount": 25
+        },
+        {
+          "name": "updateDuckPlacement",
+          "params": [
+            "gameState",
+            "duckId",
+            "position",
+            "nowTimestampMilliseconds"
+          ],
+          "returnType": "GameLogicResult",
+          "exported": true,
+          "lineCount": 31
+        },
+        {
+          "name": "updateDuckSimulationState",
+          "params": [
+            "gameState",
+            "updates",
+            "nowTimestampMilliseconds"
+          ],
+          "returnType": "GameState",
+          "exported": false,
+          "lineCount": 27
+        },
+        {
+          "name": "saveHomesteadState",
+          "params": [
+            "gameState",
+            "snapshot",
+            "nowTimestampMilliseconds"
+          ],
+          "returnType": "GameState",
+          "exported": true,
+          "lineCount": 16
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./balance.js",
+          "specifiers": [
+            "DUCK_GROWTH_SEED_REQUIREMENTS",
+            "MAX_DUCK_COUNT",
+            "getProjectDurationSeconds"
+          ]
+        },
+        {
+          "source": "./duckDefinitions.js",
+          "specifiers": [
+            "DUCK_VARIANT_IDS",
+            "createDefaultDuckName",
+            "createFavoriteActivity"
+          ]
+        },
+        {
+          "source": "./projectDefinitions.js",
+          "specifiers": [
+            "PROJECT_DEFINITION_BY_ID",
+            "isEggProjectId",
+            "isProjectId"
+          ]
+        },
+        {
+          "source": "./duckAnimation.js",
+          "specifiers": [
+            "DUCK_EATING_ANIMATION_DURATION_MILLISECONDS"
+          ]
+        },
+        {
+          "source": "./types.js",
+          "specifiers": [
+            "Duck",
+            "DuckActivity",
+            "DuckFacingDirection",
+            "DuckGrowthStage",
+            "DuckPosition",
+            "DuckSimulationStateUpdate",
+            "DuckVariantId",
+            "EggProjectId",
+            "FeedDuckMode",
+            "GameState",
+            "HomesteadCameraState",
+            "HomesteadSaveSnapshot",
+            "ProjectId",
+            "ProjectProgressState",
+            "TimerState"
+          ]
+        }
+      ],
+      "exports": [
+        "createDefaultGameState",
+        "calculateElapsedSecondsSinceTimestamp",
+        "sanitizeDuckName",
+        "normalizeGameState",
+        "migrateLegacyDuckRewardsState",
+        "getProjectProgressState",
+        "synchronizeGameProgressStateWithTimer",
+        "applyCompletedFocusSessionToTotals",
+        "selectActiveProject",
+        "clearClaimedActiveProject",
+        "rollDuckVariant",
+        "createDuckFromEggProject",
+        "claimActiveProject",
+        "feedDuck",
+        "renameDuck",
+        "updateDuckPlacement",
+        "saveHomesteadState"
+      ],
+      "totalLines": 797,
+      "hasStructuralAnalysis": true
+    },
+    "src/shared/homesteadMap.test.ts": {
+      "filePath": "src/shared/homesteadMap.test.ts",
+      "contentHash": "dde416b2b5b4255d30cca03ea12bc0e3f15d8f472b20951d82a6c11ac327b4ab",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "./homesteadMap.js",
+          "specifiers": [
+            "HOMESTEAD_MAX_ZOOM",
+            "HOMESTEAD_MIN_ZOOM",
+            "HOMESTEAD_COLUMNS",
+            "HOMESTEAD_ROWS",
+            "clampCamera",
+            "getCenteredTileWorldPosition",
+            "getTileTerrainKindAt",
+            "isDuckAiPositionValid",
+            "isManualDuckPlacementValid",
+            "isObjectBlockingTile"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 66,
+      "hasStructuralAnalysis": true
+    },
+    "src/shared/homesteadMap.ts": {
+      "filePath": "src/shared/homesteadMap.ts",
+      "contentHash": "c62716f48c522895af91a950fbf641dbb0c602ac8ee898455ef065fc194e995f",
+      "functions": [
+        {
+          "name": "getDeterministicPercent",
+          "params": [
+            "column",
+            "row",
+            "salt"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 8
+        },
+        {
+          "name": "getOrganicPatchValue",
+          "params": [
+            "column",
+            "row",
+            "patch",
+            "salt"
+          ],
+          "returnType": "number",
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "isInsideOrganicPatch",
+          "params": [
+            "column",
+            "row",
+            "patch",
+            "salt"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isWaterTileType",
+          "params": [
+            "tileType"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "getTileTerrainKind",
+          "params": [
+            "tileType"
+          ],
+          "returnType": "HomesteadTileTerrainKind",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "getPathTileTypeAt",
+          "params": [
+            "column",
+            "row",
+            "pondPatchValue"
+          ],
+          "returnType": "HomesteadTileType | null",
+          "exported": false,
+          "lineCount": 24
+        },
+        {
+          "name": "isFlowerTileAt",
+          "params": [
+            "column",
+            "row"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 18
+        },
+        {
+          "name": "isGrassVariantTileAt",
+          "params": [
+            "column",
+            "row"
+          ],
+          "returnType": "boolean",
+          "exported": false,
+          "lineCount": 5
+        },
+        {
+          "name": "clampCamera",
+          "params": [
+            "camera",
+            "viewportWidth",
+            "viewportHeight"
+          ],
+          "returnType": "HomesteadCameraState",
+          "exported": true,
+          "lineCount": 17
+        },
+        {
+          "name": "getTileTypeAt",
+          "params": [
+            "column",
+            "row"
+          ],
+          "returnType": "HomesteadTileType",
+          "exported": true,
+          "lineCount": 18
+        },
+        {
+          "name": "getTileTerrainKindAt",
+          "params": [
+            "column",
+            "row"
+          ],
+          "returnType": "HomesteadTileTerrainKind",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "isInsideWorld",
+          "params": [
+            "column",
+            "row"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "getTilePositionFromWorldPosition",
+          "params": [
+            "position"
+          ],
+          "returnType": "{ column: number; row: number }",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "getCenteredTileWorldPosition",
+          "params": [
+            "column",
+            "row"
+          ],
+          "returnType": "DuckPosition",
+          "exported": true,
+          "lineCount": 6
+        },
+        {
+          "name": "isObjectBlockingTile",
+          "params": [
+            "column",
+            "row"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "isManualDuckPlacementValid",
+          "params": [
+            "position"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 13
+        },
+        {
+          "name": "isDuckAiPositionValid",
+          "params": [
+            "position",
+            "canEnterWater"
+          ],
+          "returnType": "boolean",
+          "exported": true,
+          "lineCount": 13
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./types.js",
+          "specifiers": [
+            "DuckPosition",
+            "HomesteadCameraState"
+          ]
+        }
+      ],
+      "exports": [
+        "HOMESTEAD_TILE_SIZE",
+        "HOMESTEAD_COLUMNS",
+        "HOMESTEAD_ROWS",
+        "HOMESTEAD_WORLD_WIDTH",
+        "HOMESTEAD_WORLD_HEIGHT",
+        "HOMESTEAD_FRAME_GUTTER",
+        "HOMESTEAD_MIN_ZOOM",
+        "HOMESTEAD_MAX_ZOOM",
+        "HOMESTEAD_OBJECTS",
+        "HOMESTEAD_MAP",
+        "isWaterTileType",
+        "getTileTerrainKind",
+        "clampCamera",
+        "getTileTypeAt",
+        "getTileTerrainKindAt",
+        "isInsideWorld",
+        "getTilePositionFromWorldPosition",
+        "getCenteredTileWorldPosition",
+        "isObjectBlockingTile",
+        "isManualDuckPlacementValid",
+        "isDuckAiPositionValid"
+      ],
+      "totalLines": 256,
+      "hasStructuralAnalysis": true
+    },
+    "src/shared/messages.test.ts": {
+      "filePath": "src/shared/messages.test.ts",
+      "contentHash": "82fd94a870a6a00ce45c76a6083734c90515011fa2c3e91905492c04dcbfa2d0",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "./messages.js",
+          "specifiers": [
+            "FEED_DUCK_MESSAGE_TYPE",
+            "SAVE_HOMESTEAD_STATE_MESSAGE_TYPE",
+            "START_TIMER_MESSAGE_TYPE",
+            "isExtensionRequestMessage"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 77,
+      "hasStructuralAnalysis": true
+    },
+    "src/shared/messages.ts": {
+      "filePath": "src/shared/messages.ts",
+      "contentHash": "1c7b38e57d81f54ef20a06ba0b2a6f9cc78813c74d40951d85f32e7885bd182f",
+      "functions": [
+        {
+          "name": "isObjectRecord",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isErrorResponse",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isTimerStatusResponse",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 12
+        },
+        {
+          "name": "isGameStatusResponse",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 15
+        },
+        {
+          "name": "isFeedDuckMode",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isDuckActivity",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isDuckFacingDirection",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isDuckPosition",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 3
+        },
+        {
+          "name": "isDuckSimulationStateUpdateArray",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 16
+        },
+        {
+          "name": "isHomesteadCameraState",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 7
+        },
+        {
+          "name": "isHomesteadSaveSnapshot",
+          "params": [
+            "value"
+          ],
+          "exported": false,
+          "lineCount": 10
+        },
+        {
+          "name": "isTimerMessageResponse",
+          "params": [
+            "value"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "isGameMessageResponse",
+          "params": [
+            "value"
+          ],
+          "exported": true,
+          "lineCount": 3
+        },
+        {
+          "name": "isExtensionRequestMessage",
+          "params": [
+            "value"
+          ],
+          "exported": true,
+          "lineCount": 51
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./types.js",
+          "specifiers": [
+            "DuckActivity",
+            "DuckFacingDirection",
+            "DuckSimulationStateUpdate",
+            "FeedDuckMode",
+            "GameMessageResponse",
+            "GameStatusResponse",
+            "HomesteadCameraState",
+            "HomesteadSaveSnapshot",
+            "ProjectId",
+            "TimerMessageResponse",
+            "TimerStatusResponse"
+          ]
+        },
+        {
+          "source": "./projectDefinitions.js",
+          "specifiers": [
+            "isProjectId"
+          ]
+        }
+      ],
+      "exports": [
+        "START_TIMER_MESSAGE_TYPE",
+        "STOP_TIMER_MESSAGE_TYPE",
+        "PAUSE_TIMER_MESSAGE_TYPE",
+        "RESET_TIMER_MESSAGE_TYPE",
+        "GET_TIMER_STATE_MESSAGE_TYPE",
+        "GET_GAME_STATE_MESSAGE_TYPE",
+        "SELECT_PROJECT_MESSAGE_TYPE",
+        "CLAIM_ACTIVE_PROJECT_MESSAGE_TYPE",
+        "RENAME_DUCK_MESSAGE_TYPE",
+        "FEED_DUCK_MESSAGE_TYPE",
+        "PLACE_DUCK_MESSAGE_TYPE",
+        "MOVE_DUCK_MESSAGE_TYPE",
+        "SAVE_HOMESTEAD_STATE_MESSAGE_TYPE",
+        "isTimerMessageResponse",
+        "isGameMessageResponse",
+        "isExtensionRequestMessage"
+      ],
+      "totalLines": 264,
+      "hasStructuralAnalysis": true
+    },
+    "src/shared/projectDefinitions.ts": {
+      "filePath": "src/shared/projectDefinitions.ts",
+      "contentHash": "bfa50e15fd42269b3ddb6f1839900c06dfed33198c7f401291e1018bf6d3feb8",
+      "functions": [
+        {
+          "name": "createProjectDefinitionResponses",
+          "params": [],
+          "returnType": "ProjectDefinitionResponse[]",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "isProjectId",
+          "params": [
+            "value"
+          ],
+          "exported": true,
+          "lineCount": 10
+        },
+        {
+          "name": "isEggProjectId",
+          "params": [
+            "value"
+          ],
+          "exported": true,
+          "lineCount": 3
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "./balance.js",
+          "specifiers": [
+            "getProjectDurationSeconds"
+          ]
+        },
+        {
+          "source": "./types.js",
+          "specifiers": [
+            "EggProjectId",
+            "HatchTableEntry",
+            "ProjectDefinitionResponse",
+            "ProjectId",
+            "ProjectType",
+            "SeedProjectId"
+          ]
+        }
+      ],
+      "exports": [
+        "PROJECT_DEFINITIONS",
+        "PROJECT_DEFINITION_BY_ID",
+        "createProjectDefinitionResponses",
+        "isProjectId",
+        "isEggProjectId"
+      ],
+      "totalLines": 122,
+      "hasStructuralAnalysis": true
+    },
+    "src/shared/types.ts": {
+      "filePath": "src/shared/types.ts",
+      "contentHash": "c07c3af20debef11ae94142db9e2a16f4727a12af7aa0e4fedb8be1a50867603",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 129,
+      "hasStructuralAnalysis": true
+    },
+    "src/timer/timerState.test.ts": {
+      "filePath": "src/timer/timerState.test.ts",
+      "contentHash": "5658557daf4e0991a77c55c7aef201a53c237c8103840e19272e3ab7a6eead15",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vitest",
+          "specifiers": [
+            "describe",
+            "expect",
+            "it"
+          ]
+        },
+        {
+          "source": "./timerState.js",
+          "specifiers": [
+            "calculateRemainingSecondsForRunningTimer",
+            "calculateStartedAtTimestampMillisecondsForResumedTimer",
+            "createDefaultTimerState",
+            "parseTimerDurationSeconds"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 40,
+      "hasStructuralAnalysis": true
+    },
+    "src/timer/timerState.ts": {
+      "filePath": "src/timer/timerState.ts",
+      "contentHash": "66dadd8f191d9dc91e58bb1720b8c8d633d394260880940924b6a7cb5f1c7c21",
+      "functions": [
+        {
+          "name": "createDefaultTimerState",
+          "params": [],
+          "returnType": "TimerState",
+          "exported": true,
+          "lineCount": 9
+        },
+        {
+          "name": "isTimerState",
+          "params": [
+            "value"
+          ],
+          "exported": true,
+          "lineCount": 21
+        },
+        {
+          "name": "parseTimerDurationSeconds",
+          "params": [
+            "durationSecondsFromMessage"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 7
+        },
+        {
+          "name": "calculateRemainingSecondsForRunningTimer",
+          "params": [
+            "timerState",
+            "nowTimestampMilliseconds"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 12
+        },
+        {
+          "name": "calculateStartedAtTimestampMillisecondsForResumedTimer",
+          "params": [
+            "timerState",
+            "nowTimestampMilliseconds"
+          ],
+          "returnType": "number",
+          "exported": true,
+          "lineCount": 10
+        }
+      ],
+      "classes": [],
+      "imports": [
+        {
+          "source": "../shared/types.js",
+          "specifiers": [
+            "TimerState"
+          ]
+        }
+      ],
+      "exports": [
+        "DEFAULT_TIMER_DURATION_SECONDS",
+        "createDefaultTimerState",
+        "isTimerState",
+        "parseTimerDurationSeconds",
+        "calculateRemainingSecondsForRunningTimer",
+        "calculateStartedAtTimestampMillisecondsForResumedTimer"
+      ],
+      "totalLines": 70,
+      "hasStructuralAnalysis": true
+    },
+    "vite.config.ts": {
+      "filePath": "vite.config.ts",
+      "contentHash": "52261f5796f7f9dbb6de43f71be23cd33d9530c4e50ee2ec8f83ef1018b39746",
+      "functions": [],
+      "classes": [],
+      "imports": [
+        {
+          "source": "vite",
+          "specifiers": [
+            "defineConfig"
+          ]
+        },
+        {
+          "source": "@crxjs/vite-plugin",
+          "specifiers": [
+            "crx"
+          ]
+        },
+        {
+          "source": "./src/manifest",
+          "specifiers": [
+            "manifest"
+          ]
+        }
+      ],
+      "exports": [],
+      "totalLines": 8,
+      "hasStructuralAnalysis": true
+    },
+    "workflow/popup-page-workflow.dot": {
+      "filePath": "workflow/popup-page-workflow.dot",
+      "contentHash": "d5e3b12e43df815e71615af7a15169d793b028d94a531989b61c03bda5066c07",
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "exports": [],
+      "totalLines": 108,
+      "hasStructuralAnalysis": false
+    }
+  }
+}
